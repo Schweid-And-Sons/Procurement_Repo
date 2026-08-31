@@ -21,7 +21,36 @@ git --version
 
 ---
 
-## 1) Clone the repository (first time only)
+## 1) Create and activate a virtual environment
+
+Before starting anything, create and activate a virtual environment.
+
+### macOS/Linux
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### Windows (PowerShell)
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+### Windows (Command Prompt)
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+When the environment is active, your terminal usually shows `(.venv)` at the start.
+
+---
+
+## 2) Clone the repository (first time only)
 
 If you do not already have the repo locally, clone it:
 
@@ -32,7 +61,7 @@ cd Procurement_Repo
 
 ---
 
-## 2) Make sure you are on the default branch
+## 3) Make sure you are on the default branch
 
 Usually this is `main` (sometimes `master`):
 
@@ -45,7 +74,7 @@ git pull origin main
 
 ---
 
-## 3) Create a new branch for your work
+## 4) Create a new branch for your work
 
 Use a clear branch name related to your change:
 
@@ -57,7 +86,7 @@ This creates the branch and switches you to it.
 
 ---
 
-## 4) Make your code changes
+## 5) Make your code changes
 
 Edit files as needed in your project.
 
@@ -69,7 +98,7 @@ git status
 
 ---
 
-## 5) Stage your changes
+## 6) Stage your changes
 
 Add specific files:
 
@@ -85,7 +114,7 @@ git add .
 
 ---
 
-## 6) Commit your changes
+## 7) Commit your changes
 
 Write a clear commit message:
 
@@ -95,7 +124,7 @@ git commit -m "Add step-by-step guide for pushing code with branches"
 
 ---
 
-## 7) Push the branch to GitHub
+## 8) Push the branch to GitHub
 
 Push your new branch to remote:
 
@@ -111,7 +140,7 @@ git push
 
 ---
 
-## 8) Open a Pull Request (PR)
+## 9) Open a Pull Request (PR)
 
 1. Go to the repository on GitHub:
    `https://github.com/Schweid-And-Sons/Procurement_Repo`
@@ -121,7 +150,7 @@ git push
 
 ---
 
-## 9) Keep your branch updated (optional but recommended)
+## 10) Keep your branch updated (optional but recommended)
 
 If `main` has moved forward while you are working:
 
@@ -140,7 +169,7 @@ git push
 
 ---
 
-## 10) After merge: clean up branch
+## 11) After merge: clean up branch
 
 After PR is merged:
 
@@ -161,6 +190,8 @@ git push origin --delete feature/add-readme-guide
 ## Quick Command Summary
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 git clone https://github.com/Schweid-And-Sons/Procurement_Repo.git
 cd Procurement_Repo
 git checkout main
