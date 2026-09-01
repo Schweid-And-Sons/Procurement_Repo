@@ -1,0 +1,3412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schweid & Sons WMS · NJ Direct Materials</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  
+  :root {
+    color-scheme: light;
+    --bg:#f1f5f9;--surface:#ffffff;--surface2:#f8fafc;--border:#e2e8f0;
+    --accent:#2563eb;--accent2:#0891b2;--success:#16a34a;--warn:#d97706;
+    --danger:#dc2626;
+    --text:#0f172a;--text2:#334155;--text3:#64748b;
+    --occ:#2563eb;
+    --empty-bg:#dcfce7;--empty-bd:#16a34a;--empty-tx:#166534;
+    --floor-occ:#f59e0b;--floor-occ-bd:#d97706;--floor-emp:#f1f5f9;
+    --bad-bg:#fef2f2;--warn-bg:#fffbeb;
+  }
+  body.theme-dark, html.theme-dark {
+    color-scheme: dark;
+    --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3350;
+    --accent:#3b82f6;--accent2:#22d3ee;--success:#22c55e;--warn:#f59e0b;
+    --danger:#ef4444;
+    --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+    --occ:#3b82f6;
+    --empty-bg:#166534;--empty-bd:#22c55e;--empty-tx:#86efac;
+    --floor-occ:#f59e0b;--floor-occ-bd:#d97706;--floor-emp:#1a1d27;
+    --bad-bg:#3a1a1a;--warn-bg:#3a2a10;
+  }
+  .theme-toggle-btn{flex:1;padding:10px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;transition:all .15s;text-align:center;}
+  .theme-toggle-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{background:var(--bg);}
+  body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;min-height:100vh;font-size:13px;}
+  .app{display:flex;height:100vh;overflow:hidden;}
+
+  
+  .sidebar{width:260px;min-width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  .logo{padding:14px 16px;border-bottom:1px solid var(--border);}
+  .logo h1{font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--accent2);line-height:1.4;}
+  .logo .sub{font-size:9px;color:var(--text3);margin-top:3px;letter-spacing:.06em;}
+  .logo .credit{font-size:9px;color:var(--text3);margin-top:1px;letter-spacing:.04em;font-style:italic;}
+  .nav{padding:6px 8px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;}
+  .nav-btn{padding:6px 2px;border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:4px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:.04em;text-transform:uppercase;transition:all .15s;text-align:center;}
+  .nav-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .nav-btn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+  
+  .sidebar-body{flex:1;overflow-y:auto;padding:8px;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
+  .stat{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px;}
+  .stat-num{font-size:20px;font-weight:700;color:var(--accent);}
+  .stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+  .search-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;width:100%;color:var(--text);font-family:inherit;font-size:12px;margin-bottom:8px;}
+  .search-box:focus{outline:none;border-color:var(--accent);}
+  .search-box::placeholder{color:var(--text3);}
+  .side-item{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:5px;cursor:pointer;transition:border-color .15s;}
+  .side-item:hover{border-color:var(--accent);}
+  .side-item.selected{border-color:var(--accent);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--accent);}
+  .side-code{font-size:11px;font-weight:700;color:var(--accent2);}
+  .side-name{font-size:10px;color:var(--text2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .side-qty{font-size:10px;color:var(--text3);margin-top:2px;}
+  .side-phys{font-size:9px;color:var(--warn);margin-top:1px;letter-spacing:.03em;}
+  .sidebar-footer{padding:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;}
+  .export-btn{padding:10px;background:var(--success);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;transition:opacity .15s;}
+  .export-btn:hover{opacity:.85;}
+  .import-btn{padding:10px;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;}
+  .import-btn:hover{background:var(--accent2);color:#000;}
+  .sync-btn{padding:10px;background:transparent;color:#0ea5e9;border:1px solid #0ea5e9;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;}
+  .sync-btn:hover{background:#0ea5e9;color:#fff;}
+  .boxroom-modal-box{background:#fff;max-width:1000px;margin:0 auto;padding:16px;border-radius:12px;}
+  #boxroom-overlay{overflow-y:auto;align-items:flex-start;padding:20px 0;}
+  .boxroom-toolbar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px;flex-wrap:wrap;}
+  .sync-hist-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2);}
+  .sync-hist-row:last-child{border-bottom:none;}
+  .sync-import-btn{padding:5px 11px;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:5px;cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;text-transform:uppercase;white-space:nowrap;}
+  .sync-import-btn:hover{background:var(--accent2);color:#000;}
+  .clear-all-btn{padding:10px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;}
+  .clear-all-btn:hover{background:var(--danger);color:#fff;}
+  .import-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:11px;color:var(--text);z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none;}
+  .import-toast.success{border-color:var(--success);color:var(--success);}
+  .import-toast.error{border-color:var(--danger);color:var(--danger);}
+
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  
+  .section-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;min-width:90px;transition:border-color .15s;}
+  .section-block:hover{border-color:var(--accent2);}
+  .section-label{cursor:pointer;transition:color .15s;}
+  .section-label:hover{color:var(--accent2);}
+  .sec-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:300;}
+  .sec-panel-overlay.hidden{display:none;}
+  .sec-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0;width:360px;max-width:96vw;max-height:80vh;display:flex;flex-direction:column;}
+  .sec-panel-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .sec-panel-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);}
+  .sec-panel-close{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0 4px;}
+  .sec-panel-body{overflow-y:auto;padding:10px 14px;flex:1;}
+  .sec-panel-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px;}
+  .sec-panel-row:last-child{border-bottom:none;}
+  .sec-row-loc{font-family:'Courier New',monospace;color:var(--text3);font-size:10px;min-width:90px;}
+  .sec-row-code{color:var(--accent2);font-weight:700;min-width:70px;}
+  .sec-row-name{color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sec-row-qty{color:var(--accent);font-weight:700;min-width:40px;text-align:right;}
+  .sec-row-map{padding:3px 7px;background:transparent;border:1px solid var(--accent2);color:var(--accent2);border-radius:4px;cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;text-transform:uppercase;white-space:nowrap;}
+  .sec-panel-empty{color:var(--text3);font-size:11px;text-align:center;padding:20px 0;}
+
+  
+  .item-card{cursor:pointer;transition:border-color .15s,box-shadow .15s;}
+  .item-card:hover{border-color:var(--accent2)!important;box-shadow:0 0 0 1px var(--accent2);}
+  .iloc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:300;}
+  .iloc-overlay.hidden{display:none;}
+  .iloc-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:340px;max-width:96vw;max-height:78vh;display:flex;flex-direction:column;}
+  .iloc-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .iloc-title{font-size:12px;font-weight:700;color:var(--accent2);letter-spacing:.06em;}
+  .iloc-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+  .iloc-close{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0;flex-shrink:0;}
+  .iloc-body{overflow-y:auto;padding:10px 14px;flex:1;}
+  .iloc-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+  .iloc-row:last-child{border-bottom:none;}
+  .iloc-loc{font-family:'Courier New',monospace;color:var(--text3);font-size:10px;flex:1;}
+  .iloc-qty{color:var(--accent);font-weight:700;font-size:12px;}
+  .iloc-map-btn{padding:4px 9px;background:var(--accent2);color:#000;border:none;border-radius:4px;cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;text-transform:uppercase;white-space:nowrap;}
+  .iloc-nostock{color:var(--text3);font-size:11px;text-align:center;padding:20px 0;}
+
+  
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  .topbar{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surface);flex-wrap:wrap;}
+  .topbar-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text2);}
+  .mode-tabs{display:flex;gap:4px;}
+  .mode-tab{padding:5px 10px;border:1px solid var(--border);background:transparent;color:var(--text3);border-radius:4px;cursor:pointer;font-family:inherit;font-size:10px;letter-spacing:.06em;text-transform:uppercase;transition:all .15s;}
+  .mode-tab.active{border-color:var(--accent2);color:var(--accent2);}
+  .topbar-search{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:5px 10px;color:var(--text);font-family:inherit;font-size:11px;margin-left:auto;}
+  .topbar-search:focus{outline:none;border-color:var(--accent);}
+  .topbar-search::placeholder{color:var(--text3);}
+  .content{flex:1;overflow-y:auto;padding:16px;}
+
+  
+  .map-area{margin-bottom:22px;}
+  .map-area-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+  .map-area-title span{flex:1;height:1px;background:var(--border);}
+  .sections-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .section-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;min-width:90px;}
+  .section-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+  .tier-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+  .tier-lbl{font-size:9px;color:var(--text3);width:16px;flex-shrink:0;}
+  .pos-cell{width:30px;height:30px;border-radius:4px;border:1px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:8px;font-weight:700;}
+  .pos-cell.empty{background:var(--empty-bg);border-color:var(--empty-bd);color:var(--empty-tx);}
+  .pos-cell.empty:hover{filter:brightness(1.3);}
+  .pos-cell.occupied{background:var(--occ);border-color:var(--accent);color:#fff;}
+  .pos-cell.occupied:hover{opacity:.8;}
+  .pos-cell.highlighted{background:var(--accent2)!important;border-color:var(--accent2)!important;color:#000!important;box-shadow:0 0 0 2px var(--accent2);}
+  .floor-slots{display:flex;gap:5px;flex-wrap:wrap;}
+  .floor-cell{width:32px;height:32px;border-radius:5px;border:1px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:9px;font-weight:700;}
+  .floor-cell.empty{background:var(--floor-emp);border-color:var(--border);color:var(--text3);}
+  .floor-cell.empty:hover{border-color:var(--warn);color:var(--warn);}
+  .floor-cell.occupied{background:var(--floor-occ);border-color:var(--floor-occ-bd);color:#000;}
+  .floor-cell.occupied:hover{opacity:.8;}
+  .floor-cell.highlighted{background:var(--accent2)!important;border-color:var(--accent2)!important;color:#000!important;}
+  .legend{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+  .leg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);}
+  .leg-dot{width:14px;height:14px;border-radius:3px;border:1px solid;}
+  .count-banner{background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--accent);}
+  .count-session-banner{background:var(--surface2);border:1px solid #eab308;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:#facc15;font-weight:700;}
+  @keyframes unrevPulse{
+    0%,100%{background-image:linear-gradient(rgba(250,204,21,.35),rgba(250,204,21,.35));}
+    50%{background-image:linear-gradient(rgba(254,249,195,.55),rgba(254,249,195,.55));}
+  }
+  .pos-cell.unreviewed{animation:unrevPulse 1.4s ease-in-out infinite;}
+  .floor-cell.unreviewed{animation:unrevPulse 1.4s ease-in-out infinite;}
+  .count-session-btn{padding:10px;background:transparent;color:#facc15;border:1px solid #eab308;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:all .15s;}
+  .count-session-btn:hover{background:#eab308;color:#000;}
+  .count-session-btn.active{background:#eab308;color:#000;}
+
+  
+  .subs-banner{background:rgba(255,170,0,.12);border:1px solid rgba(255,170,0,.45);color:var(--text);border-radius:6px;padding:9px 12px;font-size:10px;font-weight:700;letter-spacing:.04em;margin-bottom:14px;text-align:center;}
+  .sub-plain{color:var(--danger);font-weight:800;font-size:13px;letter-spacing:.04em;}
+  .sub-code{color:var(--accent2);font-weight:700;white-space:nowrap;}
+  .subs-none td{background:rgba(255,60,60,.07);color:#ff7070;}
+  
+  .am-legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .am-leg{font-size:10px;padding:3px 8px;border-radius:4px;font-weight:600;}
+  .am-leg-ok{background:rgba(34,197,94,.15);color:var(--success);}
+  .am-leg-warn{background:rgba(245,158,11,.15);color:var(--warn);}
+  .am-leg-err{background:rgba(239,68,68,.15);color:var(--danger);}
+  .am-banner-result{padding:12px 16px;border-radius:7px;font-size:12px;font-weight:700;letter-spacing:.04em;text-align:center;margin-bottom:4px;}
+  .am-banner-ok{background:rgba(34,197,94,.18);border:1px solid rgba(34,197,94,.5);color:var(--success);}
+  .am-banner-warn{background:rgba(245,158,11,.18);border:1px solid rgba(245,158,11,.5);color:var(--warn);}
+  .am-banner-err{background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.5);color:var(--danger);}
+  .am-row-err td{background:rgba(239,68,68,.07);}
+  .am-row-warn td{background:rgba(245,158,11,.07);}
+  .am-row-ok td{background:transparent;}
+  .cat-section{margin-bottom:24px;}
+  .cat-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .cat-title{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent2);}
+  .cat-line{flex:1;height:1px;background:var(--border);}
+  .cat-count{font-size:10px;color:var(--text3);white-space:nowrap;}
+  .items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;}
+  .item-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s;}
+  .item-card.in-stock{border-left:3px solid var(--accent);}
+  .item-card.not-stock{opacity:.5;}
+  .ic-code{font-size:11px;font-weight:700;color:var(--accent2);}
+  .ic-name{font-size:11px;color:var(--text2);line-height:1.35;}
+  .ic-footer{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
+  .ic-qty{font-size:14px;font-weight:700;color:var(--accent);}
+  .ic-locs{font-size:10px;color:var(--text3);}
+  .ic-phys{font-size:9px;color:var(--warn);margin-top:1px;letter-spacing:.03em;}
+  .ic-badge{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+  .badge-in{background:var(--empty-bg);color:var(--empty-tx);border:1px solid var(--empty-bd);}
+  .badge-out{background:var(--surface);color:var(--text3);border:1px solid var(--border);}
+
+  
+  .loc-table{width:100%;border-collapse:collapse;}
+  .loc-table th{text-align:left;padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);}
+  .loc-table td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:11px;}
+
+  
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:100;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:360px;max-width:96vw;}
+  .modal h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent2);margin-bottom:3px;}
+  .modal-loc{font-size:10px;color:var(--text3);margin-bottom:14px;}
+  .modal label{display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+  .modal select,.modal input[type=number],.modal input[type=text]{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;margin-bottom:12px;}
+  .modal select:focus,.modal input:focus{outline:none;border-color:var(--accent);}
+  .modal-actions{display:flex;gap:8px;margin-top:4px;}
+  .btn-primary{flex:1;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;}
+  .btn-clear{padding:9px 14px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;}
+  .btn-cancel{padding:9px 14px;background:transparent;color:var(--text3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;}
+  .hidden{display:none!important;}
+
+  
+
+  
+  @media print{
+    body *{visibility:hidden!important;}
+    #boxroom-printable,#boxroom-printable *{visibility:visible!important;}
+    #boxroom-overlay,.boxroom-modal-box{position:static!important;display:block!important;overflow:visible!important;inset:auto!important;background:none!important;padding:0!important;margin:0!important;max-width:none!important;}
+    #boxroom-printable{position:static!important;width:100%;}
+    .boxroom-page{margin:0;width:8.5in;min-height:11in;page-break-after:always;}
+    .boxroom-page:last-child{page-break-after:auto!important;}
+    @page{size:letter portrait;margin:0;}
+  }
+
+  
+  
+  .modal-item-row{display:flex;gap:6px;align-items:center;margin-bottom:12px;}
+  .modal-item-card{padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;display:flex;flex-direction:column;gap:2px;}
+  .modal-item-card:last-child{border-bottom:none;}
+  .modal-item-card:hover{background:var(--surface);}
+  .modal-item-card.selected{background:var(--accent);color:#fff;}
+  .modal-item-card.selected .mic-code{color:#fff;}
+  .modal-item-card.selected .mic-name{color:rgba(255,255,255,.85);}
+  .modal-item-card.selected .mic-phys{color:rgba(255,255,255,.7);}
+  .mic-code{font-size:11px;font-weight:700;color:var(--accent2);}
+  .mic-name{font-size:10px;color:var(--text2);}
+  .mic-phys{font-size:9px;color:var(--warn);}
+  .mic-cat{font-size:9px;color:var(--text3);}
+  .modal-item-row select{flex:1;margin-bottom:0;}
+
+  
+  .hamburger{display:none;background:none;border:1px solid var(--border);border-radius:5px;color:var(--text2);cursor:pointer;padding:6px 10px;font-size:18px;line-height:1;flex-shrink:0;}
+  .hamburger:hover{border-color:var(--accent);color:var(--accent);}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;}
+  .sidebar-overlay.active{display:block;}
+
+  
+  @media(max-width:900px){
+    .sidebar{width:200px;min-width:200px;}
+    .logo h1{font-size:11px;}
+    .stat-num{font-size:17px;}
+    .nav{grid-template-columns:1fr 1fr 1fr;gap:3px;}
+    .nav-btn{font-size:8px;padding:5px 2px;}
+    .sections-row{gap:6px;}
+    .section-block{min-width:96px;padding:6px;}
+    .tier-row{gap:7px;}
+    .pos-cell{width:40px;height:40px;font-size:9px;}
+    .floor-cell{width:42px;height:42px;font-size:10px;}
+    .items-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));}
+  }
+
+  
+  
+  .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:48;padding:4px 0 env(safe-area-inset-bottom,4px);}
+  .bottom-nav-inner{display:flex;gap:0;}
+  .bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px;background:none;border:none;color:var(--text3);cursor:pointer;font-family:inherit;font-size:8px;letter-spacing:.04em;text-transform:uppercase;gap:2px;transition:color .15s;}
+  .bnav-btn.active{color:var(--accent);}
+  .bnav-btn:hover:not(.active){color:var(--accent2);}
+  .bnav-icon{font-size:16px;line-height:1;}
+
+  @media(max-width:679px){
+    
+    .sidebar{
+      position:fixed;top:0;left:0;bottom:0;
+      z-index:50;width:82vw;max-width:300px;min-width:0;
+      transform:translateX(-105%);
+      transition:transform .25s cubic-bezier(.4,0,.2,1);
+      box-shadow:4px 0 24px rgba(0,0,0,.18);
+    }
+    .sidebar.open{transform:translateX(0);}
+    .nav{display:none;}
+    .bottom-nav{display:block;}
+    .content{padding-bottom:70px;}
+
+    
+    .app{display:flex;flex-direction:row;}
+    .main{flex:1;width:100%;min-width:0;}
+    .hamburger{display:flex;align-items:center;justify-content:center;}
+
+    
+    .topbar{padding:8px 10px;gap:8px;flex-wrap:nowrap;}
+    .topbar-title{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;}
+    .mode-tabs{gap:3px;}
+    .mode-tab{padding:5px 7px;font-size:9px;}
+
+    
+    .content{padding:10px 10px 70px 10px;overflow-x:hidden;}
+
+    
+    .sections-row{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;gap:6px;}
+    .section-block{min-width:92px;flex-shrink:0;padding:6px;}
+    .tier-row{gap:7px;}
+    .pos-cell{width:38px;height:38px;font-size:9px;}
+    .floor-slots{gap:7px;}
+    .floor-cell{width:40px;height:40px;font-size:10px;}
+    .legend{gap:8px;}
+    .leg{font-size:9px;}
+
+    
+    .items-grid{grid-template-columns:1fr;}
+    .item-card{padding:8px 10px;}
+
+    
+
+    
+    .loc-table-wrap{overflow-x:auto;}
+
+    
+    .stat-grid{grid-template-columns:repeat(4,1fr);gap:4px;}
+    .stat{padding:6px;}
+    .stat-num{font-size:15px;}
+    .stat-lbl{font-size:8px;}
+
+    
+    .modal{width:94vw;}
+    .ro-modal{width:94vw;}
+    .pin-modal{width:90vw;}
+  }
+
+  
+  @media(max-width:399px){
+    .topbar-title{max-width:80px;}
+    .bnav-btn{font-size:7px;padding:4px 1px;}
+    .bnav-icon{font-size:14px;}
+    .stat-grid{grid-template-columns:1fr 1fr;gap:4px;}
+    .mode-tab{padding:4px 5px;font-size:9px;letter-spacing:0;}
+  }
+
+  
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+  
+  .pin-modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:300px;max-width:96vw;text-align:center;}
+  .pin-modal h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent2);margin-bottom:6px;}
+  .pin-modal p{font-size:11px;color:var(--text3);margin-bottom:18px;}
+  .pin-dots{display:flex;justify-content:center;gap:10px;margin-bottom:18px;}
+  .pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;}
+  .pin-dot.filled{background:var(--accent);border-color:var(--accent);}
+  .pin-dot.error{background:var(--danger);border-color:var(--danger);}
+  .pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+  .pin-key{padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:all .15s;}
+  .pin-key:hover{border-color:var(--accent);color:var(--accent);}
+  .pin-key:active{transform:scale(.95);}
+  .pin-key.del{font-size:13px;color:var(--text3);}
+  .pin-key.wide{grid-column:span 3;font-size:11px;padding:10px;color:var(--text3);font-weight:400;}
+  .pin-error-msg{font-size:11px;color:var(--danger);min-height:16px;margin-bottom:8px;}
+  .pin-change-wrap{margin-top:8px;border-top:1px solid var(--border);padding-top:12px;}
+  .pin-change-link{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;}
+  .pin-change-link:hover{color:var(--accent);}
+
+  
+  .ro-modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:340px;max-width:96vw;}
+  .ro-modal h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text2);margin-bottom:3px;}
+  .ro-loc{font-size:10px;color:var(--text3);margin-bottom:14px;}
+  .ro-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+  .ro-row:last-of-type{border-bottom:none;}
+  .ro-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+  .ro-val{font-size:12px;font-weight:700;color:var(--accent2);}
+  .ro-empty{font-size:12px;color:var(--text3);font-style:italic;}
+  .ro-badge{font-size:9px;padding:3px 8px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+  .ro-badge.locked{background:var(--surface2);border-color:var(--accent2);color:var(--accent2);}
+
+  
+  .log-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .log-clear-btn{padding:6px 14px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:5px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;transition:all .15s;}
+  .log-clear-btn:hover{background:var(--danger);color:#fff;}
+  .log-count{font-size:10px;color:var(--text3);margin-left:auto;}
+  .log-table{width:100%;border-collapse:collapse;}
+  .log-table th{text-align:left;padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);white-space:nowrap;}
+  .log-table td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:11px;vertical-align:middle;}
+  .log-table tr:hover td{background:var(--surface2);}
+  .log-action-save{color:var(--success);font-weight:700;font-size:10px;padding:2px 7px;border-radius:10px;background:#14532d;border:1px solid #166534;}
+  .log-action-clear{color:#fca5a5;font-weight:700;font-size:10px;padding:2px 7px;border-radius:10px;background:#3a1a1a;border:1px solid var(--danger);}
+  .log-action-import{color:#fde68a;font-weight:700;font-size:10px;padding:2px 7px;border-radius:10px;background:#3a2a0a;border:1px solid var(--warn);}
+  .log-action-clearall{color:#f9a8d4;font-weight:700;font-size:10px;padding:2px 7px;border-radius:10px;background:#3a1a2a;border:1px solid #ec4899;}
+  .log-action-clear-section{color:#fed7aa;font-weight:700;font-size:10px;padding:2px 7px;border-radius:10px;background:#3a2010;border:1px solid #f97316;}
+  .log-action-undo{color:#bae6fd;font-weight:700;font-size:10px;padding:2px 7px;border-radius:10px;background:#0c2a3a;border:1px solid #0ea5e9;}
+  .log-action-count{color:#fef9c3;font-weight:700;font-size:10px;padding:2px 7px;border-radius:10px;background:#3a3010;border:1px solid #eab308;}
+  .log-undo-btn{padding:4px 9px;background:transparent;color:#0ea5e9;border:1px solid #0ea5e9;border-radius:5px;cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;transition:all .15s;}
+  .log-undo-btn:hover{background:#0ea5e9;color:#fff;}
+  .log-empty{color:var(--text3);text-align:center;padding:40px;font-size:12px;}
+  .plan-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .plan-meta{font-size:10px;color:var(--text3);margin-bottom:12px;}
+  .plan-delivered-input{width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:5px 7px;font-family:inherit;font-size:11px;}
+  .plan-rem-ok{color:var(--success);font-weight:700;}
+  .plan-rem-pending{color:var(--danger);font-weight:700;}
+  .plan-rem-over{color:var(--accent2);font-weight:700;}
+  .plan-alert{background:var(--surface2);border:1px solid var(--danger);border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--danger);font-weight:700;}
+  .plan-table td,.plan-table th{white-space:nowrap;}
+
+  
+  .stats-subtabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap;}
+  .stats-subtab{padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--text3);border-radius:4px;cursor:pointer;font-family:inherit;font-size:10px;letter-spacing:.06em;text-transform:uppercase;transition:all .15s;}
+  .client-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .client-chip{padding:6px 13px;border:1px solid var(--accent2);background:transparent;color:var(--accent2);border-radius:16px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;transition:all .15s;}
+  .client-chip:hover{background:var(--accent2);color:#000;}
+  .client-chip.active{background:var(--accent2);color:#000;}
+  .client-chip-clear{border-color:var(--text3);color:var(--text3);}
+  .client-chip-clear:hover{background:var(--text3);color:var(--bg);}
+  .stats-subtab.active{background:var(--accent2);border-color:var(--accent2);color:#000;font-weight:700;}
+  .stats-subtab:hover:not(.active){border-color:var(--accent2);color:var(--accent2);}
+  .stats-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px;}
+  .stats-kpi{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;}
+  .stats-kpi-num{font-size:28px;font-weight:700;color:var(--accent);}
+  .stats-kpi-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:4px;}
+  .stats-section-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
+  .stats-section-title span{flex:1;height:1px;background:var(--border);}
+  .area-bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;}
+  .area-bar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px;}
+  .area-bar-name{font-weight:700;color:var(--text2);}
+  .area-bar-pct{color:var(--accent2);font-weight:700;font-size:12px;}
+  .area-bar-track{background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;}
+  .area-bar-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .3s;}
+  .area-bar-fill.high{background:var(--danger);}
+  .area-bar-fill.med{background:var(--warn);}
+  .area-bar-sub{font-size:9px;color:var(--text3);margin-top:4px;}
+  .cat-block{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+  .cat-block-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;transition:background .12s;}
+  .cat-block-header:hover{background:var(--surface2);}
+  .cat-block-title{font-size:11px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.08em;}
+  .cat-block-meta{font-size:10px;color:var(--text3);}
+  .cat-block-qty{font-size:14px;font-weight:700;color:var(--accent);margin-left:12px;}
+  .cat-block-chevron{font-size:12px;color:var(--text3);transition:transform .2s;}
+  .cat-block-chevron.open{transform:rotate(90deg);}
+  .cat-block-body{border-top:1px solid var(--border);display:none;}
+  .cat-block-body.open{display:block;}
+  .cat-item-row{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;border-bottom:1px solid var(--border);font-size:11px;}
+  .cat-item-row:last-child{border-bottom:none;}
+  .cat-item-code{color:var(--accent2);font-weight:700;min-width:130px;}
+  .cat-item-name{color:var(--text2);flex:1;padding:0 8px;font-size:10px;}
+  .cat-item-qty{color:var(--accent);font-weight:700;min-width:60px;text-align:right;}
+  .cat-item-locs{color:var(--text3);font-size:9px;min-width:70px;text-align:right;}
+  .stats-table{width:100%;border-collapse:collapse;}
+  .stats-table th{text-align:left;padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+  .stats-table th:hover{color:var(--accent2);}
+  .stats-table td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:11px;}
+  .stats-table tr:hover td{background:var(--surface2);}
+  .no-stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:5px;}
+  .no-stock-item{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px;opacity:.6;}
+  .no-stock-code{font-size:10px;font-weight:700;color:var(--text3);}
+  .no-stock-name{font-size:9px;color:var(--text3);margin-top:2px;}
+
+  
+  .add-item-btn{padding:10px;background:transparent;color:var(--warn);border:1px solid var(--warn);border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;}
+  .add-item-btn:hover{background:var(--warn);color:#000;}
+  .custom-item-modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:360px;max-width:96vw;}
+  .custom-item-modal h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--warn);margin-bottom:14px;}
+  .custom-item-modal label{display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+  .custom-item-modal input,.custom-item-modal select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;margin-bottom:12px;}
+  .custom-item-modal input:focus,.custom-item-modal select:focus{outline:none;border-color:var(--warn);}
+
+  
+  .recon-wrap{max-width:1100px;margin:0 auto;}
+  .recon-step{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;}
+  .recon-h{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+  .recon-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;}
+  .recon-sub{font-size:10px;color:var(--text3);margin-bottom:10px;line-height:1.5;}
+  .recon-formula{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:10px;color:var(--text2);margin-bottom:10px;}
+  .recon-uploads{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:700px){.recon-uploads{grid-template-columns:1fr;}}
+  .recon-card{background:var(--surface2);border:1px dashed var(--border);border-radius:8px;padding:12px;}
+  .recon-card.loaded{border-style:solid;border-color:var(--success);}
+  .rc-lbl{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:2px;}
+  .rc-hint{font-size:9px;color:var(--text3);margin-bottom:7px;}
+  .recon-card input[type=file]{font-size:10px;color:var(--text2);width:100%;}
+  .rc-st{font-size:10px;margin-top:5px;color:var(--text3);}
+  .rc-st.ok{color:var(--success);}.rc-st.err{color:var(--danger);}.rc-st.work{color:var(--warn);}
+  .recon-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px;}
+  .recon-tbl th,.recon-tbl td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);}
+  .recon-tbl th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);}
+  .recon-qty{width:80px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:5px 6px;font-family:inherit;font-size:11px;text-align:right;}
+  .recon-qty:focus{outline:none;border-color:var(--accent);}
+  .recon-sel{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:5px 6px;font-family:inherit;font-size:11px;min-width:200px;}
+  .recon-sel option{background:var(--surface);color:var(--text);}
+  .recon-sel:focus{outline:none;border-color:var(--accent);}
+  .recon-sel.bad{border-color:var(--danger);background:var(--bad-bg);color:var(--danger);}
+  .recon-raw{font-size:9px;color:var(--text3);font-style:italic;}
+  .recon-code{color:var(--accent2);font-weight:700;}
+  .recon-var{font-weight:700;border-radius:4px;padding:3px 7px;color:#fff;display:inline-block;}
+  .rv-grave{background:var(--danger);}.rv-sobre{background:var(--warn);}.rv-falta{background:#7b241c;}.rv-faltal{background:#4a235a;}.rv-ok{background:var(--success);}
+  .recon-add{margin-top:8px;padding:6px 12px;background:transparent;border:1px solid var(--accent2);color:var(--accent2);border-radius:4px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;text-transform:uppercase;}
+  .recon-del{color:var(--danger);cursor:pointer;font-weight:700;}
+  .recon-warn{background:var(--warn-bg);border:1px solid var(--warn);border-radius:6px;padding:8px 12px;font-size:10px;color:var(--warn);margin-top:8px;}
+  .recon-legend{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;font-size:9px;}
+  .recon-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--text3);}
+  .recon-legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  .recon-btn-run{padding:11px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
+  .recon-btn-run:disabled{opacity:.4;cursor:not-allowed;}
+  .recon-btn-exp{padding:10px 16px;background:var(--success);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
+
+  
+  @media(min-width:680px) and (max-height:600px){
+    .hamburger{display:flex;align-items:center;justify-content:center;}
+    .sidebar-footer-always{display:none;}
+  }
+  
+  .actions-drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:flex;align-items:flex-start;justify-content:flex-start;}
+  .actions-drawer-overlay.hidden{display:none;}
+  .actions-drawer{background:var(--surface);border-right:1px solid var(--border);width:260px;height:100%;display:flex;flex-direction:column;box-shadow:4px 0 24px rgba(0,0,0,.25);overflow-y:auto;}
+  .actions-drawer-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);flex-shrink:0;}
+  .actions-drawer-body{padding:10px;display:flex;flex-direction:column;gap:6px;flex:1;}
+</style>
+<script>
+
+try{
+  const saved=localStorage.getItem('wms_theme');
+  const useDark=saved==='dark'||(saved===null&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if(useDark){
+    document.documentElement.classList.add('theme-dark');
+    document.addEventListener('DOMContentLoaded',function(){
+      document.body.classList.add('theme-dark');
+      const btn=document.getElementById('theme-btn');
+      if(btn)btn.textContent='☀️ Day Mode';
+    });
+  }
+}catch(e){}
+</script>
+</head>
+<body>
+<div class="app">
+
+  
+  <div class="sidebar">
+    <div class="logo">
+      <h1>Schweid &amp; Sons · WMS</h1>
+      <div class="sub">NJ · Direct Materials Inventory</div>
+      <div class="credit">Julian Dominguez · Inventory Control Specialist</div>
+    </div>
+    <div class="nav">
+      <button class="nav-btn active" onclick="setView('map')">Map</button>
+      <button class="nav-btn" onclick="setView('items')">Items</button>
+      <button class="nav-btn" onclick="setView('stats')">Stats</button>
+      <button class="nav-btn" onclick="setView('plan')">Daily Plan</button>
+      <button class="nav-btn" onclick="setView('log')">Log</button>
+    </div>
+    <div class="sidebar-body">
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-num" id="stat-racks">0</div><div class="stat-lbl">Racks Avail/Total</div></div>
+        <div class="stat"><div class="stat-num" id="stat-floor" style="color:var(--success)">0</div><div class="stat-lbl">Floor Avail/Total</div></div>
+        <div class="stat"><div class="stat-num" id="stat-units" style="color:var(--warn)">0</div><div class="stat-lbl">Total Units</div></div>
+        <div class="stat"><div class="stat-num" id="stat-skus" style="color:var(--accent2)">0</div><div class="stat-lbl">SKUs Active/Catalog</div></div>
+      </div>
+      <input class="search-box" id="sidebar-search" placeholder="Search item or code..." oninput="renderSidebar()">
+      <div id="sidebar-list"></div>
+    </div>
+    <div class="sidebar-footer sidebar-footer-always">
+      <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()">🌙 Night Mode</button>
+      <button class="count-session-btn" id="count-session-btn" onclick="toggleCountSession()">🟡 Start Count Mode</button>
+      <select id="count-type-sel" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;">
+        <option value="pre9">Pre 9am Count</option>
+        <option value="post9">Post 9am Count</option>
+        <option value="eom">EOM Count</option>
+      </select>
+      <button class="export-btn" onclick="exportExcel()">⬇ Export to Excel</button>
+      <button class="import-btn" onclick="triggerImport()">⬆ Import from Excel</button>
+      <button class="sync-btn" onclick="openSyncModal()">☁ Sync with SharePoint</button>
+      <button class="import-btn" onclick="openBoxRoomMap()">📦 Box Room Map</button>
+      <input type="file" id="import-file-input" accept=".xlsx" style="display:none" onchange="importExcel(this)">
+      <button class="clear-all-btn" onclick="triggerClearAll()">🗑 Clear All Inventory</button>
+      <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal()">🗑 Clear Section</button>
+      <button class="add-item-btn" onclick="openAddItemModal()">＋ Add Custom Item</button>
+    </div>
+  </div>
+
+  
+  <div class="main">
+    <div class="topbar">
+      <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+      <span class="topbar-title" id="view-title">Warehouse Map</span>
+      <div class="mode-tabs" id="mode-tabs">
+        <button class="mode-tab active" onclick="setMode('browse')">Browse</button>
+        <button class="mode-tab" onclick="setMode('count')">Count Mode</button>
+      </div>
+      <div id="topbar-search-wrap" class="hidden" style="align-items:center;gap:6px;margin-left:auto;">
+        <input class="topbar-search" style="margin-left:0" id="topbar-search" placeholder="Search items..." oninput="renderItemsView(this.value)">
+      </div>
+    </div>
+    <div class="content" id="main-content"></div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="actions-drawer-overlay hidden" id="actions-drawer-overlay" onclick="closeActionsDrawer(event)">
+  <div class="actions-drawer" id="actions-drawer">
+    <div class="actions-drawer-header">
+      <span>Actions</span>
+      <button onclick="closeActionsDrawer()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+    </div>
+    <div class="actions-drawer-body">
+      <button class="theme-toggle-btn" id="theme-btn-drawer" onclick="toggleTheme()">🌙 Night Mode</button>
+      <button class="count-session-btn" id="count-session-btn-drawer" onclick="toggleCountSession()">🟡 Start Count Mode</button>
+      <select id="count-type-sel-drawer" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;" onchange="syncCountTypeSel(this)">
+        <option value="pre9">Pre 9am Count</option>
+        <option value="post9">Post 9am Count</option>
+        <option value="eom">EOM Count</option>
+      </select>
+      <button class="export-btn" onclick="exportExcel();closeActionsDrawer()">⬇ Export to Excel</button>
+      <button class="import-btn" onclick="triggerImport();closeActionsDrawer()">⬆ Import from Excel</button>
+      <button class="sync-btn" onclick="openSyncModal();closeActionsDrawer()">☁ Sync with SharePoint</button>
+      <button class="import-btn" onclick="openBoxRoomMap();closeActionsDrawer()">📦 Box Room Map</button>
+      <button class="clear-all-btn" onclick="triggerClearAll();closeActionsDrawer()">🗑 Clear All Inventory</button>
+      <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal();closeActionsDrawer()">🗑 Clear Section</button>
+      <button class="add-item-btn" onclick="openAddItemModal();closeActionsDrawer()">＋ Add Custom Item</button>
+    </div>
+  </div>
+</div>
+
+<div class="sec-panel-overlay hidden" id="sec-panel-overlay" onclick="closeSecPanel(event)">
+  <div class="sec-panel">
+    <div class="sec-panel-head">
+      <div>
+        <div class="sec-panel-title" id="sec-panel-title">Section</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px" id="sec-panel-meta"></div>
+      </div>
+      <button class="sec-panel-close" onclick="closeSecPanel()">✕</button>
+    </div>
+    <div class="sec-panel-body" id="sec-panel-body"></div>
+  </div>
+</div>
+
+<div class="iloc-overlay hidden" id="iloc-overlay" onclick="closeIlocPanel(event)">
+  <div class="iloc-box">
+    <div class="iloc-head">
+      <div>
+        <div class="iloc-title" id="iloc-title"></div>
+        <div class="iloc-sub" id="iloc-sub"></div>
+      </div>
+      <button class="iloc-close" onclick="closeIlocPanel()">✕</button>
+    </div>
+    <div class="iloc-body" id="iloc-body"></div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="bnav-btn active" id="bnav-map" onclick="setView('map')"><span class="bnav-icon">🗺</span>Map</button>
+    <button class="bnav-btn" id="bnav-items" onclick="setView('items')"><span class="bnav-icon">📦</span>Items</button>
+    <button class="bnav-btn" id="bnav-stats" onclick="setView('stats')"><span class="bnav-icon">📊</span>Stats</button>
+    <button class="bnav-btn" id="bnav-plan" onclick="setView('plan')"><span class="bnav-icon">📅</span>Plan</button>
+    <button class="bnav-btn" id="bnav-log" onclick="setView('log')"><span class="bnav-icon">📋</span>Log</button>
+  </div>
+</nav>
+
+<div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Assign Item</h3>
+    <div class="modal-loc" id="modal-loc-label"></div>
+    <label>Item <span id="modal-selected-label" style="color:var(--accent2);font-size:10px;margin-left:6px"></span></label>
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+      <input type="text" id="modal-item-search" placeholder="Search by name or code..." autocomplete="off"
+        style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;"
+        oninput="filterModalItems(this.value)">
+    </div>
+    <input type="hidden" id="modal-item" value="">
+    <div id="modal-item-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;background:var(--surface2);"></div>
+    <label>Qty <span style="color:var(--text3);font-size:9px">(cases / units / rolls — what you count)</span></label>
+    <input type="number" id="modal-qty" min="1" placeholder="e.g. 1000">
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveLocation()">Save</button>
+      <button class="btn-clear" onclick="clearLocation()">Clear Location</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="pin-overlay" onclick="closePinModal(event)">
+  <div class="pin-modal" onclick="event.stopPropagation()" id="pin-modal-box">
+    <h3 id="pin-title">Count Mode</h3>
+    <p id="pin-subtitle">Enter PIN to unlock editing</p>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-error-msg" id="pin-error"></div>
+    <div class="pin-keypad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="closePinModal()">✕</button>
+    </div>
+    <div class="pin-change-wrap" id="pin-change-wrap">
+      <button class="pin-change-link" onclick="startChangePin()">Change PIN</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="ro-overlay" onclick="closeRoModal(event)">
+  <div class="ro-modal" onclick="event.stopPropagation()">
+    <h3>Location Info</h3>
+    <div class="ro-loc" id="ro-loc-label"></div>
+    <div class="ro-row">
+      <span class="ro-lbl">Item Code</span>
+      <span id="ro-item-code" class="ro-val"></span>
+    </div>
+    <div class="ro-row">
+      <span class="ro-lbl">Item Name</span>
+      <span id="ro-item-name" class="ro-val" style="font-size:11px;text-align:right;max-width:200px"></span>
+    </div>
+    <div class="ro-row">
+      <span class="ro-lbl">Category</span>
+      <span id="ro-item-cat" class="ro-val"></span>
+    </div>
+    <div class="ro-row">
+      <span class="ro-lbl">Quantity</span>
+      <span id="ro-qty" class="ro-val"></span>
+    </div>
+    <div class="ro-row" style="border-bottom:none;margin-top:4px;justify-content:space-between">
+      <span class="ro-badge locked">🔒 Browse Mode — Read Only</span>
+      <button class="btn-cancel" style="padding:6px 12px;font-size:10px" onclick="closeRoModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="print-area" style="display:none"></div>
+
+<div class="modal-overlay hidden" id="clear-section-overlay" onclick="closeClearSectionModal(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="width:420px">
+    <h3 style="color:var(--warn)">🗑 Clear Section</h3>
+    <div class="modal-loc" style="margin-bottom:12px">Select an area to clear all its positions</div>
+    <label>Area</label>
+    <select id="cs-area-sel" onchange="previewClearSection()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;margin-bottom:12px;">
+      <option value="">-- Select Area --</option>
+    </select>
+    <div id="cs-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:12px;font-size:11px;min-height:48px;color:var(--text3)">
+      Select an area to see what will be cleared.
+    </div>
+    <div id="cs-pin-wrap">
+      <label>PIN to confirm</label>
+      <input type="password" id="cs-pin-input" maxlength="8" placeholder="Enter PIN" 
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:14px;letter-spacing:.3em;margin-bottom:12px;"
+        onkeydown="if(event.key==='Enter')submitClearSection()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" style="background:var(--warn);color:#000" onclick="submitClearSection()">Confirm Clear</button>
+      <button class="btn-cancel" onclick="closeClearSectionModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="add-item-overlay" onclick="closeAddItemModal(event)">
+  <div class="custom-item-modal" onclick="event.stopPropagation()">
+    <h3>＋ Add Custom Item</h3>
+    <label>Item Code <span style="color:var(--text3);font-size:9px">(e.g. BX9999-1)</span></label>
+    <input type="text" id="ai-code" placeholder="e.g. BX9999-1" oninput="this.value=this.value.toUpperCase()">
+    <label>Item Name</label>
+    <input type="text" id="ai-name" placeholder="e.g. Custom Box Description">
+    <label>Category</label>
+    <select id="ai-cat">
+      <option value="">-- Select Category --</option>
+      <option value="BOXES">BOXES</option>
+      <option value="FILM">FILM</option>
+      <option value="PATTY PAPER">PATTY PAPER</option>
+      <option value="SLEEVES">SLEEVES</option>
+      <option value="TRAYS">TRAYS</option>
+      <option value="LINER BAGS">LINER BAGS</option>
+      <option value="LABELS">LABELS</option>
+      <option value="SEASONINGS">SEASONINGS</option>
+      <option value="PACKAGING">PACKAGING</option>
+      <option value="PPE">PPE</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-primary" style="background:var(--warn)" onclick="saveCustomItem()">Add Item</button>
+      <button class="btn-cancel" onclick="closeAddItemModal()">Cancel</button>
+    </div>
+    <div id="ai-custom-list-wrap" style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px;display:none">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Custom Items Added This Session</div>
+      <div id="ai-custom-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="sync-overlay" onclick="closeSyncModal(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="width:440px">
+    <h3 style="color:var(--accent2)">☁ SharePoint Sync</h3>
+    <div id="sync-mode-label" style="font-size:10px;color:var(--text3);margin-bottom:14px">💾 Mode: Local (this device)</div>
+
+    <div class="stats-subtabs">
+      <button class="stats-subtab active" id="sync-tab-export" onclick="setSyncTab('export')">⬆ Export</button>
+      <button class="stats-subtab" id="sync-tab-import" onclick="setSyncTab('import')">⬇ Import</button>
+    </div>
+
+    <div id="sync-export-body">
+      <label>Count shift</label>
+      <select id="sync-turno-sel" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;margin-bottom:12px;">
+        <option value="pre9">Before 9am (Morning)</option>
+        <option value="post9">After 9am (Afternoon)</option>
+        <option value="eom">End of Month (EOM)</option>
+      </select>
+      <button class="btn-primary" style="background:var(--success);width:100%;margin-bottom:8px" onclick="syncExport()">⬆ Upload current inventory copy</button>
+      <div id="sync-export-status" style="font-size:11px;color:var(--text3);min-height:16px"></div>
+    </div>
+
+    <div id="sync-import-body" class="hidden">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px">Importing completely replaces the inventory on screen. It does not merge with the current data.</div>
+      <div id="sync-history-list" style="max-height:260px;overflow-y:auto"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSyncModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="boxroom-overlay" onclick="closeBoxRoomMap(event)">
+  <div class="boxroom-modal-box" onclick="event.stopPropagation()">
+    <div class="boxroom-toolbar">
+      <button class="btn-cancel" onclick="closeBoxRoomMap()">Close</button>
+      <button class="import-btn" onclick="printBoxRoomMap()">🖨 Print / Save PDF</button>
+      <button class="import-btn" onclick="downloadBoxRoomMap()">⬇ Download</button>
+      <button class="sync-btn" onclick="shareBoxRoomMap()">↗ Share</button>
+    </div>
+    <div id="boxroom-printable"></div>
+  </div>
+</div>
+
+<script>
+const CAT_ORDER = ['BOXES','FILM','PATTY PAPER','SLEEVES','TRAYS','LINER BAGS','LABELS','SEASONINGS','PACKAGING','PPE','TOWER ISLE','MISC'];
+
+const PHYS_CODES = {
+  'SL1000-1':['75905','35089','15905'],
+  'SL1050-1':['77805','17805'],
+  'SL1500-1':['74505','14505'],
+  'SL1508-1':['75908','15908'],
+  'SL1600-1':['75705','15705'],
+  'SL1900-1':['74512','14512'],
+  'SL2000-1':['78505','18505'],
+  'SL2050-1':['79915'],
+  'SL2100-1':['78105','18105'],
+  'SL2150-1':['70999','10999'],
+  'SL2200-1':['78905','18905'],
+  'SL2250-1':['76505','16505'],
+  'SL3000-1':['74805','14805'],
+  'SL3505-1':['73505','13505'],
+  'SL4100-1':['78605','18605'],
+  'SL9905-1':['79905'],
+  'SL15099-1':['75099','15099'],
+  'SL15299-1':['75299'],
+  'SL15906-1':['75906','15906'],
+  'SL18512-1':['78512','18512'],
+  'SL18908-1':['78908','18908'],
+};
+
+const PHYS_TO_SL = {};
+Object.entries(PHYS_CODES).forEach(function([sl, physArr]){
+  physArr.forEach(function(p){ PHYS_TO_SL[p] = sl; });
+});
+
+const SUBSTITUTIONS = [
+  {code:'BX1000', box:'SS B1 Fresh',                sub:"SS B25 <span class='sub-code'>(BX1100)</span>", note:'Bidirectional · group B1 ↔ B25 ↔ B8'},
+  {code:'BX1003', box:'Ranchers Select',            sub:"B1 Fresh Plain <span class='sub-code'>(BX1025)</span> / B1 IQF Plain <span class='sub-code'>(BX1075)</span>", note:''},
+  {code:'BX1025', box:'B1 Fresh Plain',             sub:"B1 IQF Plain <span class='sub-code'>(BX1075)</span> / SS B1 Fresh <span class='sub-code'>(BX1000)</span>", note:''},
+  {code:'BX1050', box:'SS B1 IQF',                  sub:"B1 LARGE Fresh 10 <span class='sub-code'>(BX1400)</span>", note:"With 'keep frozen' label", red:true},
+  {code:'BX1075', box:'B1 IQF Plain',               sub:"B1 Fresh Plain <span class='sub-code'>(BX1025)</span>", note:'Fresh lines only, NOT IQF', red:true},
+  {code:'BX1100', box:'SS B25',                     sub:"SS B1 FRESH <span class='sub-code'>(BX1000)</span>", note:'Bidirectional · group B1 ↔ B25 ↔ B8'},
+  {code:'BX1200', box:'SS CAB 10LB',                sub:"SS B1 FRESH <span class='sub-code'>(BX1000)</span>", note:''},
+  {code:'BX1300', box:'SS 4/5 LOAF 20lb',           sub:"SS 4/5 <span class='sub-plain'>PLAIN</span> 20lb <span class='sub-code'>(BX1300)</span>", note:''},
+  {code:'BX1350', box:'SS IQF 20LB',                sub:null, note:''},
+  {code:'BX1400', box:'SS LARGE fresh 10',          sub:"SS B1 IQF 10lb <span class='sub-code'>(BX1050)</span>", note:''},
+  {code:'BX1550', box:'SS 50/60 Tower Isle',        sub:null, note:''},
+  {code:'BX1850', box:'6 Pack Retail Master Case',  sub:null, note:''},
+  {code:'BX2003', box:'Ranchers Select 20lb Loaf',  sub:"SS 4/5 <span class='sub-plain'>PLAIN</span> 20lb <span class='sub-code'>(BX1300)</span>", note:''},
+  {code:'BX2050', box:'SS B8',                      sub:"SS B1 Fresh <span class='sub-code'>(BX1000)</span>", note:"With 'keep frozen' label · group B1 ↔ B25 ↔ B8", red:true},
+  {code:'BX2075', box:'Honor Foods Colony Lane IQF',sub:null, note:''},
+  {code:'BX2300', box:'SS Fresh 20lb',              sub:"SS 4/5 Loaf <span class='sub-code'>(BX1300)</span>", note:'"If the product fits well"', red:true},
+  {code:'BX3000', box:'Cattleman 10lb',             sub:"Cattleman Bulk 10lb <span class='sub-code'>(BX3150)</span>", note:''},
+  {code:'BX3050', box:'Cattleman IQF 10LB',         sub:null, note:''},
+  {code:'BX3100', box:'Cattleman 20lb 4/5 Loaf',    sub:"SS 4/5 Loaf <span class='sub-plain'>PLAIN</span> <span class='sub-code'>(BX1300)</span>", note:''},
+  {code:'BX3125', box:'Plain white 4/5 Loaf',       sub:"SS 4/5 loaf 20lb <span class='sub-code'>(BX1300)</span>", note:''},
+  {code:'BX3150', box:'Cattleman 10lb 2/5 Bulk',    sub:"Cattleman 10lb fresh <span class='sub-code'>(BX3000)</span>", note:''},
+  {code:'BX3200', box:'Harvest Value',              sub:null, note:''},
+  {code:'BX3300', box:'Fresh Stockyard',            sub:null, note:''},
+  {code:'BX4300', box:'Sysco Ref 10lb',             sub:"B1 Fresh Plain <span class='sub-code'>(BX1025)</span>", note:''},
+  {code:'BX5100', box:'Restaurant Depot Red',       sub:null, note:''},
+  {code:'BX6500', box:'Prairie Creek Distinction',  sub:"Prairie Creek Originals <span class='sub-code'>(BX6550)</span>", note:''},
+  {code:'BX6550', box:'Prairie Creek Originals',    sub:"Prairie Creek Distinction <span class='sub-code'>(BX6500)</span>", note:''},
+  {code:'BX7000', box:'Rest Depot (Corningstone)',  sub:null, note:''},
+  {code:'BX7500', box:'FIVE GUYS',                  sub:null, note:''},
+  {code:'BX7600', box:'FIVE GUYS PUCKS',            sub:null, note:''},
+  {code:'BX7800', box:'FUDDRUCKER',                 sub:null, note:''},
+];
+
+/* ── Vendor equivalence (Sonic ↔ PCA) — same physical box, two codes.
+   Global so both the Substitutions view AND Daily Plan can use it. ── */
+const VENDOR_EQUIV=[
+  {a:'BX1000-1',b:'BX1000PCA-1',box:'SS B-1'},
+  {a:'BX1850-1',b:'BX1850PCA-1',box:'6 Pack Retail Master Case'},
+  {a:'BX1875-1',b:'BX1875PCA-1',box:'Retail Carton 6 Bricks'},
+  {a:'BX7500-1',b:'BX7500PCA-1',box:'FIVE GUYS'},
+  {a:'BX7600-1',b:'BX7600PCA-1',box:'5 GUYS FGE PREFORMED'},
+  {a:'BX7700-1',b:'BX7700PCA-1',box:'FIVE GUYS FRESH 3.7OZ 1/2 PATTY L7'},
+];
+function vendorEquivCode(code){
+  const pair=VENDOR_EQUIV.find(r=>r.a===code||r.b===code);
+  if(!pair)return null;
+  return pair.a===code?pair.b:pair.a;
+}
+
+const ITEMS = [
+  
+  {code:'BX1000-1',name:'SS B-1 Sonic',cat:'BOXES'},
+  {code:'BX1000PCA-1',name:'SS B-1 PCA',cat:'BOXES'},
+  {code:'BX1003-1',name:'Ranchers Select',cat:'BOXES'},
+  {code:'BX1025-1',name:'B-1 Fresh Plain',cat:'BOXES'},
+  {code:'BX1050-1',name:'SS B1-IQF',cat:'BOXES'},
+  {code:'BX1075-1',name:'B-1 IQF Plain',cat:'BOXES'},
+  {code:'BX1100-1',name:'SS B-25',cat:'BOXES'},
+  {code:'BX1200-1',name:'SS CAB 10lb',cat:'BOXES'},
+  {code:'BX1300-1',name:'SS 4/5 Loaf',cat:'BOXES'},
+  {code:'BX1350-1',name:'SS IQF 20LB',cat:'BOXES'},
+  {code:'BX1400-1',name:'SS LRG Fresh 10#',cat:'BOXES'},
+  {code:'BX1850-1',name:'6 PACK Master Sonic',cat:'BOXES',client:'Retail'},
+  {code:'BX1850PCA-1',name:'6 PACK Master PCA',cat:'BOXES',client:'Retail'},
+  {code:'BX1875-1',name:'Retail Carton 6 Bricks Sonic',cat:'BOXES',client:'Retail'},
+  {code:'BX1875PCA-1',name:'Retail Carton 6 Bricks PCA',cat:'BOXES',client:'Retail'},
+  {code:'BX1900-1',name:'Retail Carton 4 Trays',cat:'BOXES',client:'Retail'},
+  {code:'BX2003-1',name:'Ranchers Select 20lb Loaf',cat:'BOXES'},
+  {code:'BX2050-1',name:'SSB8 IQF',cat:'BOXES'},
+  {code:'BX2075-1',name:'Honor Foods Colony Lane IQF',cat:'BOXES'},
+  {code:'BX2300-1',name:'SS Fresh 20LB',cat:'BOXES'},
+  {code:'BX3000-1',name:'CATTLEMAN 10lb',cat:'BOXES'},
+  {code:'BX3050-1',name:'CATTLEMAN 10# IQF',cat:'BOXES'},
+  {code:'BX3100-1',name:'CATTLEMAN 20LB 4/5 loaf',cat:'BOXES'},
+  {code:'BX3150-1',name:'CATTLEMAN 10# 2/5 Bulk',cat:'BOXES'},
+  {code:'BX3125-1',name:'Plain white 4/5 Loaf',cat:'BOXES'},
+  {code:'BX3200-1',name:'Harvest Value IQF',cat:'BOXES'},
+  {code:'BX3300-1',name:'Fresh Stockyard',cat:'BOXES'},
+  {code:'BX5LBS-1',name:'5 LB Sample Box S&S Branded',cat:'BOXES'},
+  {code:'BXFSSPLAIN-1',name:'20 LB Sample Box S&S Branded',cat:'BOXES'},
+  {code:'BX1900PCA-1',name:'Retail Carton 4 Trays PCA',cat:'BOXES',client:'Retail'},
+  {code:'BX7500PCA-1',name:'Five Guys Box PCA',cat:'BOXES',client:'Five Guys'},
+  {code:'BX7600PCA-1',name:'Five Guys FGE Preformed PCA',cat:'BOXES',client:'Five Guys'},
+  {code:'BX7700PCA-1',name:'Five Guys Fresh 3.7oz 1/2 Patty L7',cat:'BOXES',client:'Five Guys'},
+  {code:'BX7700-1',name:'Five Guys Fresh 3.7oz 1/2 Patty L7 Sonic',cat:'BOXES',client:'Five Guys'},
+  {code:'BX6500-1',name:'Prairie Creek Distinctions',cat:'BOXES'},
+  {code:'BX6550-1',name:'Prairie Creek Originals',cat:'BOXES'},
+  {code:'BX7500-1',name:'Five Guys Box',cat:'BOXES',client:'Five Guys'},
+  {code:'BX7600-1',name:'Five Guys FGE Preformed',cat:'BOXES',client:'Five Guys'},
+  {code:'BX7800-1',name:'Fuddrucker',cat:'BOXES',client:'Fuddrucker'},
+  {code:'BX7900-1',name:'Burger Fi',cat:'BOXES',client:'Burger Fi'},
+  {code:'BX8200-1',name:'Ranchers Select Large',cat:'BOXES'},
+  
+  {code:'F1000-1',name:'Forming 641 L2&4 366M',cat:'FILM'},
+  {code:'F1000ABX-1',name:'Forming 641 L2&4 366M (ABX)',cat:'FILM'},
+  {code:'F1060-1',name:'Lidding Film 1060 1332M',cat:'FILM'},
+  {code:'F1300-1',name:'Non-Forming 635 L2&4 1219M',cat:'FILM'},
+  {code:'F1300ABX-1',name:'Non-Forming 635 L2&4 (ABX)',cat:'FILM'},
+  {code:'F1400-1',name:'361 Forming L3&6&7 457M',cat:'FILM'},
+  {code:'F1400-4',name:'361 Forming L3&6&7 457M (Atlanta)',cat:'FILM'},
+  {code:'F1750-1',name:'Non-Forming 345 L3&6&7 914M',cat:'FILM'},
+  {code:'F1850-1',name:'Non-Forming 345 Black L3',cat:'FILM'},
+  {code:'F1900-1',name:'362 Forming L3 457M',cat:'FILM'},
+  {code:'E1650060-1',name:'355mm x5250 Anti Fog Lidding',cat:'FILM'},
+  
+  {code:'P1000-1',name:'4in Double (Provisur)',cat:'PATTY PAPER'},
+  {code:'P1100-1',name:'4.5in Double (Provisur)',cat:'PATTY PAPER'},
+  {code:'P2000-1',name:'5x5 Double',cat:'PATTY PAPER'},
+  {code:'P3100-1',name:'5.5x5.5 Double (Provisur)',cat:'PATTY PAPER'},
+  {code:'P4100-1',name:'6x6 Double',cat:'PATTY PAPER'},
+  {code:'P6000-1',name:'Roll Stock Paper',cat:'PATTY PAPER'},
+  
+  {code:'SL1000-1',name:'Chuck Brisket 5.3oz',cat:'SLEEVES'},
+  {code:'SL1050-1',name:'Katana Blend 5.3oz',cat:'SLEEVES'},
+  {code:'SL1500-1',name:'Butchers Blend 5.3oz',cat:'SLEEVES'},
+  {code:'SL1508-1',name:'Smokehouse Sig CAB SR 5.3oz',cat:'SLEEVES'},
+  {code:'SL1600-1',name:'The Rib Eye Blend',cat:'SLEEVES'},
+  {code:'SL1900-1',name:'Butchers Blend 8oz',cat:'SLEEVES'},
+  {code:'SL2000-1',name:'CAB All American 5.3oz',cat:'SLEEVES'},
+  {code:'SL2050-1',name:'CAB Natural 5.3oz',cat:'SLEEVES'},
+  {code:'SL2100-1',name:'CAB Butchers Blend 5.3oz',cat:'SLEEVES'},
+  {code:'SL2150-1',name:'CAB Custom Blend 2.5oz',cat:'SLEEVES'},
+  {code:'SL2200-1',name:'CAB Custom 5.3oz',cat:'SLEEVES'},
+  {code:'SL2250-1',name:'Prime Burger 5.3oz',cat:'SLEEVES'},
+  {code:'SL3000-1',name:'Grass Fed 5.3oz',cat:'SLEEVES'},
+  {code:'SL3505-1',name:'ABC Blend 5.3oz',cat:'SLEEVES'},
+  {code:'SL4100-1',name:'One Percenter 5.3oz',cat:'SLEEVES'},
+  {code:'SL9905-1',name:'All Natural 5.3oz',cat:'SLEEVES'},
+  {code:'SL15099-1',name:'Slider 2.5oz',cat:'SLEEVES'},
+  {code:'SL15299-1',name:'Smashburgers 2.5oz',cat:'SLEEVES'},
+  {code:'SL15906-1',name:'Heritage 5.3oz',cat:'SLEEVES'},
+  {code:'SL18512-1',name:'CAB Butchers 8oz',cat:'SLEEVES'},
+  {code:'SL18908-1',name:'CAB Smokehouse 5.3oz',cat:'SLEEVES'},
+  
+  {code:'T2000-1',name:'CS1178PB Trays 5.3oz (Cryovac)',cat:'TRAYS'},
+  {code:'T2000-B-1',name:'CS1178PB Trays 5.3oz (Bunzl)',cat:'TRAYS'},
+  {code:'T2000-P-1',name:'CS1178PB Trays 5.3oz (Packaged)',cat:'TRAYS'},
+  {code:'T2100-1',name:'CS1178B Trays 2.5oz (Cryovac)',cat:'TRAYS'},
+  {code:'T2100-B-1',name:'CS1178B Trays 2.5oz (Bunzl)',cat:'TRAYS'},
+  {code:'T2100-P-1',name:'CS1178B Trays 2.5oz (Packaged)',cat:'TRAYS'},
+  
+  {code:'BG1000-1',name:'1ml Clear Poly Bags 10lb 1000/cs',cat:'LINER BAGS'},
+  {code:'BG2000-1',name:'2ml Clear Poly Bags 20lb 500/cs',cat:'LINER BAGS'},
+  {code:'BG1450-1',name:'Trash Bags / Black Can Liners',cat:'LINER BAGS'},
+  
+  {code:'L15308FRONT-1',name:'Sig Blend Brisket Front (Paper)',cat:'LABELS'},
+  {code:'L15308BACK-1',name:'Sig Blend Brisket Back (Paper)',cat:'LABELS'},
+  {code:'L14008FRONT-1',name:'Butchers Blend Front (Paper)',cat:'LABELS'},
+  {code:'L14008BACK-1',name:'Butchers Blend Back (Paper)',cat:'LABELS'},
+  {code:'L18008FRONT-1',name:'Butchers Blend CAB Front (Paper)',cat:'LABELS'},
+  {code:'L18008BACK-1',name:'Butchers Blend CAB Back (Paper)',cat:'LABELS'},
+  {code:'L15918FRONT-1',name:'Sig Blend CAB Front (Paper)',cat:'LABELS'},
+  {code:'L15918BACK-1',name:'Sig Blend CAB Back (Paper)',cat:'LABELS'},
+  {code:'L15308FRONT-PLAS-1',name:'Sig Blend Brisket Front (Plastic)',cat:'LABELS'},
+  {code:'L15308BACK-PLAS-1',name:'Sig Blend Brisket Back (Plastic)',cat:'LABELS'},
+  {code:'L14008FRONT-PLAS-1',name:'Butchers Blend Front (Plastic)',cat:'LABELS'},
+  {code:'L14008BACK-PLAS-1',name:'Butchers Blend Back (Plastic)',cat:'LABELS'},
+  {code:'L18008FRONT-PLAS-1',name:'Butchers Blend CAB Front (Plastic)',cat:'LABELS'},
+  {code:'L18008BACK-PLAS-1',name:'Butchers Blend CAB Back (Plastic)',cat:'LABELS'},
+  {code:'L15918FRONT-PLAS-1',name:'Sig Blend CAB Front (Plastic)',cat:'LABELS'},
+  {code:'L15918BACK-PLAS-1',name:'Sig Blend CAB Back (Plastic)',cat:'LABELS'},
+  {code:'MWHITE-1',name:'Thermal Labels 4x6 White',cat:'LABELS'},
+  {code:'MYELLOW-1',name:'Thermal Labels 4x6 Yellow',cat:'LABELS'},
+  
+  {code:'S5050-1',name:'Mustard 3931 42 LBS',cat:'SEASONINGS'},
+  {code:'F06984-1',name:'Salt & Pepper Burger 40 LB',cat:'SEASONINGS'},
+  {code:'F07004-1',name:'Steakhouse Blend 30 LB',cat:'SEASONINGS'},
+  {code:'F07003-1',name:'Taco Blend 30 LB',cat:'SEASONINGS'},
+  {code:'F07005-1',name:'Korean BBQ Blend 25 LB',cat:'SEASONINGS'},
+  
+  {code:'M1150-1',name:'Box Tape Machine Roll 914m',cat:'PACKAGING'},
+  {code:'M1450-1',name:'Veritiv Foam',cat:'PACKAGING'},
+  {code:'M1200-1',name:'Box Tape Hand Roll',cat:'PACKAGING'},
+  {code:'M1500-1',name:'Box Tape Machine Roll 1500m',cat:'PACKAGING'},
+  {code:'STRWRAP-1',name:'Stretch Wrap',cat:'PACKAGING'},
+  
+  {code:'H264B/L-1',name:'Hair & Beard Nets Bouffant',cat:'PPE'},
+  {code:'GLOVCOT-1',name:'Cotton Gloves',cat:'PPE'},
+  {code:'H134XL-1',name:'Blue Gloves XL Nitrile 6mil',cat:'PPE'},
+  {code:'H242/XL-120C-1',name:'Lab Coats Velcro No Pockets',cat:'PPE'},
+  {code:'1809B-1',name:'PE Sleeves Blue 18" 2000/cs',cat:'PPE'},
+  {code:'P400-1',name:'Metal Detectable Earplugs NRR30',cat:'PPE'},
+  {code:'H219/B-1',name:'PE Aprons Blue 28x46"',cat:'PPE'},
+  
+  {code:'50051',name:'Tower Isle Unbaked Mild Beef Turnovers',cat:'TOWER ISLE'},
+  {code:'50053',name:'Tower Isle Beef Pre-Baked Patty Mild',cat:'TOWER ISLE'},
+  {code:'24005',name:'Tower Isle Cocoa Bread (24 count)',cat:'TOWER ISLE'},
+  
+  {code:'SAMPLE',name:'Sample',cat:'MISC'},
+  {code:'ENGINE',name:'Engine',cat:'MISC'},
+  {code:'PARTS',name:'Parts',cat:'MISC'},
+  {code:'FORKLIFT-CAGE',name:'Forklift Cage',cat:'MISC'},
+  {code:'BATT-CHARGER',name:'Battery Charger',cat:'MISC'},
+];
+
+const FLOOR_SLOTS = 20;
+
+const AREAS = {
+  'LOADING DOCK':{type:'rack',sections:{
+    1:{1:[1,2],2:[1,2]},2:{1:[1,2],2:[1,2]},3:{1:[1,2],2:[1,2]},
+    4:{1:[1,2],2:[1,2]},5:{1:[1,2],2:[1,2]},6:{1:[1,2],2:[1,2]},
+    7:{1:[1,2],2:[1,2]},8:{2:[1,2,3]}
+  }},
+  'HALLWAY':{type:'rack',sections:{
+    1:{1:[1,2,3,4],2:[1,2,3,4,5,6]},
+    2:{1:[1,2,3,4],2:[1,2,3,4]},
+    3:{1:[1,2],2:[1,2,3,4]}
+  }},
+  'HALLWAY FLOOR':{type:'floor',slots:FLOOR_SLOTS},
+  'BOX ROOM':{type:'rack',sections:{
+    1:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    2:{1:[1,2],2:[1,2],3:[1,2]},
+    3:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    4:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    5:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    6:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    7:{1:[1,2],2:[1,2,3,4,5,6],3:[1,2,3,4,5,6]}
+  }},
+  'BOX ROOM FLOOR':{type:'floor',slots:FLOOR_SLOTS},
+  'RETAIL COOLER SLEEVES RACK':{type:'rack',sections:{
+    1:{1:[1,2,3,4,5,6],2:[1,2,3,4,5,6],3:[1,2,3,4,5,6]},
+    2:{1:[1,2,3,4,5,6],2:[1,2,3,4,5,6],3:[1,2,3,4,5,6]},
+    3:{1:[1,2,3,4,5,6],2:[1,2,3,4,5,6],3:[1,2,3,4,5,6]}
+  }},
+  'RETAIL COOLER FLOOR':{type:'floor',slots:FLOOR_SLOTS},
+  'FROZEN COOLER FLOOR':{type:'floor',slots:FLOOR_SLOTS},
+};
+
+let inventory = {};
+let currentView = 'map';
+let currentMode = 'browse';
+let itemsSubView = 'items'; 
+let activeClientFilter = '';
+const CLIENT_LIST = ['Five Guys','Fuddrucker','Burger Fi','Retail'];
+function setClientFilter(c){
+  activeClientFilter=activeClientFilter===c?'':c;
+  renderItemsView(document.getElementById('topbar-search')?document.getElementById('topbar-search').value:'');
+}
+let selectedItem = null;
+let modalLoc = null;
+let countUnlocked = false;      // true while Count Mode is active & authenticated
+let pinPendingClearAll = false; // true when PIN modal opened for clear-all action
+let pinPendingImport = false;   // true when PIN modal opened to authorize an import
+let pinBuffer = '';             // digits typed so far
+let pinChangeStep = 0;          // 0=off 1=enter old 2=enter new 3=confirm new
+let pinNewTemp = '';            // holds new PIN during change flow
+let countSession = null;        // {active:true, unreviewed:Set<locId>, total:n} while a Count Session is running
+const PIN_DEFAULT = '1234'; 
+function getPin(){try{return localStorage.getItem('wms_pin')||PIN_DEFAULT;}catch(e){return PIN_DEFAULT;}}
+function savePin(p){try{localStorage.setItem('wms_pin',p);}catch(e){}}
+
+function locId(area,sec,tier,pos){return sec?`${area}|${sec}|${tier}|${pos}`:`${area}|${pos}`;}
+function parseLocId(id){
+  const p=id.split('|');
+  if(p.length===4)return{area:p[0],sec:+p[1],tier:+p[2],pos:+p[3],type:'rack'};
+  return{area:p[0],pos:+p[1],type:'floor'};
+}
+function locLabel(id){
+  const p=parseLocId(id);
+  return p.type==='rack'
+    ?`${p.area} · Section ${p.sec} · Tier ${p.tier} · Position ${p.pos}`
+    :`${p.area} · Slot ${p.pos}`;
+}
+function locShort(id){
+  const p=parseLocId(id);
+  return p.type==='rack'
+    ?`${p.area} S${p.sec} T${p.tier} P${p.pos}`
+    :`${p.area} Slot ${p.pos}`;
+}
+const AREA_ABBR={
+  'LOADING DOCK':'LD','HALLWAY':'HW','HALLWAY FLOOR':'HWF',
+  'BOX ROOM':'BR','BOX ROOM FLOOR':'BRF',
+  'RETAIL COOLER SLEEVES RACK':'RCS','RETAIL COOLER FLOOR':'RCF',
+  'FROZEN COOLER FLOOR':'FCF'
+};
+function locAbbrev(id){
+  const p=parseLocId(id);
+  const a=AREA_ABBR[p.area]||p.area.split(' ').map(w=>w[0]).join('');
+  return p.type==='rack'?`${a}-S${p.sec}-T${p.tier}-P${p.pos}`:`${a}-${p.pos}`;
+}
+function today(){return new Date().toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'});}
+
+const WMS_KEY = 'wms_schweid_nj';
+function loadData(){
+  try{
+    const s=localStorage.getItem(WMS_KEY);
+    if(s){
+      const parsed=JSON.parse(s);
+      if(parsed&&typeof parsed==='object')inventory=parsed;
+      else inventory={};
+    }
+  }catch(e){
+    console.warn('WMS loadData error:',e);
+    inventory={};
+  }
+}
+function saveData(){
+  try{
+    const json=JSON.stringify(inventory);
+    localStorage.setItem(WMS_KEY,json);
+    
+    const verify=localStorage.getItem(WMS_KEY);
+    if(!verify){showToast('⚠ Storage save failed — data may not persist','error');}
+  }catch(e){
+    console.error('WMS saveData error:',e);
+    showToast('⚠ Could not save: '+e.message,'error');
+  }
+}
+
+function calcStats(){
+  let rackTotal=0,rackOcc=0,floorTotal=0,floorOcc=0,skus=new Set(),totalUnits=0;
+  for(const[an,ad]of Object.entries(AREAS)){
+    if(ad.type==='rack'){
+      for(const[s,tiers]of Object.entries(ad.sections))
+        for(const[t,positions]of Object.entries(tiers))
+          positions.forEach(pos=>{
+            rackTotal++;
+            const id=locId(an,+s,+t,pos);
+            if(inventory[id]){rackOcc++;skus.add(inventory[id].item);totalUnits+=inventory[id].qty||0;}
+          });
+    }else{
+      for(let i=1;i<=ad.slots;i++){
+        floorTotal++;
+        const id=locId(an,null,null,i);
+        if(inventory[id]){floorOcc++;skus.add(inventory[id].item);totalUnits+=inventory[id].qty||0;}
+      }
+    }
+  }
+  document.getElementById('stat-racks').textContent=(rackTotal-rackOcc)+' / '+rackTotal;
+  document.getElementById('stat-floor').textContent=(floorTotal-floorOcc)+' / '+floorTotal;
+  document.getElementById('stat-units').textContent=totalUnits.toLocaleString();
+  document.getElementById('stat-skus').textContent=skus.size+' / '+ITEMS.length;
+}
+
+function getItemSummary(){
+  const s={};
+  for(const[id,data]of Object.entries(inventory)){
+    if(!data.item)continue;
+    if(!s[data.item])s[data.item]={qty:0,locs:[]};
+    s[data.item].qty+=data.qty||1;
+    s[data.item].locs.push(id);
+  }
+  return s;
+}
+
+function renderSidebar(){
+  const sideBody=document.getElementById('sidebar-list');
+  const sideSearch=document.getElementById('sidebar-search');
+
+  sideSearch.style.display='';
+  const q=normalizeSearch(sideSearch.value);
+  const summary=getItemSummary();
+  const inStockCodes=Object.keys(summary);
+
+  // If nothing in stock yet, show helpful hint
+  if(!inStockCodes.length&&!q){
+    sideBody.innerHTML=`<div style="color:var(--text3);font-size:10px;text-align:center;padding:16px;line-height:1.7">No inventory yet.<br>Switch to Count Mode<br>and tap a position to start.</div>`;
+    return;
+  }
+
+  // Only show items that are in stock (or match search)
+  let html='';
+  const cats={};
+  ITEMS.forEach(item=>{
+    const s=summary[item.code];
+    if(!s&&!q)return;
+    const normCode=normalizeSearch(item.code);
+    const normName=normalizeSearch(item.name);
+    const normPhys=(PHYS_CODES[item.code]||[]).map(p=>normalizeSearch(p)).join(' ');
+    if(q&&!normCode.includes(q)&&!normName.includes(q)&&!normPhys.includes(q))return;
+    if(!cats[item.cat])cats[item.cat]='';
+    cats[item.cat]+=`<div class="side-item${selectedItem===item.code?' selected':''}" onclick="selectItem('${item.code}')">
+      <div class="side-code">${item.code}</div>
+      <div class="side-name">${item.name}</div>
+      ${PHYS_CODES[item.code]?`<div class="side-phys">Physical: ${PHYS_CODES[item.code].join(' · ')}</div>`:''}
+      <div class="side-qty">${s?`Qty: ${s.qty.toLocaleString()} · ${s.locs.length} loc(s)`:'Not in stock'}</div>
+    </div>`;
+  });
+  if(!Object.keys(cats).length){
+    sideBody.innerHTML='<div style="color:var(--text3);font-size:11px;text-align:center;margin-top:16px">No results found</div>';
+    return;
+  }
+  CAT_ORDER.forEach(cat=>{
+    if(cats[cat])html+=`<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin:8px 0 4px">${cat}</div>${cats[cat]}`;
+  });
+  sideBody.innerHTML=html;
+}
+
+function selectItem(code){
+  selectedItem=selectedItem===code?null:code;
+  renderSidebar();render();
+}
+
+/* ══════════════════════════════════════════════════════
+   MAP VIEW
+══════════════════════════════════════════════════════ */
+function renderMap(){
+  let html=`<div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:var(--empty-bg);border-color:var(--empty-bd)"></div>Empty rack</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--occ);border-color:var(--accent)"></div>Occupied rack</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--floor-emp);border-color:var(--border)"></div>Empty floor</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--floor-occ);border-color:var(--floor-occ-bd)"></div>Occupied floor</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--accent2);border-color:var(--accent2)"></div>Selected item</div>
+  </div>`;
+  if(currentMode==='count')
+    html+=`<div class="count-banner">COUNT MODE${selectedItem?` · Assigning: <strong>${selectedItem}</strong>`:'  · Tap any position to assign an item'}</div>`;
+  if(countSession&&countSession.active)
+    html+=`<div class="count-session-banner">🟡 COUNT MODE ACTIVE — ${countSession.unreviewed.size} of ${countSession.total} positions not reviewed</div>`;
+
+  for(const[aName,aDef]of Object.entries(AREAS)){
+    if(aName==='BOX ROOM'&&aDef.type==='rack'){
+      html+=renderRackAreaBlock(aName,aDef,'BOX ROOM — LEFT SIDE',['1','2','3','4']);
+      html+=renderRackAreaBlock(aName,aDef,'BOX ROOM — RIGHT SIDE',['7','6','5']);
+      continue;
+    }
+    html+=`<div class="map-area"><div class="map-area-title">${aName} <span></span></div>`;
+    if(aDef.type==='rack'){
+      html+=`<div class="sections-row">`;
+      for(const[sec,tiers]of Object.entries(aDef.sections)){
+        html+=`<div class="section-block"><div class="section-label" style="cursor:pointer" onclick="openSecPanel('${aName}',${sec})">Section ${sec} ▾</div>`;
+        const maxTier=Math.max(...Object.keys(tiers).map(Number));
+        for(let t=maxTier;t>=1;t--){
+          const positions=tiers[t]||[];if(!positions.length)continue;
+          html+=`<div class="tier-row"><div class="tier-lbl">T${t}</div>`;
+          positions.forEach(pos=>{
+            const id=locId(aName,+sec,t,pos);
+            const occ=inventory[id];
+            const isOcc=!!occ;
+            const isHL=selectedItem&&occ&&occ.item===selectedItem;
+            const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
+            const tip=isOcc?`${occ.item}  ·  Qty: ${occ.qty.toLocaleString()}`:`${aName} S${sec} T${t} P${pos} — Empty`;
+            html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}</div>`;
+          });
+          html+=`</div>`;
+        }
+        html+=`</div>`;
+      }
+      html+=`</div>`;
+    }else{
+      html+=`<div class="section-label" style="cursor:pointer;margin-bottom:6px;display:inline-block" onclick="openFloorPanel('${aName}')">Floor slots ▾</div>`;
+      html+=`<div class="floor-slots">`;
+      for(let i=1;i<=aDef.slots;i++){
+        const id=locId(aName,null,null,i);
+        const occ=inventory[id];
+        const isOcc=!!occ;
+        const isHL=selectedItem&&occ&&occ.item===selectedItem;
+        const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
+        const tip=isOcc?`${occ.item}  ·  Qty: ${occ.qty.toLocaleString()}`:`${aName} Slot ${i} — Empty`;
+        html+=`<div class="floor-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}" onclick="openModal('${id}')" title="${tip}">${isOcc?'●':i}</div>`;
+      }
+      html+=`</div>`;
+    }
+    html+=`</div>`;
+  }
+  document.getElementById('main-content').innerHTML=html;
+}
+function renderRackAreaBlock(aName,aDef,titleOverride,sectionKeys){
+  let html=`<div class="map-area"><div class="map-area-title">${titleOverride} <span></span></div><div class="sections-row">`;
+  sectionKeys.forEach(sec=>{
+    const tiers=aDef.sections[sec];
+    if(!tiers)return;
+    html+=`<div class="section-block"><div class="section-label" style="cursor:pointer" onclick="openSecPanel('${aName}',${sec})">Section ${sec} ▾</div>`;
+    const maxTier=Math.max(...Object.keys(tiers).map(Number));
+    for(let t=maxTier;t>=1;t--){
+      const positions=tiers[t]||[];if(!positions.length)continue;
+      html+=`<div class="tier-row"><div class="tier-lbl">T${t}</div>`;
+      positions.forEach(pos=>{
+        const id=locId(aName,+sec,t,pos);
+        const occ=inventory[id];
+        const isOcc=!!occ;
+        const isHL=selectedItem&&occ&&occ.item===selectedItem;
+        const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
+        const tip=isOcc?`${occ.item}  ·  Qty: ${occ.qty.toLocaleString()}`:`${aName} S${sec} T${t} P${pos} — Empty`;
+        html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}</div>`;
+      });
+      html+=`</div>`;
+    }
+    html+=`</div>`;
+  });
+  html+=`</div></div>`;
+  return html;
+}
+
+function renderItemsView(q=''){
+  const subTabs=`<div class="stats-subtabs">
+    <button class="stats-subtab${itemsSubView==='items'?' active':''}" onclick="setItemsSubView('items')">📦 Items</button>
+    <button class="stats-subtab${itemsSubView==='subs'?' active':''}" onclick="setItemsSubView('subs')">🔄 Substitutions</button>
+  </div>`;
+  if(itemsSubView==='subs'){
+    document.getElementById('main-content').innerHTML=subTabs+buildSubsHTML(q);
+    return;
+  }
+  const summary=getItemSummary();
+  let html=subTabs;
+  html+=`<div class="client-chips">`+CLIENT_LIST.map(c=>
+    `<button class="client-chip${activeClientFilter===c?' active':''}" onclick="setClientFilter('${c}')">${c}</button>`
+  ).join('')+(activeClientFilter?`<button class="client-chip client-chip-clear" onclick="setClientFilter('')">✕ Clear</button>`:'')+`</div>`;
+  CAT_ORDER.forEach(cat=>{
+    let items=ITEMS.filter(i=>i.cat===cat);
+    if(activeClientFilter)items=items.filter(i=>i.client===activeClientFilter);
+    const nq=normalizeSearch(q);
+    if(nq)items=items.filter(i=>{
+      const nc=normalizeSearch(i.code);
+      const nn=normalizeSearch(i.name);
+      const np=(PHYS_CODES[i.code]||[]).map(p=>normalizeSearch(p)).join(' ');
+      return nc.includes(nq)||nn.includes(nq)||np.includes(nq);
+    });
+    if(!items.length)return;
+    const inStock=items.filter(i=>summary[i.code]);
+    html+=`<div class="cat-section">
+      <div class="cat-header">
+        <div class="cat-title">${cat}</div>
+        <div class="cat-count">${inStock.length} / ${items.length} in stock</div>
+        <div class="cat-line"></div>
+      </div>
+      <div class="items-grid">`;
+    items.forEach(item=>{
+      const s=summary[item.code];
+      const physDisp=PHYS_CODES[item.code]?`<div class="ic-phys">${PHYS_CODES[item.code].join(' · ')}</div>`:'';
+      html+=`<div class="item-card ${s?'in-stock':'not-stock'}" onclick="openIlocPanel('${item.code}')">
+        <div class="ic-code">${item.code}</div>
+        <div class="ic-name">${item.name}</div>${physDisp}
+        <div class="ic-footer">
+          ${s
+            ?`<span class="ic-qty">${s.qty.toLocaleString()}</span><span class="ic-locs">${s.locs.length} location(s)</span><span class="ic-badge badge-in">In Stock</span>`
+            :`<span class="ic-qty" style="color:var(--text3)">—</span><span></span><span class="ic-badge badge-out">Not in stock</span>`}
+        </div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  });
+  if(!html)html=`<div style="color:var(--text3);text-align:center;margin-top:40px;font-size:12px">No items match your search.</div>`;
+  document.getElementById('main-content').innerHTML=html;
+}
+
+/* ══════════════════════════════════════════════════════
+   SUBSTITUTIONS SUB-VIEW
+══════════════════════════════════════════════════════ */
+function setItemsSubView(sv){
+  itemsSubView=sv;
+  const ts=document.getElementById('topbar-search');
+  if(ts){ts.value='';ts.placeholder=sv==='subs'?'Search substitutions...':'Search items...';}
+  renderItemsView();
+}
+function buildSubsHTML(q=''){
+  const nq=normalizeSearch(q||'');
+  let rows=SUBSTITUTIONS;
+  if(nq)rows=rows.filter(r=>
+    normalizeSearch(r.code).includes(nq)||
+    normalizeSearch(r.box).includes(nq)||
+    normalizeSearch(r.sub||'no substitution').includes(nq)||
+    normalizeSearch(r.note||'').includes(nq)
+  );
+  const withSub=rows.filter(r=>r.sub).length;
+  let html=`
+  <div class="subs-banner">⚠️ ALWAYS MAKE SURE TO GET APPROVAL BY SALES — All substitutions work in both directions (↔)</div>
+  <div class="cat-section">
+    <div class="cat-header">
+      <div class="cat-title">BOX SUBSTITUTION</div>
+      <div class="cat-count">${withSub} with substitute · ${rows.length-withSub} no substitution</div>
+      <div class="cat-line"></div>
+    </div>
+    <div class="loc-table-wrap"><table class="loc-table">
+      <thead><tr><th>Code</th><th>Box</th><th></th><th>Substitution</th><th>Conditions</th></tr></thead><tbody>`;
+  if(!rows.length){
+    html+=`<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:30px;font-size:12px">No substitutions match your search.</td></tr>`;
+  }else{
+    rows.forEach(r=>{
+      if(r.sub){
+        html+=`<tr>
+          <td style="font-weight:700;color:var(--accent2);white-space:nowrap">${r.code}</td>
+          <td>${r.box}</td>
+          <td style="color:var(--accent2);font-weight:700;text-align:center">↔</td>
+          <td>${r.sub}</td>
+          <td style="${r.red?'color:#ff5555;font-weight:600;':'color:var(--text3);'}font-size:10px">${r.note||'—'}</td>
+        </tr>`;
+      }else{
+        html+=`<tr class="subs-none">
+          <td style="font-weight:700;white-space:nowrap">${r.code}</td>
+          <td>${r.box}</td>
+          <td style="text-align:center">✕</td>
+          <td colspan="2" style="font-weight:700;letter-spacing:.08em">NO SUBSTITUTION</td>
+        </tr>`;
+      }
+    });
+  }
+  html+=`</tbody></table></div></div>`;
+  // ── Vendor equivalence section (Sonic ↔ PCA) ──
+  let eq=VENDOR_EQUIV;
+  if(nq)eq=eq.filter(r=>normalizeSearch(r.a+' '+r.b+' '+r.box+' sonic pca').includes(nq));
+  if(eq.length){
+    html+=`<div class="cat-section" style="margin-top:18px">
+      <div class="cat-header">
+        <div class="cat-title">VENDOR EQUIVALENCE · SONIC ↔ PCA</div>
+        <div class="cat-count">same box, different manufacturer</div>
+        <div class="cat-line"></div>
+      </div>
+      <div class="loc-table-wrap"><table class="loc-table">
+        <thead><tr><th>Sonic</th><th></th><th>PCA</th><th>Box</th></tr></thead><tbody>`;
+    eq.forEach(r=>{
+      html+=`<tr>
+        <td style="font-weight:700;color:var(--accent2);white-space:nowrap">${r.a}</td>
+        <td style="color:var(--accent2);font-weight:700;text-align:center">↔</td>
+        <td style="font-weight:700;color:var(--accent2);white-space:nowrap">${r.b}</td>
+        <td>${r.box}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px">Fully interchangeable — the only difference is the manufacturer. Already consolidated as a family in Recon.</div>
+    </div>`;
+  }
+  return html;
+}
+
+/* ══════════════════════════════════════════════════════
+   LOCATIONS VIEW
+══════════════════════════════════════════════════════ */
+function renderLocationsView(){
+  const entries=Object.entries(inventory).filter(([,d])=>d.item);
+  let html=`<div class="loc-table-wrap"><table class="loc-table">
+    <thead><tr>
+      <th>Location</th><th>Item Code</th><th>Item Name</th><th>Category</th><th style="text-align:right">Qty</th>
+    </tr></thead><tbody>`;
+  if(!entries.length){
+    html+=`<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:30px;font-size:12px">No inventory recorded yet. Go to Map → Count Mode to start.</td></tr>`;
+  }else{
+    entries.forEach(([id,data])=>{
+      const item=ITEMS.find(x=>x.code===data.item);
+      html+=`<tr>
+        <td style="color:var(--text2)">${locLabel(id)}</td>
+        <td style="color:var(--accent2);font-weight:700">${data.item}</td>
+        <td style="color:var(--text2)">${item?item.name:''}</td>
+        <td style="color:var(--text3)">${item?item.cat:''}</td>
+        <td style="text-align:right;color:var(--accent);font-weight:700">${data.qty.toLocaleString()}</td>
+      </tr>`;
+    });
+  }
+  html+=`</tbody></table></div>`;
+  document.getElementById('main-content').innerHTML=html;
+}
+
+function openModal(id){
+  markLocReviewed(id);
+  if(currentMode==='browse'){
+    openRoModal(id);
+    return;
+  }
+  try{
+    modalLoc=id;
+    document.getElementById('modal-loc-label').textContent=locLabel(id);
+    
+    _allModalOptions=[];
+    ITEMS.forEach(function(item){
+      var phys=(typeof PHYS_CODES!=='undefined')?PHYS_CODES[item.code]:null;
+      var text=phys
+        ?(item.code+' — '+item.name+' · '+phys.join(' / '))
+        :(item.code+' — '+item.name);
+      _allModalOptions.push({value:item.code,text:text,cat:item.cat});
+    });
+    var existing=inventory[id];
+    var preselect=existing?existing.item:(selectedItem||'');
+    // Reset modal state completely before showing
+    var searchEl=document.getElementById('modal-item-search');
+    var qtyEl=document.getElementById('modal-qty');
+    var itemEl=document.getElementById('modal-item');
+    var lbl=document.getElementById('modal-selected-label');
+    var listEl=document.getElementById('modal-item-list');
+    if(searchEl)searchEl.value='';
+    if(qtyEl)qtyEl.value='';
+    if(itemEl)itemEl.value='';
+    if(lbl)lbl.textContent='';
+    if(listEl)listEl.innerHTML='';
+    // Now show overlay
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    
+    filterModalItems('');
+    if(preselect&&itemEl){
+      itemEl.value=preselect;
+      var preselectItem=ITEMS.find(function(i){return i.code===preselect;});
+      if(lbl&&preselectItem)lbl.textContent='✓ '+preselectItem.name;
+      filterModalItems(''); // re-render to show selection highlight
+    }
+    if(qtyEl)qtyEl.value=existing?existing.qty:'';
+    setTimeout(function(){
+      var s=document.getElementById('modal-item-search');
+      if(s)s.focus();
+    },150);
+  }catch(err){
+    console.error('openModal error:',err);
+    showToast('Error opening modal: '+err.message,'error');
+  }
+}
+function normalizeSearch(s){
+  
+  return (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+
+// Store all options for filtering
+let _allModalOptions = [];
+
+function filterModalItems(q){
+  try{
+    var list=document.getElementById('modal-item-list');
+    if(!list)return;
+    var norm=normalizeSearch(q||'');
+    var currentVal=document.getElementById('modal-item').value;
+    var html='';
+    var count=0;
+    CAT_ORDER.forEach(function(cat){
+      var catItems=_allModalOptions.filter(function(o){
+        if(o.cat!==cat)return false;
+        if(!norm)return true;
+        return normalizeSearch(o.text).includes(norm);
+      });
+      if(!catItems.length)return;
+      html+='<div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;padding:5px 10px 2px;background:var(--surface);border-bottom:1px solid var(--border)">'+cat+'</div>';
+      catItems.forEach(function(o){
+        var item=ITEMS.find(function(i){return i.code===o.value;});
+        var phys=item&&PHYS_CODES[item.code]?PHYS_CODES[item.code].join(' · '):'';
+        var isSel=o.value===currentVal;
+        html+='<div class="modal-item-card'+(isSel?' selected':'')+'" onclick="selectModalItem(&apos;'+o.value+'&apos;)">'
+          +'<span class="mic-code">'+o.value+'</span>'
+          +'<span class="mic-name">'+(item?item.name:'')+'</span>'
+          +(phys?'<span class="mic-phys">'+phys+'</span>':'')
+          +'</div>';
+        count++;
+      });
+    });
+    if(!count)html='<div style="color:var(--text3);font-size:11px;text-align:center;padding:16px">No results found</div>';
+    list.innerHTML=html;
+    // Scroll selected item into view
+    if(currentVal){
+      var selCard=list.querySelector('.modal-item-card.selected');
+      if(selCard)selCard.scrollIntoView({block:'nearest'});
+    }
+  }catch(err){console.error('filterModalItems error:',err);}
+}
+
+function selectModalItem(code){
+  document.getElementById('modal-item').value=code;
+  var item=ITEMS.find(function(i){return i.code===code;});
+  var lbl=document.getElementById('modal-selected-label');
+  if(lbl)lbl.textContent=item?('✓ '+item.name):'';
+  filterModalItems(document.getElementById('modal-item-search').value);
+  
+  setTimeout(function(){var q=document.getElementById('modal-qty');if(q)q.focus();},80);
+}
+
+function closeModal(e){
+  if(!e||e.target===document.getElementById('modal-overlay')){
+    document.getElementById('modal-overlay').classList.add('hidden');modalLoc=null;
+  }
+}
+function saveLocation(){
+  const item=document.getElementById('modal-item').value;
+  const qty=parseInt(document.getElementById('modal-qty').value)||1;
+  if(!item){showToast('Tap an item from the list to select it.','error');return;}
+  const prev=inventory[modalLoc];
+  const _saveBefore=JSON.stringify(inventory);
+  inventory[modalLoc]={item,qty};
+  saveData();
+  const loc=locLabel(modalLoc);
+  let detail;
+  if(prev && prev.item){
+    if(prev.item===item){
+      detail=loc+' — '+item+' · Qty: '+prev.qty+' → '+qty;
+    } else {
+      detail=loc+' — replaced '+prev.item+' · '+prev.qty+' → '+item+' · '+qty;
+    }
+  } else {
+    detail=loc+' — '+item+' · Qty: '+qty;
+  }
+  addLog('SAVE', detail, _saveBefore);
+  document.getElementById('modal-overlay').classList.add('hidden');
+  modalLoc=null;refresh();
+}
+function clearLocation(){
+  if(!modalLoc)return;
+  const occ=inventory[modalLoc];
+  const label=occ?`Clear ${occ.item} (Qty: ${occ.qty})?`:'Clear this location?';
+  if(!confirm(label+' This cannot be undone.'))return;
+  const _clLabel=locLabel(modalLoc);
+  const _clItem=occ?occ.item:'?';
+  const _clQty=occ?occ.qty:'?';
+  const _clBefore=JSON.stringify(inventory);
+  delete inventory[modalLoc];
+  saveData();
+  addLog('CLEAR', _clLabel+' — '+_clItem+' · Qty: '+_clQty+' removed', _clBefore);
+  document.getElementById('modal-overlay').classList.add('hidden');
+  modalLoc=null;refresh();
+}
+
+function setView(v){
+  if(v!=='map'&&currentMode==='count'){
+    currentMode='browse';
+  }
+  document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===currentMode));
+  currentView=v;
+  closeSidebar();
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['map','items','stats','plan','log'][i]===v));
+  document.getElementById('view-title').textContent={map:'Warehouse Map',items:'Item Inventory',locations:'Location Detail',stats:'Statistics',plan:'Daily Plan',log:'Activity Log'}[v];
+  document.getElementById('mode-tabs').style.display=v==='map'?'':'none';
+  
+  ['map','items','stats','plan','log'].forEach(tab=>{
+    const b=document.getElementById('bnav-'+tab);
+    if(b)b.classList.toggle('active',tab===v);
+  });
+  const wrap=document.getElementById('topbar-search-wrap');
+  const ts=document.getElementById('topbar-search');
+  if(v==='items'){
+    wrap.classList.remove('hidden');
+    wrap.style.display='flex';
+    ts.value='';
+  } else {
+    wrap.style.display='';
+    wrap.classList.add('hidden');
+  }
+  render();
+}
+function setMode(m){
+  currentMode=m;
+  document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===m));
+  render();
+}
+function render(){
+  if(currentView==='map')renderMap();
+  else if(currentView==='items')renderItemsView();
+  else if(currentView==='locations')renderLocationsView();
+  else if(currentView==='stats')renderStatsView();
+  else if(currentView==='plan')renderPlanView();
+  else if(currentView==='log')renderLogView();
+}
+function refresh(){calcStats();renderSidebar();render();}
+
+const COUNT_SESSION_KEY = 'wms_count_session';
+function getAllLocationIds(){
+  const ids=[];
+  for(const[an,ad]of Object.entries(AREAS)){
+    if(ad.type==='rack'){
+      for(const[s,tiers]of Object.entries(ad.sections))
+        for(const[t,positions]of Object.entries(tiers))
+          positions.forEach(pos=>ids.push(locId(an,+s,t,pos)));
+    }else{
+      for(let i=1;i<=ad.slots;i++)ids.push(locId(an,null,null,i));
+    }
+  }
+  return ids;
+}
+function loadCountSession(){
+  try{
+    const s=localStorage.getItem(COUNT_SESSION_KEY);
+    if(!s)return null;
+    const p=JSON.parse(s);
+    if(p&&p.active)return{active:true,unreviewed:new Set(p.unreviewed),total:p.total};
+  }catch(e){}
+  return null;
+}
+function saveCountSessionState(){
+  try{
+    if(countSession&&countSession.active)
+      localStorage.setItem(COUNT_SESSION_KEY,JSON.stringify({active:true,unreviewed:Array.from(countSession.unreviewed),total:countSession.total}));
+    else
+      localStorage.removeItem(COUNT_SESSION_KEY);
+  }catch(e){}
+}
+function toggleCountSession(){
+  if(countSession&&countSession.active)finishCountSession();
+  else startCountSession();
+}
+function startCountSession(){
+  const ids=getAllLocationIds();
+  countSession={active:true,unreviewed:new Set(ids),total:ids.length};
+  saveCountSessionState();
+  addLog('COUNT SESSION','🟡 Count Mode started — '+ids.length+' positions marked for review');
+  updateCountSessionUI();
+  render();
+  showToast('Modo Conteo iniciado · '+ids.length+' posiciones por revisar','success');
+}
+function finishCountSession(){
+  if(!countSession)return;
+  const remaining=countSession.unreviewed.size;
+  const total=countSession.total;
+  const msg=remaining===0
+    ?'✓ Count finished — all '+total+' positions were reviewed.'
+    :'⚠ Count finished — '+remaining+' of '+total+' positions were left NOT reviewed.';
+  addLog('COUNT SESSION',msg);
+  countSession=null;
+  saveCountSessionState();
+  updateCountSessionUI();
+  render();
+  alert(msg);
+}
+function markLocReviewed(id){
+  if(countSession&&countSession.active&&countSession.unreviewed.has(id)){
+    countSession.unreviewed.delete(id);
+    saveCountSessionState();
+    updateCountSessionUI();
+  }
+}
+function updateCountSessionUI(){
+  const active=!!(countSession&&countSession.active);
+  const remaining=active?countSession.unreviewed.size:0;
+  [document.getElementById('count-session-btn'),document.getElementById('count-session-btn-drawer')].forEach(btn=>{
+    if(!btn)return;
+    btn.classList.toggle('active',active);
+    btn.textContent=active?('⏹ Finish Count ('+remaining+' not reviewed)'):'🟡 Start Count Mode';
+  });
+}
+
+const AREA_EXPORT_ORDER = [
+  'LOADING DOCK',
+  'HALLWAY',
+  'HALLWAY FLOOR',
+  'BOX ROOM',
+  'BOX ROOM FLOOR',
+  'RETAIL COOLER SLEEVES RACK',
+  'RETAIL COOLER FLOOR',
+  'FROZEN COOLER FLOOR',
+];
+
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+  const dateStr=today();
+  const summary=getItemSummary();
+
+    const s1=[
+    ['Schweid & Sons · NJ Direct Materials Inventory'],
+    [`Count Date: ${dateStr}   |   Generated by: Julian Dominguez · Inventory Control`],
+    [],
+    ['Item Code','Item Name','Category','Total Qty','Locations','Location Detail'],
+  ];
+  CAT_ORDER.forEach(cat=>{
+    ITEMS.filter(i=>i.cat===cat).forEach(item=>{
+      const s=summary[item.code];
+      if(!s)return;
+      const detail=s.locs.map(id=>locShort(id)).join(', ');
+      s1.push([item.code,item.name,item.cat,s.qty,s.locs.length,detail]);
+    });
+  });
+  const ws1=XLSX.utils.aoa_to_sheet(s1);
+  ws1['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:5}}];
+  ws1['!cols']=[{wch:22},{wch:36},{wch:15},{wch:12},{wch:11},{wch:70}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Inventory Summary');
+
+    const ctSel=document.getElementById('count-type-sel');
+  const ctMap={'pre9':'pre 9am','post9':'post 9am','eom':'EOM'};
+  const ctVal=ctSel?ctMap[ctSel.value]||'pre 9am':'pre 9am';
+  const countLabel=`${dateStr.slice(0,-5)} ${ctVal}`;
+  const s2=[
+    [],
+    ['','','SECTION','','TIER','','POSITION','','',countLabel],
+    ['','AREA','','','','','','','','ITEM','QTY'],
+  ];
+
+  AREA_EXPORT_ORDER.forEach(aName=>{
+    const aDef=AREAS[aName];
+    if(!aDef)return;
+    if(aDef.type==='rack'){
+      let areaFirstRow=true;
+      for(const[sec,tiers]of Object.entries(aDef.sections)){
+        let secFirstRow=true;
+        const maxTier=Math.max(...Object.keys(tiers).map(Number));
+        for(let t=maxTier;t>=1;t--){
+          const positions=tiers[t]||[];
+          if(!positions.length)continue;
+          let tierFirstRow=true;
+          positions.forEach(pos=>{
+            const id=locId(aName,+sec,t,pos);
+            const occ=inventory[id];
+            s2.push([
+              '',
+              areaFirstRow?aName:'',
+              secFirstRow?+sec:'',
+              '',
+              tierFirstRow?t:'',
+              '',
+              pos,
+              '','',
+              occ?occ.item:'',
+              occ?occ.qty:'',
+            ]);
+            areaFirstRow=false;secFirstRow=false;tierFirstRow=false;
+          });
+        }
+      }
+    }else{
+      let areaFirstRow=true;
+      for(let i=1;i<=aDef.slots;i++){
+        const id=locId(aName,null,null,i);
+        const occ=inventory[id];
+        s2.push(['',areaFirstRow?aName:'','','','','',i,'','',occ?occ.item:'',occ?occ.qty:'']);
+        areaFirstRow=false;
+      }
+    }
+  });
+
+  const ws2=XLSX.utils.aoa_to_sheet(s2);
+  ws2['!cols']=[{wch:2},{wch:22},{wch:9},{wch:2},{wch:6},{wch:2},{wch:9},{wch:2},{wch:2},{wch:22},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Location Detail');
+
+  const ctFileMap={'pre9':'pre9am','post9':'post9am','eom':'EOM'};
+  const ctFile=ctSel?ctFileMap[ctSel.value]||'pre9am':'pre9am';
+  XLSX.writeFile(wb,`WMS_NJ_${dateStr.replace(/\//g,'-')}_${ctFile}.xlsx`);
+}
+
+/* ══════════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+══════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+══════════════════════════════════════════════════════ */
+function showToast(msg,type){
+  type=type||'success';
+  var t=document.getElementById('import-toast');
+  if(!t){t=document.createElement('div');t.id='import-toast';document.body.appendChild(t);}
+  t.className='import-toast '+type;t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._timer);t._timer=setTimeout(function(){t.style.opacity='0';},3500);
+}
+
+const LOG_KEY = 'wms_schweid_log';
+const LOG_MAX = 500;
+
+function loadLog(){
+  try{const s=localStorage.getItem(LOG_KEY);return s?JSON.parse(s):[];}
+  catch(e){return [];}
+}
+function saveLog(log){
+  try{localStorage.setItem(LOG_KEY,JSON.stringify(log));}catch(e){}
+}
+function addLog(action, detail, undoSnapshot){
+  const log = loadLog();
+  const now = new Date();
+  const ts = now.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'})
+    +' · '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  const id = 'log_'+now.getTime()+'_'+Math.random().toString(36).slice(2,8);
+  const entry = {id, ts, action, detail};
+  if(undoSnapshot!==undefined && undoSnapshot!==null) entry.undo = undoSnapshot;
+  log.unshift(entry);
+  if(log.length > LOG_MAX) log.length = LOG_MAX;
+  saveLog(log);
+}
+function clearLog(){
+  try{localStorage.removeItem(LOG_KEY);}catch(e){}
+}
+
+function renderLogView(){
+  const log = loadLog();
+  let html = `<div class="log-toolbar">
+    <button class="log-clear-btn" onclick="confirmClearLog()">🗑 Clear Log</button>
+    <span class="log-count">${log.length} event(s) recorded</span>
+  </div>`;
+  if(!log.length){
+    html += `<div class="log-empty">No activity recorded yet.<br>Every save, clear, import and clear-all will appear here.</div>`;
+  } else {
+    html += `<div style="overflow-x:auto"><table class="log-table">
+      <thead><tr><th>Timestamp</th><th>Action</th><th>Detail</th><th></th></tr></thead><tbody>`;
+    log.forEach(e=>{
+      const cls = e.action==='SAVE'?'log-action-save'
+        :e.action==='CLEAR'?'log-action-clear'
+        :e.action==='IMPORT'?'log-action-import'
+        :e.action==='CLEAR SECTION'?'log-action-clear-section'
+        :e.action==='CLEAR ALL'?'log-action-clearall'
+        :e.action==='UNDO'?'log-action-undo'
+        :e.action==='COUNT SESSION'?'log-action-count'
+        :e.action==='SYNC IMPORT'?'log-action-import'
+        :'log-action-clearall';
+      const undoBtn = e.undo ? `<button class="log-undo-btn" onclick="undoLogEntry('${e.id}')">↩ Undo</button>` : '';
+      html += `<tr>
+        <td style="color:var(--text3);white-space:nowrap">${e.ts}</td>
+        <td><span class="${cls}">${e.action}</span></td>
+        <td style="color:var(--text2)">${e.detail}</td>
+        <td style="white-space:nowrap">${undoBtn}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function undoLogEntry(id){
+  const log = loadLog();
+  const idx = log.findIndex(e=>e.id===id);
+  if(idx<0){showToast('Entrada de log no encontrada.','error');return;}
+  const entry = log[idx];
+  if(!entry.undo){showToast('This entry cannot be undone.','error');return;}
+  if(!confirm('Undo this action?\n\n'+entry.action+' — '+entry.detail))return;
+  const beforeUndo = JSON.stringify(inventory);
+  try{
+    inventory = JSON.parse(entry.undo);
+  }catch(err){showToast('Error al deshacer: '+err.message,'error');return;}
+  saveData();
+  addLog('UNDO','Revertido → '+entry.action+' ('+entry.ts+'): '+entry.detail, beforeUndo);
+  refresh();
+  showToast('Action undone.','success');
+}
+
+function confirmClearLog(){
+  if(!confirm('Clear the entire activity log? This cannot be undone.')) return;
+  clearLog();
+  renderLogView();
+  showToast('Activity log cleared.','success');
+}
+
+let statsSubTab = 'overview';
+
+function renderStatsView(){
+  const summary = getItemSummary();
+
+  
+  let totalPos=0, occPos=0;
+  for(const[an,ad] of Object.entries(AREAS)){
+    if(ad.type==='rack'){
+      for(const[s,tiers] of Object.entries(ad.sections))
+        for(const[t,positions] of Object.entries(tiers))
+          positions.forEach(pos=>{totalPos++;const id=locId(an,+s,+t,pos);if(inventory[id])occPos++;});
+    }else{
+      for(let i=1;i<=ad.slots;i++){totalPos++;const id=locId(an,null,null,i);if(inventory[id])occPos++;}
+    }
+  }
+  const availPos=totalPos-occPos;
+  const pctOcc=totalPos?Math.round(occPos/totalPos*100):0;
+  const skusActive=Object.keys(summary).length;
+
+  let html=`<div class="stats-subtabs">
+    <button class="stats-subtab${statsSubTab==='overview'?' active':''}" onclick="setStatsTab('overview')">Overview</button>
+    <button class="stats-subtab${statsSubTab==='categories'?' active':''}" onclick="setStatsTab('categories')">By Category</button>
+    <button class="stats-subtab${statsSubTab==='clients'?' active':''}" onclick="setStatsTab('clients')">By Client</button>
+    <button class="stats-subtab${statsSubTab==='all'?' active':''}" onclick="setStatsTab('all')">All Items</button>
+    <button class="stats-subtab${statsSubTab==='nostock'?' active':''}" onclick="setStatsTab('nostock')">No Stock</button>
+  </div>`;
+
+  if(statsSubTab==='overview'){
+    html+=`<div class="stats-kpi-grid">
+      <div class="stats-kpi"><div class="stats-kpi-num">${occPos}</div><div class="stats-kpi-lbl">Occupied</div></div>
+      <div class="stats-kpi"><div class="stats-kpi-num" style="color:var(--success)">${availPos}</div><div class="stats-kpi-lbl">Available</div></div>
+      <div class="stats-kpi"><div class="stats-kpi-num" style="color:var(--accent2)">${skusActive}</div><div class="stats-kpi-lbl">SKUs Active</div></div>
+      <div class="stats-kpi"><div class="stats-kpi-num" style="color:var(--warn)">${pctOcc}%</div><div class="stats-kpi-lbl">Occupancy</div></div>
+    </div>`;
+
+    html+=`<div class="stats-section-title">Occupancy by Area <span></span></div>`;
+    for(const[aName,aDef] of Object.entries(AREAS)){
+      let aTotal=0,aOcc=0;
+      if(aDef.type==='rack'){
+        for(const[s,tiers] of Object.entries(aDef.sections))
+          for(const[t,positions] of Object.entries(tiers))
+            positions.forEach(pos=>{aTotal++;const id=locId(aName,+s,+t,pos);if(inventory[id])aOcc++;});
+      }else{
+        for(let i=1;i<=aDef.slots;i++){aTotal++;const id=locId(aName,null,null,i);if(inventory[id])aOcc++;}
+      }
+      const aPct=aTotal?Math.round(aOcc/aTotal*100):0;
+      const fillClass=aPct>=80?'high':aPct>=50?'med':'';
+      html+=`<div class="area-bar-wrap">
+        <div class="area-bar-header">
+          <span class="area-bar-name">${aName}</span>
+          <span class="area-bar-pct">${aPct}%</span>
+        </div>
+        <div class="area-bar-track"><div class="area-bar-fill ${fillClass}" style="width:${aPct}%"></div></div>
+        <div class="area-bar-sub">${aOcc} occupied · ${aTotal-aOcc} available · ${aTotal} total</div>
+      </div>`;
+    }
+
+    // Top 10 items by qty
+    html+=`<div class="stats-section-title">Top 10 Items by Quantity <span></span></div>`;
+    const top10=Object.entries(summary).sort((a,b)=>b[1].qty-a[1].qty).slice(0,10);
+    if(top10.length){
+      const maxQ=top10[0][1].qty;
+      html+=`<div>`;
+      top10.forEach(([code,s])=>{
+        const item=ITEMS.find(i=>i.code===code);
+        const pct=maxQ?Math.round(s.qty/maxQ*100):0;
+        html+=`<div class="area-bar-wrap">
+          <div class="area-bar-header">
+            <span class="area-bar-name" style="color:var(--accent2)">${code}</span>
+            <span style="font-size:10px;color:var(--text3);flex:1;padding:0 8px">${item?item.name:''}</span>
+            <span class="area-bar-pct" style="color:var(--accent)">${s.qty.toLocaleString()}</span>
+          </div>
+          <div class="area-bar-track"><div class="area-bar-fill" style="width:${pct}%"></div></div>
+          <div class="area-bar-sub">${s.locs.length} location(s) · ${item?item.cat:''}</div>
+        </div>`;
+      });
+      html+=`</div>`;
+    }else{
+      html+=`<div style="color:var(--text3);font-size:11px;padding:16px 0">No inventory recorded yet.</div>`;
+    }
+  }
+
+  else if(statsSubTab==='categories'){
+    CAT_ORDER.forEach(cat=>{
+      const catItems=ITEMS.filter(i=>i.cat===cat);
+      const inStock=catItems.filter(i=>summary[i.code]);
+      const totalQty=inStock.reduce((a,i)=>a+(summary[i.code]?.qty||0),0);
+      html+=`<div class="cat-block" id="cb-${cat.replace(/ /g,'_')}">
+        <div class="cat-block-header" onclick="toggleCatBlock('${cat.replace(/ /g,'_')}')">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="cat-block-title">${cat}</span>
+            <span class="cat-block-meta">${inStock.length}/${catItems.length} SKUs · </span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="cat-block-qty">${totalQty.toLocaleString()}</span>
+            <span class="cat-block-chevron" id="chev-${cat.replace(/ /g,'_')}">▶</span>
+          </div>
+        </div>
+        <div class="cat-block-body" id="cbb-${cat.replace(/ /g,'_')}">`;
+      catItems.forEach(item=>{
+        const s=summary[item.code];
+        html+=`<div class="cat-item-row">
+          <span class="cat-item-code">${item.code}</span>
+          <span class="cat-item-name">${item.name}</span>
+          <span class="cat-item-qty">${s?s.qty.toLocaleString():'—'}</span>
+          <span class="cat-item-locs">${s?s.locs.length+' loc(s)':'no stock'}</span>
+        </div>`;
+      });
+      html+=`</div></div>`;
+    });
+  }
+  else if(statsSubTab==='clients'){
+    CLIENT_LIST.forEach(cl=>{
+      const clItems=ITEMS.filter(i=>i.client===cl);
+      const inStock=clItems.filter(i=>summary[i.code]);
+      const totalQty=inStock.reduce((a,i)=>a+(summary[i.code]?.qty||0),0);
+      const key='client_'+cl.replace(/ /g,'_');
+      html+=`<div class="cat-block" id="cb-${key}">
+        <div class="cat-block-header" onclick="toggleCatBlock('${key}')">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="cat-block-title">${cl}</span>
+            <span class="cat-block-meta">${inStock.length}/${clItems.length} SKUs · </span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="cat-block-qty">${totalQty.toLocaleString()}</span>
+            <span class="cat-block-chevron" id="chev-${key}">▶</span>
+          </div>
+        </div>
+        <div class="cat-block-body" id="cbb-${key}">`;
+      clItems.forEach(item=>{
+        const s=summary[item.code];
+        html+=`<div class="cat-item-row">
+          <span class="cat-item-code">${item.code}</span>
+          <span class="cat-item-name">${item.name}</span>
+          <span class="cat-item-qty">${s?s.qty.toLocaleString():'—'}</span>
+          <span class="cat-item-locs">${s?s.locs.length+' loc(s)':'no stock'}</span>
+        </div>`;
+      });
+      html+=`</div></div>`;
+    });
+  }
+
+  else if(statsSubTab==='all'){
+    const allInStock=Object.entries(summary).map(([code,s])=>{
+      const item=ITEMS.find(i=>i.code===code);
+      return{code,name:item?item.name:'',cat:item?item.cat:'',qty:s.qty,locs:s.locs.length};
+    }).sort((a,b)=>b.qty-a.qty);
+    if(!allInStock.length){
+      html+=`<div style="color:var(--text3);font-size:11px;padding:20px 0">No inventory recorded yet.</div>`;
+    }else{
+      html+=`<div style="overflow-x:auto"><table class="stats-table">
+        <thead><tr>
+          <th>Code</th><th>Name</th><th>Category</th>
+          <th style="text-align:right">Qty</th><th style="text-align:right">Locations</th>
+        </tr></thead><tbody>`;
+      allInStock.forEach(r=>{
+        html+=`<tr>
+          <td style="color:var(--accent2);font-weight:700">${r.code}</td>
+          <td style="color:var(--text2)">${r.name}</td>
+          <td style="color:var(--text3)">${r.cat}</td>
+          <td style="text-align:right;color:var(--accent);font-weight:700">${r.qty.toLocaleString()}</td>
+          <td style="text-align:right;color:var(--text3)">${r.locs}</td>
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
+    }
+  }
+
+  else if(statsSubTab==='nostock'){
+    CAT_ORDER.forEach(cat=>{
+      const noStock=ITEMS.filter(i=>i.cat===cat&&!summary[i.code]);
+      if(!noStock.length)return;
+      html+=`<div class="stats-section-title">${cat} <span style="color:var(--text3);font-size:9px;font-weight:400;text-transform:none;letter-spacing:0">${noStock.length} item(s)</span> <span></span></div>
+        <div class="no-stock-grid">`;
+      noStock.forEach(item=>{
+        html+=`<div class="no-stock-item"><div class="no-stock-code">${item.code}</div><div class="no-stock-name">${item.name}</div></div>`;
+      });
+      html+=`</div>`;
+    });
+    if(!html.includes('no-stock-item'))
+      html+=`<div style="color:var(--success);font-size:12px;padding:20px 0">All items have stock assigned!</div>`;
+  }
+
+  document.getElementById('main-content').innerHTML=html;
+}
+
+function setStatsTab(tab){
+  statsSubTab=tab;
+  renderStatsView();
+}
+
+function toggleCatBlock(key){
+  const body=document.getElementById('cbb-'+key);
+  const chev=document.getElementById('chev-'+key);
+  if(!body||!chev)return;
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+function openClearSectionModal(){
+  const sel=document.getElementById('cs-area-sel');
+  sel.innerHTML='<option value="">-- Select Area --</option>';
+  Object.keys(AREAS).forEach(a=>{
+    const o=document.createElement('option');
+    o.value=a;o.textContent=a;
+    sel.appendChild(o);
+  });
+  document.getElementById('cs-preview').innerHTML='Select an area to see what will be cleared.';
+  document.getElementById('cs-preview').style.color='var(--text3)';
+  document.getElementById('cs-pin-input').value='';
+  document.getElementById('clear-section-overlay').classList.remove('hidden');
+}
+
+function closeClearSectionModal(e){
+  if(!e||e.target===document.getElementById('clear-section-overlay'))
+    document.getElementById('clear-section-overlay').classList.add('hidden');
+}
+
+function previewClearSection(){
+  const area=document.getElementById('cs-area-sel').value;
+  const prev=document.getElementById('cs-preview');
+  if(!area){prev.innerHTML='Select an area to see what will be cleared.';prev.style.color='var(--text3)';return;}
+  const aDef=AREAS[area];
+  let total=0,occ=0,items={};
+  if(aDef.type==='rack'){
+    for(const[s,tiers] of Object.entries(aDef.sections))
+      for(const[t,positions] of Object.entries(tiers))
+        positions.forEach(pos=>{
+          total++;
+          const id=locId(area,+s,+t,pos);
+          if(inventory[id]){occ++;items[inventory[id].item]=(items[inventory[id].item]||0)+inventory[id].qty;}
+        });
+  }else{
+    for(let i=1;i<=aDef.slots;i++){
+      total++;
+      const id=locId(area,null,null,i);
+      if(inventory[id]){occ++;items[inventory[id].item]=(items[inventory[id].item]||0)+inventory[id].qty;}
+    }
+  }
+  if(!occ){
+    prev.innerHTML=`<span style="color:var(--success)">✓ ${area} is already empty (${total} positions, all clear)</span>`;
+    return;
+  }
+  const itemList=Object.entries(items).map(([code,qty])=>{
+    const item=ITEMS.find(i=>i.code===code);
+    return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--accent2);font-weight:700">${code}</span>
+      <span style="color:var(--text2);font-size:10px;flex:1;padding:0 8px">${item?item.name:''}</span>
+      <span style="color:var(--accent);font-weight:700">${qty.toLocaleString()}</span>
+    </div>`;
+  }).join('');
+  prev.innerHTML=`<div style="color:var(--warn);font-weight:700;margin-bottom:6px">⚠ ${occ} of ${total} positions occupied</div>${itemList}`;
+}
+
+function showClearSectionPin(){
+  const area=document.getElementById('cs-area-sel').value;
+  if(!area){showToast('Select an area first.','error');return;}
+  const aDef=AREAS[area];
+  let occ=0;
+  if(aDef.type==='rack'){
+    for(const[s,tiers] of Object.entries(aDef.sections))
+      for(const[t,positions] of Object.entries(tiers))
+        positions.forEach(pos=>{const id=locId(area,+s,+t,pos);if(inventory[id])occ++;});
+  }else{
+    for(let i=1;i<=aDef.slots;i++){const id=locId(area,null,null,i);if(inventory[id])occ++;}
+  }
+  if(!occ){showToast('Area is already empty.','success');closeClearSectionModal();return;}
+  const mainBtn=document.getElementById('cs-main-btn');
+  if(mainBtn){mainBtn.textContent='Confirm';mainBtn.onclick=submitClearSection;}
+  setTimeout(()=>document.getElementById('cs-pin-input').focus(),100);
+}
+
+function submitClearSection(){
+  const area=document.getElementById('cs-area-sel').value;
+  if(!area){showToast('Select an area first.','error');return;}
+  const pin=document.getElementById('cs-pin-input').value;
+  if(!pin){showToast('Enter your PIN.','error');document.getElementById('cs-pin-input').focus();return;}
+  if(pin!==getPin()){
+    document.getElementById('cs-pin-input').style.borderColor='var(--danger)';
+    setTimeout(()=>{
+      document.getElementById('cs-pin-input').style.borderColor='';
+      document.getElementById('cs-pin-input').value='';
+      document.getElementById('cs-pin-input').focus();
+    },600);
+    showToast('Incorrect PIN.','error');
+    return;
+  }
+  const aDef=AREAS[area];
+  let cleared=0;
+  const _csBefore=JSON.stringify(inventory);
+  if(aDef.type==='rack'){
+    for(const[s,tiers] of Object.entries(aDef.sections))
+      for(const[t,positions] of Object.entries(tiers))
+        positions.forEach(pos=>{
+          const id=locId(area,+s,+t,pos);
+          if(inventory[id]){delete inventory[id];cleared++;}
+        });
+  }else{
+    for(let i=1;i<=aDef.slots;i++){
+      const id=locId(area,null,null,i);
+      if(inventory[id]){delete inventory[id];cleared++;}
+    }
+  }
+  saveData();
+  addLog('CLEAR SECTION',area+' — '+cleared+' positions cleared', _csBefore);
+  refresh();
+  closeClearSectionModal();
+  showToast('Cleared '+cleared+' positions in '+area,'success');
+}
+
+let customItems = []; 
+
+function openAddItemModal(){
+  document.getElementById('ai-code').value='';
+  document.getElementById('ai-name').value='';
+  document.getElementById('ai-cat').value='';
+  document.getElementById('add-item-overlay').classList.remove('hidden');
+  renderCustomItemList();
+  setTimeout(()=>document.getElementById('ai-code').focus(),100);
+}
+function closeAddItemModal(e){
+  if(!e||e.target===document.getElementById('add-item-overlay'))
+    document.getElementById('add-item-overlay').classList.add('hidden');
+}
+function saveCustomItem(){
+  const code=document.getElementById('ai-code').value.trim().toUpperCase();
+  const name=document.getElementById('ai-name').value.trim();
+  const cat=document.getElementById('ai-cat').value;
+  if(!code){showToast('Enter an item code.','error');return;}
+  if(!name){showToast('Enter an item name.','error');return;}
+  if(!cat){showToast('Select a category.','error');return;}
+  if(ITEMS.find(i=>i.code===code)){showToast('Code already exists: '+code,'error');return;}
+  ITEMS.push({code,name,cat});
+  customItems.push({code,name,cat});
+  renderCustomItemList();
+  showToast('Item added: '+code,'success');
+  document.getElementById('ai-code').value='';
+  document.getElementById('ai-name').value='';
+  document.getElementById('ai-cat').value='';
+  document.getElementById('ai-code').focus();
+  refresh();
+}
+function removeCustomItem(code){
+  const idx=ITEMS.findIndex(i=>i.code===code);
+  if(idx>-1)ITEMS.splice(idx,1);
+  const cidx=customItems.findIndex(i=>i.code===code);
+  if(cidx>-1)customItems.splice(cidx,1);
+  renderCustomItemList();
+  refresh();
+}
+function renderCustomItemList(){
+  const wrap=document.getElementById('ai-custom-list-wrap');
+  const list=document.getElementById('ai-custom-list');
+  if(!customItems.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  list.innerHTML=customItems.map(i=>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:10px;">
+      <div><span style="color:var(--accent2);font-weight:700">${i.code}</span> <span style="color:var(--text2)">${i.name}</span> <span style="color:var(--text3)">[${i.cat}]</span></div>
+      <button onclick="removeCustomItem('${i.code}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0 4px">✕</button>
+    </div>`
+  ).join('');
+}
+
+function triggerClearAll(){
+  pinPendingClearAll=true;
+  openPinModal('clearall');
+}
+
+function triggerImport(){
+  pinPendingImport=true;
+  openPinModal('import');
+}
+
+function importExcel(input){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var sheetName=wb.SheetNames.includes('Location Detail')
+        ?'Location Detail':wb.SheetNames[0];
+      var rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:''});
+      var loaded=0,skipped=0;
+      var curArea='',curSec=null,curTier=null;
+      var KNOWN_AREAS=Object.keys(AREAS).map(function(a){return a.toUpperCase();});
+      var startRow=0;
+      for(var i=0;i<Math.min(rows.length,10);i++){
+        var av=String(rows[i][1]||'').trim().toUpperCase();
+        if(KNOWN_AREAS.includes(av)){startRow=i;break;}
+      }
+      for(var i=startRow;i<rows.length;i++){
+        var row=rows[i];
+        var areaVal=String(row[1]||'').trim().toUpperCase();
+        var secVal=row[2]!==''?parseInt(row[2]):null;
+        var tierVal=row[4]!==''?parseInt(row[4]):null;
+        var posVal=row[6]!==''?parseInt(row[6]):null;
+        var itemVal=String(row[9]||'').trim();
+        var qtyVal=parseInt(row[10])||0;
+        if(areaVal&&KNOWN_AREAS.includes(areaVal))curArea=areaVal;
+        if(secVal!==null&&!isNaN(secVal))curSec=secVal;
+        if(tierVal!==null&&!isNaN(tierVal))curTier=tierVal;
+        if(!curArea||posVal===null||isNaN(posVal)){skipped++;continue;}
+        var areaKey=Object.keys(AREAS).find(function(k){return k.toUpperCase()===curArea;});
+        if(!areaKey){skipped++;continue;}
+        var areaDef=AREAS[areaKey];
+        var id;
+        if(areaDef.type==='rack'){
+          if(curSec===null||curTier===null){skipped++;continue;}
+          id=locId(areaKey,curSec,curTier,posVal);
+        }else{
+          id=locId(areaKey,null,null,posVal);
+        }
+        if(!itemVal){delete inventory[id];skipped++;continue;}
+        
+        var resolvedItem=itemVal;
+        if(!ITEMS.find(function(x){return x.code===itemVal;})){
+          var mapped=PHYS_TO_SL[itemVal];
+          if(mapped){resolvedItem=mapped;}
+          else{skipped++;continue;} 
+        }
+        inventory[id]={item:resolvedItem,qty:qtyVal||1};
+        loaded++;
+      }
+      saveData();refresh();
+      addLog('IMPORT','Excel import — '+loaded+' positions loaded, '+skipped+' skipped');
+      showToast('Import OK — '+loaded+' positions loaded, '+skipped+' skipped','success');
+    }catch(err){
+      showToast('Import failed: '+err.message,'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+const PLAN_DIA_KEY = 'wms_plan_dia';
+let planData = null; 
+
+function loadPlanDia(){
+  try{
+    const s=localStorage.getItem(PLAN_DIA_KEY);
+    return s?JSON.parse(s):null;
+  }catch(e){return null;}
+}
+function savePlanDia(){
+  try{
+    if(planData)localStorage.setItem(PLAN_DIA_KEY,JSON.stringify(planData));
+    else localStorage.removeItem(PLAN_DIA_KEY);
+  }catch(e){}
+}
+
+function triggerPlanImport(){document.getElementById('plan-import-input').click();}
+
+function parseSleeveLineSheet(rows){
+  let headerRow=-1,colCode=-1,colBoxes=-1,colCs=-1;
+  for(let r=0;r<rows.length;r++){
+    const idx=rows[r].findIndex(v=>String(v).trim()==='Sum of Open Cs');
+    if(idx>-1){
+      headerRow=r;colCs=idx;
+      colCode=rows[r].findIndex(v=>String(v).trim()==='Code');
+      colBoxes=rows[r].findIndex(v=>String(v).trim()==='Boxes');
+      break;
+    }
+  }
+  if(headerRow<0||colCode<0||colBoxes<0)return null;
+  const bySl={};
+  const skipped=new Set();
+  for(let r=headerRow+1;r<rows.length;r++){
+    const row=rows[r];
+    const physCode=String(row[colCode]||'').trim();
+    if(!physCode)continue;
+    const cs=Number(row[colCs])||0;
+    if(!cs)continue;
+    const boxesTxt=String(row[colBoxes]||'').trim();
+    const mult=/6/.test(boxesTxt)?6:/4/.test(boxesTxt)?4:0;
+    if(!mult)continue;
+    const sl=PHYS_TO_SL[physCode];
+    if(!sl){skipped.add(physCode);continue;}
+    bySl[sl]=(bySl[sl]||0)+cs*mult;
+  }
+  return {bySl,skipped};
+}
+
+function importPlanFile(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const sheetName=wb.SheetNames.find(n=>/boxes.*total/i.test(n));
+      if(!sheetName){
+        showToast('Could not find a "Boxes (Total)" sheet in that file.','error');
+        return;
+      }
+      const ws=wb.Sheets[sheetName];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+      let headerRow=-1,colDesc=-1,colCode=-1,colTotal=-1;
+      for(let r=0;r<rows.length;r++){
+        const idx=rows[r].findIndex(v=>String(v).trim()==='Box Code');
+        if(idx>-1){
+          headerRow=r;colCode=idx;
+          colDesc=rows[r].findIndex(v=>String(v).trim()==='Boxes');
+          colTotal=rows[r].findIndex(v=>String(v).trim()==='Grand Total');
+          break;
+        }
+      }
+      if(headerRow<0||colTotal<0){
+        showToast('No se pudo ubicar la columna "Box Code" / "Grand Total" en la hoja.','error');
+        return;
+      }
+      const meta={};
+      for(let r=0;r<headerRow;r++){
+        const row=rows[r];
+        if(String(row[colDesc]||'').trim()==='Line Priority'){
+          meta.linePriority=String(row[colCode]||'').trim();
+        }
+      }
+
+      const byCode={};
+      for(let r=headerRow+1;r<rows.length;r++){
+        const row=rows[r];
+        const code=String(row[colCode]||'').trim();
+        const desc=String(colDesc>-1?row[colDesc]:'').trim();
+        if(!code)continue;
+        if(desc.toLowerCase()==='grand total')continue;
+        const total=Number(row[colTotal])||0;
+        const key=code.toUpperCase();
+        if(!byCode[key])byCode[key]={code:key,desc,needed:0};
+        byCode[key].needed+=total;
+        if(desc)byCode[key].desc=desc;
+      }
+
+      const oldItems={};
+      if(planData&&planData.items)planData.items.forEach(it=>oldItems[it.code]=it.delivered||0);
+
+      const items=Object.values(byCode).map(it=>({
+        code:it.code,
+        desc:it.desc,
+        needed:it.needed,
+        delivered:oldItems[it.code]||0
+      })).sort((a,b)=>a.code.localeCompare(b.code));
+
+      // Sleeves needed — reads "Line 22 Production" / "Line 23 Production", if present
+      const sleeveTotals={};
+      [22,23].forEach(num=>{
+        const lineSheet=wb.SheetNames.find(n=>new RegExp('line\\s*'+num,'i').test(n));
+        if(!lineSheet)return;
+        const lineRows=XLSX.utils.sheet_to_json(wb.Sheets[lineSheet],{header:1,defval:''});
+        const parsed=parseSleeveLineSheet(lineRows);
+        if(!parsed)return;
+        Object.entries(parsed.bySl).forEach(([sl,qty])=>{
+          if(!sleeveTotals[sl])sleeveTotals[sl]={line22:0,line23:0};
+          sleeveTotals[sl]['line'+num]=qty;
+        });
+      });
+      const sleeves=Object.entries(sleeveTotals).map(([sl,v])=>{
+        const item=ITEMS.find(i=>i.code===sl);
+        const total=v.line22+v.line23;
+        return {code:sl,desc:item?item.name:sl,line22:v.line22,line23:v.line23,total,boxesNeeded:Math.ceil(total/325)};
+      }).sort((a,b)=>a.code.localeCompare(b.code));
+
+      planData={importedAt:new Date().toISOString(),source:file.name,meta,items,sleeves};
+      savePlanDia();
+      addLog('PLAN IMPORT','Planning imported from "'+file.name+'" ('+sheetName+') — '+items.length+' box codes'+(sleeves.length?', '+sleeves.length+' sleeve codes':''));
+      render();
+      showToast('Daily Plan imported: '+items.length+' boxes'+(sleeves.length?', '+sleeves.length+' sleeves':'')+'.','success');
+    }catch(err){
+      showToast('Error al leer el planning: '+err.message,'error');
+    }
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function updatePlanDelivered(code,val){
+  if(!planData)return;
+  const it=planData.items.find(i=>i.code===code);
+  if(!it)return;
+  it.delivered=Math.max(0,Number(val)||0);
+  savePlanDia();
+  renderPlanView();
+}
+
+function clearPlanDia(){
+  if(!planData){showToast('No hay plan cargado.','error');return;}
+  if(!confirm('Delete the current Daily Plan? This will not affect your inventory.'))return;
+  planData=null;
+  savePlanDia();
+  render();
+  showToast('Daily Plan deleted.','success');
+}
+
+function exportPlanWorkFile(){
+  if(!planData||!planData.items.length){showToast('No plan to export.','error');return;}
+  const summary=getItemSummary();
+  const rows=[['Code','Description','Needed','Delivered','Remaining','Stock (at export time)','Stock After (at export time)']];
+  planData.items.forEach(it=>{
+    const stock=summary[it.code];
+    const equivCode=vendorEquivCode(it.code);
+    const equivStock=equivCode?summary[equivCode]:null;
+    const stockQty=(stock?stock.qty:0)+(equivStock?equivStock.qty:0);
+    rows.push([it.code,it.desc,it.needed,it.delivered,it.needed-it.delivered,stockQty,stockQty-it.needed]);
+  });
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'Plan');
+  if(planData.sleeves&&planData.sleeves.length){
+    const srows=[['SL Code','Description','Line 22','Line 23','Total Sleeves','Boxes Needed']];
+    planData.sleeves.forEach(s=>srows.push([s.code,s.desc,s.line22,s.line23,s.total,s.boxesNeeded]));
+    const sws=XLSX.utils.aoa_to_sheet(srows);
+    XLSX.utils.book_append_sheet(wb,sws,'Sleeves');
+  }
+  const d=today().replace(/\//g,'-');
+  XLSX.writeFile(wb,'WMS_DailyPlan_'+d+'.xlsx');
+  addLog('PLAN EXPORT','Work file exported — '+planData.items.length+' boxes');
+  showToast('Work file exported.','success');
+}
+
+function triggerPlanWorkImport(){document.getElementById('plan-workfile-input').click();}
+
+function importPlanWorkFile(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const sheetName=wb.SheetNames.find(n=>n==='Plan')||wb.SheetNames[0];
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:''});
+      const items=[];
+      for(let r=1;r<rows.length;r++){
+        const row=rows[r];
+        const code=String(row[0]||'').trim();
+        if(!code)continue;
+        items.push({
+          code:code.toUpperCase(),
+          desc:String(row[1]||'').trim(),
+          needed:Number(row[2])||0,
+          delivered:Number(row[3])||0
+        });
+      }
+      if(!items.length){showToast('El archivo no tiene filas de plan reconocibles.','error');return;}
+      let sleeves=[];
+      const sleeveSheet=wb.SheetNames.find(n=>n==='Sleeves');
+      if(sleeveSheet){
+        const srows=XLSX.utils.sheet_to_json(wb.Sheets[sleeveSheet],{header:1,defval:''});
+        for(let r=1;r<srows.length;r++){
+          const row=srows[r];
+          const code=String(row[0]||'').trim();
+          if(!code)continue;
+          sleeves.push({
+            code:code.toUpperCase(),
+            desc:String(row[1]||'').trim(),
+            line22:Number(row[2])||0,
+            line23:Number(row[3])||0,
+            total:Number(row[4])||0,
+            boxesNeeded:Number(row[5])||0
+          });
+        }
+      }
+      planData={importedAt:new Date().toISOString(),source:file.name,meta:{},items,sleeves};
+      savePlanDia();
+      addLog('PLAN IMPORT','Work file re-imported from "'+file.name+'" — '+items.length+' boxes (locations re-resolved live)');
+      render();
+      showToast('Work file loaded — locations updated for this device.','success');
+    }catch(err){
+      showToast('Error reading work file: '+err.message,'error');
+    }
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderPlanView(){
+  if(!planData){
+    document.getElementById('main-content').innerHTML=`
+      <div class="plan-toolbar">
+        <button class="import-btn" onclick="triggerPlanImport()">⬆ Import Planning</button>
+        <button class="import-btn" onclick="triggerPlanWorkImport()">⬆ Load Work File</button>
+        <input type="file" id="plan-import-input" accept=".xlsx" style="display:none" onchange="importPlanFile(this)">
+        <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
+      </div>
+      <div class="log-empty">No Daily Plan loaded.<br>Upload the production planning file (with a "Boxes (Total)" sheet) or reload a saved work file.</div>`;
+    return;
+  }
+  const summary=getItemSummary();
+  const items=planData.items;
+  let totalNeeded=0,totalDelivered=0,noStockCount=0,shortCount=0;
+  const rowsHtml=items.map(it=>{
+    totalNeeded+=it.needed;totalDelivered+=it.delivered;
+    const remaining=it.needed-it.delivered;
+    const stock=summary[it.code];
+    const equivCode=vendorEquivCode(it.code);
+    const equivStock=equivCode?summary[equivCode]:null;
+    const stockQty=(stock?stock.qty:0)+(equivStock?equivStock.qty:0);
+    const stockAfter=stockQty-it.needed;
+    const allLocs=[...(stock?stock.locs:[]),...(equivStock?equivStock.locs:[])];
+    const locTxt=allLocs.length?allLocs.map(locAbbrev).join(', '):'<span style="color:var(--danger)">No stock</span>';
+    if(!allLocs.length)noStockCount++;
+    if(stockAfter<0)shortCount++;
+    const remCls=remaining<0?'plan-rem-over':remaining===0?'plan-rem-ok':'plan-rem-pending';
+    const stockAfterCls=stockAfter<0?'plan-rem-pending':'plan-rem-ok';
+    const equivNote=equivStock?`<div style="font-size:9px;color:var(--warn)">incl. ${equivCode}</div>`:'';
+    return `<tr>
+      <td style="font-weight:700;color:var(--accent2)">${it.code}</td>
+      <td style="color:var(--text2);font-size:11px">${it.desc}</td>
+      <td>${it.needed.toLocaleString()}</td>
+      <td><input type="number" min="0" class="plan-delivered-input" value="${it.delivered}" onfocus="this.select()" onchange="updatePlanDelivered('${it.code}',this.value)"></td>
+      <td class="${remCls}">${remaining.toLocaleString()}</td>
+      <td>${stockQty.toLocaleString()}${equivNote}</td>
+      <td class="${stockAfterCls}">${stockAfter.toLocaleString()}</td>
+      <td style="font-size:10px;color:var(--text3)">${locTxt}</td>
+    </tr>`;
+  }).join('');
+  const alertParts=[];
+  if(noStockCount)alertParts.push(noStockCount+' code'+(noStockCount>1?'s':'')+' with no stock');
+  if(shortCount)alertParts.push(shortCount+' code'+(shortCount>1?'s':'')+' won\'t cover full need');
+  const alertBanner=alertParts.length?`<div class="plan-alert">⚠ ${alertParts.join(' · ')}</div>`:'';
+  const importedDate=new Date(planData.importedAt).toLocaleString('en-US',{month:'numeric',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  document.getElementById('main-content').innerHTML=`
+    <div class="plan-toolbar">
+      <button class="import-btn" onclick="triggerPlanImport()">⬆ Re-import Planning</button>
+      <button class="import-btn" onclick="triggerPlanWorkImport()">⬆ Load Work File</button>
+      <button class="export-btn" onclick="exportPlanWorkFile()">⬇ Export Work File</button>
+      <button class="log-clear-btn" onclick="clearPlanDia()">🗑 Clear Plan</button>
+      <input type="file" id="plan-import-input" accept=".xlsx" style="display:none" onchange="importPlanFile(this)">
+      <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
+    </div>
+    <div class="plan-meta">Source: ${planData.source} · Loaded: ${importedDate}${planData.meta&&planData.meta.linePriority?' · Line Priority: '+planData.meta.linePriority:''}</div>
+    ${alertBanner}
+    <div class="stat-grid" style="margin-bottom:14px">
+      <div class="stat"><div class="stat-num">${items.length}</div><div class="stat-lbl">Box Codes</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--warn)">${totalNeeded.toLocaleString()}</div><div class="stat-lbl">Needed (Total)</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--success)">${totalDelivered.toLocaleString()}</div><div class="stat-lbl">Delivered (Total)</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--danger)">${(totalNeeded-totalDelivered).toLocaleString()}</div><div class="stat-lbl">Remaining (Total)</div></div>
+    </div>
+    ${items.length?`<div style="overflow-x:auto"><table class="log-table plan-table">
+      <thead><tr><th>Code</th><th>Description</th><th>Needed</th><th>Delivered</th><th>Remaining</th><th>Stock</th><th>Stock After</th><th>Location</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table></div>`:`<div class="log-empty">No box codes in this plan.</div>`}
+    ${renderSleevesNeeded(summary)}`;
+}
+
+function renderSleevesNeeded(summary){
+  if(!planData.sleeves||!planData.sleeves.length)return'';
+  const rows=planData.sleeves.map(s=>{
+    const stock=summary[s.code];
+    const stockQty=stock?stock.qty:0;
+    const locTxt=stock?stock.locs.map(locAbbrev).join(', '):'<span style="color:var(--danger)">No stock</span>';
+    const physDisp=PHYS_CODES[s.code]?`<div class="ic-phys">Physical: ${PHYS_CODES[s.code].join(' · ')}</div>`:'';
+    return `<tr>
+      <td style="font-weight:700;color:var(--accent2)">${s.code}</td>
+      <td style="color:var(--text2);font-size:11px">${s.desc}${physDisp}</td>
+      <td>${s.line22?s.line22.toLocaleString():'—'}</td>
+      <td>${s.line23?s.line23.toLocaleString():'—'}</td>
+      <td style="font-weight:700">${s.total.toLocaleString()}</td>
+      <td style="font-weight:700;color:var(--warn)">${s.boxesNeeded.toLocaleString()}</td>
+      <td>${stockQty.toLocaleString()}</td>
+      <td style="font-size:10px;color:var(--text3)">${locTxt}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="plan-meta" style="margin-top:20px;font-weight:700;color:var(--text2);font-size:12px">🧵 Sleeves Needed (Line 22 + Line 23 · 325 sleeves/box)</div>
+    <div style="overflow-x:auto"><table class="log-table plan-table">
+      <thead><tr><th>SL Code</th><th>Description</th><th>Line 22</th><th>Line 23</th><th>Total Sleeves</th><th>Boxes Needed</th><th>Stock</th><th>Location</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+const BOXROOM_HIGH=new Set(['BX1850','BX1100','BX7500','BX1000','BX3000','BX7600','BX1400','BX1050']);
+const BOXROOM_MEDIUM=new Set(['BX3050','BX1300','BX3200','BX1200','BX1350','BX3150','BX2050','BX8200','BX2075','BX2003','BX1900','BX3100']);
+function boxRoomConsumptionClass(code){
+  if(!code)return 'empty';
+  if(code.toUpperCase()==='SAMPLE')return 'sample';
+  const base=code.replace('PCA','').replace(/-\d+$/,'').trim();
+  if(BOXROOM_HIGH.has(base))return 'high';
+  if(BOXROOM_MEDIUM.has(base))return 'medium';
+  return 'low';
+}
+const BOXROOM_CSS=`
+.boxroom-page{width:8.5in;min-height:11in;padding:0.35in;margin:0 auto 20px auto;background:#fff;box-sizing:border-box;page-break-after:always;font-family:Arial,sans-serif;color:#1f1f1f;}
+.boxroom-header{background:#1f4e78;color:#fff;padding:12px 16px;font-size:22px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;}
+.boxroom-header small{font-size:12px;font-weight:normal;}
+.boxroom-subtitle{text-align:center;color:#1f4e78;font-weight:bold;font-size:17px;margin:12px 0 8px 0;}
+.boxroom-legend{display:flex;gap:18px;align-items:center;margin:8px 0 12px 0;font-size:12px;flex-wrap:wrap;}
+.boxroom-legend-box{width:26px;height:18px;border:1px solid #777;border-radius:4px;display:inline-block;vertical-align:middle;margin-right:5px;}
+.boxroom-entry{color:#c00000;font-weight:bold;margin:6px 0 8px 0;}
+.boxroom-section{border:3px solid #1f4e78;margin-bottom:10px;}
+.boxroom-section-title{background:#1f4e78;color:#fff;text-align:center;font-weight:bold;padding:8px;font-size:18px;}
+.boxroom-tier-row{display:grid;grid-template-columns:38px 1fr;align-items:stretch;}
+.boxroom-tier-label{color:#1f4e78;font-weight:bold;display:flex;align-items:center;justify-content:center;border-right:1px solid #777;border-top:1px solid #777;}
+.boxroom-positions{display:grid;border-top:1px solid #777;}
+.boxroom-slot{min-height:64px;border-left:1px solid #777;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 3px;text-align:center;box-sizing:border-box;}
+.boxroom-slot-code{font-weight:bold;font-size:13px;}
+.boxroom-slot-desc{font-size:9px;color:#333;line-height:1.1;max-width:100%;}
+.boxroom-slot-qty{font-size:11px;color:#c00000;font-weight:bold;}
+.boxroom-empty{color:#999;font-style:italic;background:#f2f2f2;background-color:#f2f2f2;}
+.boxroom-high{background:#c6e7b8;background-color:#c6e7b8;}
+.boxroom-medium{background:#ffe699;background-color:#ffe699;}
+.boxroom-low{background:#f8cfc6;background-color:#f8cfc6;}
+.boxroom-sample{background:#bdd7ee;background-color:#bdd7ee;}
+@media screen and (max-width:850px){
+  .boxroom-page{width:100%;min-height:auto;padding:0.2in;}
+  .boxroom-header{font-size:16px;padding:10px 12px;}
+  .boxroom-subtitle{font-size:13px;}
+  .boxroom-legend{font-size:10px;gap:10px;}
+  .boxroom-slot{min-height:52px;}
+  .boxroom-slot-code{font-size:11px;}
+  .boxroom-slot-desc{font-size:8px;}
+}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}
+  html,body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}
+  .boxroom-header,.boxroom-section-title,.boxroom-high,.boxroom-medium,.boxroom-low,.boxroom-sample,.boxroom-empty{
+    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
+  }
+  .boxroom-page{width:8.5in!important;min-height:11in!important;padding:0.25in!important;}
+  .boxroom-header{font-size:18px!important;padding:8px 12px!important;}
+  .boxroom-subtitle{font-size:14px!important;margin:8px 0 6px 0!important;}
+  .boxroom-legend{font-size:10px!important;margin:6px 0 8px 0!important;}
+  .boxroom-legend-box{width:20px!important;height:14px!important;}
+  .boxroom-entry{margin:4px 0 6px 0!important;font-size:13px!important;}
+  .boxroom-section{margin-bottom:6px!important;}
+  .boxroom-section-title{font-size:15px!important;padding:6px!important;}
+  .boxroom-slot{min-height:48px!important;padding:2px 3px!important;}
+  .boxroom-slot-code{font-size:11px!important;}
+  .boxroom-slot-desc{font-size:8px!important;}
+  .boxroom-slot-qty{font-size:10px!important;}
+  .boxroom-section{page-break-inside:avoid!important;}
+}
+`;
+(function injectBoxRoomCSS(){
+  const el=document.createElement('style');
+  el.textContent=BOXROOM_CSS;
+  document.head.appendChild(el);
+})();
+
+function openBoxRoomMap(){
+  document.getElementById('boxroom-printable').innerHTML=renderBoxRoomMap();
+  document.getElementById('boxroom-overlay').classList.remove('hidden');
+}
+function closeBoxRoomMap(e){
+  if(!e||e.target===document.getElementById('boxroom-overlay'))
+    document.getElementById('boxroom-overlay').classList.add('hidden');
+}
+function renderBoxRoomMap(){
+  const today=new Date().toLocaleDateString('en-US');
+  return renderBoxRoomPage('LEFT SIDE','LEFT SIDE (from entrance) · Sections 1 → 4','← ENTRANCE',[1,2,3,4],today)
+       + renderBoxRoomPage('RIGHT SIDE','RIGHT SIDE (from entrance) · Sections 7 → 5','ENTRANCE →',[7,6,5],today);
+}
+function renderBoxRoomPage(side,title,entryText,sections,today){
+  return `<section class="boxroom-page">
+    <div class="boxroom-header"><span>BOX ROOM — ${side}</span><small>Rev. ${today}</small></div>
+    <div class="boxroom-subtitle">${title}</div>
+    <div class="boxroom-legend">
+      <span><i class="boxroom-legend-box" style="background:#c6e7b8"></i>High consumption</span>
+      <span><i class="boxroom-legend-box" style="background:#ffe699"></i>Medium</span>
+      <span><i class="boxroom-legend-box" style="background:#f8cfc6"></i>Low</span>
+      <span><i class="boxroom-legend-box" style="background:#bdd7ee"></i>Sample</span>
+      <span><i class="boxroom-legend-box" style="background:#f2f2f2"></i>Empty</span>
+    </div>
+    <div class="boxroom-entry">${entryText}</div>
+    ${sections.map(s=>renderBoxRoomSection(s)).join('')}
+  </section>`;
+}
+function renderBoxRoomSection(sectionNum){
+  const tiers=AREAS['BOX ROOM'].sections[sectionNum];
+  return `<div class="boxroom-section">
+    <div class="boxroom-section-title">SECTION ${sectionNum}</div>
+    ${[3,2,1].map(t=>{
+      const positions=tiers[t]||[];
+      return `<div class="boxroom-tier-row">
+        <div class="boxroom-tier-label">T${t}</div>
+        <div class="boxroom-positions" style="grid-template-columns:repeat(${positions.length},1fr)">
+          ${positions.map(p=>renderBoxRoomSlot(sectionNum,t,p)).join('')}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function renderBoxRoomSlot(sec,tier,pos){
+  const id=locId('BOX ROOM',sec,tier,pos);
+  const occ=inventory[id];
+  if(!occ||!occ.item)return `<div class="boxroom-slot boxroom-empty">empty</div>`;
+  const cls=boxRoomConsumptionClass(occ.item);
+  const itemDef=ITEMS.find(i=>i.code===occ.item);
+  const desc=itemDef?itemDef.name:'(unknown)';
+  return `<div class="boxroom-slot boxroom-${cls}">
+    <div class="boxroom-slot-code">${occ.item}</div>
+    <div class="boxroom-slot-desc">${desc}</div>
+    <div class="boxroom-slot-qty">Qty ${(occ.qty||0).toLocaleString()}</div>
+  </div>`;
+}
+function printBoxRoomMap(){
+  const win=window.open('','_blank');
+  if(!win){showToast('Please allow pop-ups to print.','error');return;}
+  win.document.open();
+  win.document.write(boxRoomFullHTML());
+  win.document.close();
+  win.onload=function(){win.focus();win.print();};
+}
+function boxRoomFullHTML(){
+  const content=document.getElementById('boxroom-printable').innerHTML;
+  const stamp=new Date().toLocaleString('en-US');
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Box Room Map</title><style>${BOXROOM_CSS}
+.boxroom-standalone-toolbar{display:flex;flex-direction:column;gap:8px;align-items:center;padding:14px 10px;background:#eef2f6;border-bottom:3px solid #1f4e78;}
+.boxroom-standalone-toolbar .boxroom-btn-row{display:flex;gap:8px;}
+.boxroom-standalone-toolbar button{border:none;background:#1f4e78;color:#fff;padding:12px 18px;border-radius:8px;font-weight:bold;font-family:Arial,sans-serif;font-size:14px;}
+.boxroom-standalone-stamp{font-family:Arial,sans-serif;font-size:12px;color:#c00000;font-weight:bold;}
+@media print{.no-print{display:none!important;}}
+</style></head><body>
+<div class="boxroom-standalone-toolbar no-print">
+  <div class="boxroom-standalone-stamp">Generated: ${stamp}</div>
+  <div class="boxroom-btn-row">
+    <button onclick="window.print()">🖨 Print / Save PDF</button>
+    <button onclick="if(navigator.share){navigator.share({title:'Box Room Map',text:'Box Room visual map',url:location.href}).catch(()=>{})}else{alert('Use your browser\\'s own Share button.')}">↗ Share</button>
+  </div>
+</div>
+${content}</body></html>`;
+}
+function downloadBoxRoomMap(){
+  const blob=new Blob([boxRoomFullHTML()],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const now=new Date();
+  const stamp=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')
+    +'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+String(now.getSeconds()).padStart(2,'0');
+  const a=document.createElement('a');
+  a.href=url;a.download='box_room_map_'+stamp+'.html';
+  document.body.appendChild(a);a.click();a.remove();
+  URL.revokeObjectURL(url);
+  showToast('Box Room map downloaded.','success');
+}
+async function shareBoxRoomMap(){
+  const html=boxRoomFullHTML();
+  const file=new File([html],'box_room_map.html',{type:'text/html'});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({title:'Box Room Map',text:'Box Room visual map',files:[file]});
+    }else if(navigator.share){
+      await navigator.share({title:'Box Room Map',text:'Box Room visual map'});
+    }else{
+      downloadBoxRoomMap();
+    }
+  }catch(e){}
+}
+
+const POWER_AUTOMATE_URL = '';
+
+const SYNC_HISTORY_KEY = 'wms_sync_history_local';
+let syncTab = 'export';
+let _syncHistoryCache = [];
+
+function getFlowUrl(){return POWER_AUTOMATE_URL.trim();}
+function syncMode(){return getFlowUrl()?'sharepoint':'local';}
+function loadSyncHistoryLocal(){try{const s=localStorage.getItem(SYNC_HISTORY_KEY);return s?JSON.parse(s):[];}catch(e){return [];}}
+function saveSyncHistoryLocal(h){try{localStorage.setItem(SYNC_HISTORY_KEY,JSON.stringify(h));}catch(e){}}
+const SYNC_TURNO_LABELS={pre9:'Before 9am (Morning)',post9:'After 9am (Afternoon)',eom:'End of Month (EOM)'};
+
+function openSyncModal(){
+  document.getElementById('sync-export-status').textContent='';
+  updateSyncModeLabel();
+  setSyncTab('export');
+  document.getElementById('sync-overlay').classList.remove('hidden');
+}
+function closeSyncModal(e){
+  if(!e||e.target===document.getElementById('sync-overlay'))
+    document.getElementById('sync-overlay').classList.add('hidden');
+}
+function updateSyncModeLabel(){
+  const el=document.getElementById('sync-mode-label');
+  if(!el)return;
+  el.textContent = syncMode()==='sharepoint' ? '☁ Mode: SharePoint (Power Automate)' : '💾 Mode: Local (this device)';
+}
+function setSyncTab(t){
+  syncTab=t;
+  document.getElementById('sync-tab-export').classList.toggle('active',t==='export');
+  document.getElementById('sync-tab-import').classList.toggle('active',t==='import');
+  document.getElementById('sync-export-body').classList.toggle('hidden',t!=='export');
+  document.getElementById('sync-import-body').classList.toggle('hidden',t!=='import');
+  if(t==='import')renderSyncHistory();
+}
+async function syncExport(){
+  const turnoSel=document.getElementById('sync-turno-sel').value;
+  const turnoLabel=SYNC_TURNO_LABELS[turnoSel];
+  const d=today();
+  const payload={date:d,turno:turnoSel,turnoLabel:turnoLabel,ts:new Date().toISOString(),data:inventory};
+  const statusEl=document.getElementById('sync-export-status');
+  if(syncMode()==='sharepoint'){
+    statusEl.textContent='Sending to SharePoint...';
+    try{
+      const res=await fetch(getFlowUrl(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({action:'export'},payload))});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      statusEl.textContent='✓ Copy sent to SharePoint ('+turnoLabel+', '+d+').';
+      showToast('Synced with SharePoint.','success');
+    }catch(err){
+      const hist=loadSyncHistoryLocal();
+      const idx=hist.findIndex(h=>h.date===d&&h.turno===turnoSel);
+      if(idx>-1)hist[idx]=payload;else hist.unshift(payload);
+      saveSyncHistoryLocal(hist);
+      statusEl.textContent='⚠ Could not connect to SharePoint — saved locally as backup.';
+      showToast('No connection. Copy saved locally.','error');
+    }
+  }else{
+    const hist=loadSyncHistoryLocal();
+    const idx=hist.findIndex(h=>h.date===d&&h.turno===turnoSel);
+    if(idx>-1)hist[idx]=payload;else hist.unshift(payload);
+    saveSyncHistoryLocal(hist);
+    statusEl.textContent='✓ Copy saved locally ('+turnoLabel+', '+d+').';
+    showToast('Copy saved.','success');
+  }
+}
+async function renderSyncHistory(){
+  const wrap=document.getElementById('sync-history-list');
+  wrap.innerHTML='<div style="color:var(--text3);font-size:11px">Loading history...</div>';
+  let items=[];
+  if(syncMode()==='sharepoint'){
+    try{
+      const res=await fetch(getFlowUrl(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'list'})});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const j=await res.json();
+      items=Array.isArray(j)?j:(j.items||[]);
+    }catch(err){
+      wrap.innerHTML='<div style="color:var(--danger);font-size:11px">Could not load SharePoint history ('+err.message+').</div>';
+      return;
+    }
+  }else{
+    items=loadSyncHistoryLocal();
+  }
+  _syncHistoryCache=items;
+  if(!items.length){wrap.innerHTML='<div style="color:var(--text3);font-size:11px;text-align:center;padding:12px">No saved copies yet.</div>';return;}
+  wrap.innerHTML=items.map((it,i)=>{
+    const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno||'';
+    return `<div class="sync-hist-row">
+      <div><span style="color:var(--accent2);font-weight:700">${it.date}</span> · ${label}</div>
+      <button class="sync-import-btn" onclick="syncImportEntry(${i})">⬇ Load</button>
+    </div>`;
+  }).join('');
+}
+function syncImportEntry(i){
+  const it=_syncHistoryCache[i];
+  if(!it){showToast('Entry not found.','error');return;}
+  const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno;
+  if(!confirm('This will replace the ENTIRE current inventory with the copy from '+it.date+' ('+label+'). This does not merge data — the inventory on screen is fully overwritten.\n\nContinue?'))return;
+  const before=JSON.stringify(inventory);
+  inventory=it.data||{};
+  saveData();
+  addLog('SYNC IMPORT','Inventory replaced with copy from '+it.date+' ('+label+')', before);
+  refresh();
+  document.getElementById('sync-overlay').classList.add('hidden');
+  showToast('Inventory imported from '+it.date+'.','success');
+}
+
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('pin-overlay').classList.contains('hidden')){
+    if(e.key>='0'&&e.key<='9') pinKey(e.key);
+    if(e.key==='Backspace') pinDel();
+    if(e.key==='Escape') closePinModal();
+    return;
+  }
+  if(e.key==='Escape'){
+    closeModal();closeRoModal();
+  }
+  if(e.key==='Enter'&&!document.getElementById('modal-overlay').classList.contains('hidden'))saveLocation();
+});
+
+function openPinModal(mode){
+  pinBuffer='';
+  pinChangeStep= mode==='change'?1:0;
+  pinNewTemp='';
+  updatePinDots();
+  document.getElementById('pin-error').textContent='';
+  document.getElementById('pin-change-wrap').style.display= mode==='change'?'none':'block';
+  if(mode==='change'){
+    document.getElementById('pin-title').textContent='Change PIN';
+    document.getElementById('pin-subtitle').textContent='Enter your current PIN';
+  } else if(mode==='clearall'){
+    document.getElementById('pin-title').textContent='Clear All Inventory';
+    document.getElementById('pin-subtitle').textContent='Enter PIN to confirm — this cannot be undone';
+  } else if(mode==='import'){
+    document.getElementById('pin-title').textContent='Import Inventory';
+    document.getElementById('pin-subtitle').textContent='Enter PIN to confirm the import';
+  } else {
+    document.getElementById('pin-title').textContent='Count Mode';
+    document.getElementById('pin-subtitle').textContent='Enter PIN to unlock editing';
+  }
+  document.getElementById('pin-overlay').classList.remove('hidden');
+}
+function closePinModal(e){
+  if(!e||e.target===document.getElementById('pin-overlay')){
+    document.getElementById('pin-overlay').classList.add('hidden');
+    pinBuffer='';pinChangeStep=0;pinNewTemp='';
+  }
+}
+function updatePinDots(){
+  for(let i=0;i<4;i++){
+    const d=document.getElementById('pd'+i);
+    d.classList.toggle('filled',i<pinBuffer.length);
+    d.classList.remove('error');
+  }
+}
+function pinShakeError(msg){
+  document.getElementById('pin-error').textContent=msg;
+  for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.add('error');
+  setTimeout(()=>{pinBuffer='';updatePinDots();},700);
+}
+function pinKey(d){
+  if(pinBuffer.length>=4)return;
+  pinBuffer+=d;
+  updatePinDots();
+  document.getElementById('pin-error').textContent='';
+  if(pinBuffer.length===4) setTimeout(pinSubmit,120);
+}
+function pinDel(){
+  pinBuffer=pinBuffer.slice(0,-1);
+  updatePinDots();
+  document.getElementById('pin-error').textContent='';
+}
+function pinSubmit(){
+  /* ── unlock flow ── */
+  if(pinChangeStep===0){
+    if(pinBuffer===getPin()){
+      document.getElementById('pin-overlay').classList.add('hidden');
+      pinBuffer='';
+      if(pinPendingClearAll){
+        pinPendingClearAll=false;
+        const _caBefore=JSON.stringify(inventory);
+        inventory={};
+        saveData();
+        addLog('CLEAR ALL','⚠ All inventory cleared by PIN authorization', _caBefore);
+        
+        refresh();
+        showToast('All inventory cleared.','success');
+      } else if(pinPendingImport){
+        pinPendingImport=false;
+        var input=document.getElementById('import-file-input');
+        input.value='';input.click();
+      }
+    } else {
+      pinShakeError('Incorrect PIN');
+    }
+    return;
+  }
+    if(pinChangeStep===1){
+    if(pinBuffer===getPin()){
+      pinChangeStep=2;pinNewTemp='';pinBuffer='';
+      updatePinDots();
+      document.getElementById('pin-subtitle').textContent='Enter new PIN (4 digits)';
+      document.getElementById('pin-error').textContent='';
+    } else {
+      pinShakeError('Incorrect PIN');
+    }
+    return;
+  }
+  if(pinChangeStep===2){
+    pinNewTemp=pinBuffer;pinBuffer='';
+    pinChangeStep=3;
+    updatePinDots();
+    document.getElementById('pin-subtitle').textContent='Confirm new PIN';
+    document.getElementById('pin-error').textContent='';
+    return;
+  }
+  if(pinChangeStep===3){
+    if(pinBuffer===pinNewTemp){
+      savePin(pinBuffer);
+      document.getElementById('pin-overlay').classList.add('hidden');
+      pinBuffer='';pinChangeStep=0;pinNewTemp='';
+      alert('PIN updated successfully.');
+    } else {
+      pinShakeError('PINs do not match');
+      pinChangeStep=2;pinNewTemp='';
+      setTimeout(()=>{
+        document.getElementById('pin-subtitle').textContent='Enter new PIN (4 digits)';
+      },750);
+    }
+  }
+}
+function startChangePin(){
+  openPinModal('change');
+}
+
+function openRoModal(id){
+  const data=inventory[id];
+  const item=data?ITEMS.find(x=>x.code===data.item):null;
+  document.getElementById('ro-loc-label').textContent=locLabel(id);
+  if(data&&item){
+    document.getElementById('ro-item-code').textContent=data.item;
+    document.getElementById('ro-item-name').textContent=item.name;
+    document.getElementById('ro-item-cat').textContent=item.cat;
+    document.getElementById('ro-qty').textContent=data.qty.toLocaleString();
+    document.getElementById('ro-item-code').className='ro-val';
+    document.getElementById('ro-qty').className='ro-val';
+  } else {
+    document.getElementById('ro-item-code').textContent='—';
+    document.getElementById('ro-item-code').className='ro-empty';
+    document.getElementById('ro-item-name').textContent='Empty location';
+    document.getElementById('ro-item-name').className='ro-empty';
+    document.getElementById('ro-item-cat').textContent='—';
+    document.getElementById('ro-qty').textContent='—';
+    document.getElementById('ro-qty').className='ro-empty';
+  }
+  document.getElementById('ro-overlay').classList.remove('hidden');
+}
+function closeRoModal(e){
+  if(!e||e.target===document.getElementById('ro-overlay'))
+    document.getElementById('ro-overlay').classList.add('hidden');
+}
+
+function toggleSidebar(){
+  
+  if(window.innerWidth>=680 && window.innerHeight<=600){
+    var d=document.getElementById('actions-drawer-overlay');
+    if(d) d.classList.toggle('hidden');
+    
+    syncDrawerCountType();
+    return;
+  }
+  const sb=document.querySelector('.sidebar');
+  const ov=document.getElementById('sidebar-overlay');
+  const open=sb.classList.toggle('open');
+  ov.classList.toggle('active',open);
+}
+function closeActionsDrawer(e){
+  if(!e||e.target===document.getElementById('actions-drawer-overlay')){
+    var d=document.getElementById('actions-drawer-overlay');
+    if(d) d.classList.add('hidden');
+  }
+}
+function syncDrawerCountType(){
+  var main=document.getElementById('count-type-sel');
+  var drawer=document.getElementById('count-type-sel-drawer');
+  if(main&&drawer) drawer.value=main.value;
+}
+function syncCountTypeSel(src){
+  var main=document.getElementById('count-type-sel');
+  if(main) main.value=src.value;
+}
+function closeSidebar(){
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('active');
+}
+
+function toggleTheme(){
+  const isDark=document.body.classList.toggle('theme-dark');
+  document.documentElement.classList.toggle('theme-dark',isDark);
+  const btn=document.getElementById('theme-btn');
+  btn.textContent=isDark?'☀ Day Mode':'🌙 Night Mode';
+  try{localStorage.setItem('wms_theme',isDark?'dark':'light');}catch(e){}
+}
+function loadTheme(){
+  try{
+    const t=localStorage.getItem('wms_theme');
+    if(t==='dark'){
+      document.body.classList.add('theme-dark');
+      document.documentElement.classList.add('theme-dark');
+      const btn=document.getElementById('theme-btn');
+      if(btn)btn.textContent='☀ Day Mode';
+    }
+  }catch(e){}
+}
+
+function p2(n){return String(n).padStart(2,'0');}
+
+function p2(n){return String(n).padStart(2,'0');}
+
+function openSecPanel(areaName, sec){
+  const aDef=AREAS[areaName];
+  if(!aDef||aDef.type!=='rack')return;
+  const tiers=aDef.sections[sec];
+  if(!tiers)return;
+
+  const rows=[];
+  Object.entries(tiers).forEach(([t,positions])=>{
+    positions.forEach(pos=>{
+      const id=locId(areaName,+sec,+t,pos);
+      const occ=inventory[id];
+      if(occ){
+        const item=ITEMS.find(x=>x.code===occ.item);
+        rows.push({id,label:locLabel(id),code:occ.item,name:item?item.name:'',qty:occ.qty});
+      }
+    });
+  });
+
+  const total=rows.reduce((s,r)=>s+r.qty,0);
+  document.getElementById('sec-panel-title').textContent=`${areaName} · Section ${sec}`;
+  document.getElementById('sec-panel-meta').textContent=rows.length+' position(s) occupied · '+total.toLocaleString()+' total units';
+
+  let html='';
+  if(!rows.length){
+    html=`<div class="sec-panel-empty">No items in this section</div>`;
+  }else{
+    rows.forEach(r=>{
+      html+=`<div class="sec-panel-row">
+        <span class="sec-row-loc">${r.label}</span>
+        <span class="sec-row-code">${r.code}</span>
+        <span class="sec-row-name">${r.name}</span>
+        <span class="sec-row-qty">${r.qty.toLocaleString()}</span>
+        <button class="sec-row-map" onclick="jumpToMapLoc('${r.id}','${areaName}')">Map</button>
+      </div>`;
+    });
+  }
+  document.getElementById('sec-panel-body').innerHTML=html;
+  document.getElementById('sec-panel-overlay').classList.remove('hidden');
+}
+function closeSecPanel(e){
+  if(!e||e.target===document.getElementById('sec-panel-overlay'))
+    document.getElementById('sec-panel-overlay').classList.add('hidden');
+}
+
+function openFloorPanel(areaName){
+  const aDef=AREAS[areaName];
+  if(!aDef||aDef.type!=='floor')return;
+
+  const rows=[];
+  for(let i=1;i<=aDef.slots;i++){
+    const id=locId(areaName,null,null,i);
+    const occ=inventory[id];
+    if(occ){
+      const item=ITEMS.find(x=>x.code===occ.item);
+      rows.push({id,slot:i,code:occ.item,name:item?item.name:'',qty:occ.qty});
+    }
+  }
+
+  const total=rows.reduce((s,r)=>s+r.qty,0);
+  document.getElementById('sec-panel-title').textContent=`${areaName}`;
+  document.getElementById('sec-panel-meta').textContent=rows.length+' slot(s) occupied · '+total.toLocaleString()+' total units';
+
+  let html='';
+  if(!rows.length){
+    html=`<div class="sec-panel-empty">No items on this floor</div>`;
+  }else{
+    rows.forEach(r=>{
+      html+=`<div class="sec-panel-row">
+        <span class="sec-row-loc">Slot ${r.slot}</span>
+        <span class="sec-row-code">${r.code}</span>
+        <span class="sec-row-name">${r.name}</span>
+        <span class="sec-row-qty">${r.qty.toLocaleString()}</span>
+        <button class="sec-row-map" onclick="jumpToMapLoc('${r.id}','${areaName}')">Map</button>
+      </div>`;
+    });
+  }
+  document.getElementById('sec-panel-body').innerHTML=html;
+  document.getElementById('sec-panel-overlay').classList.remove('hidden');
+}
+function jumpToMapLoc(locId_,areaName){
+  document.getElementById('sec-panel-overlay').classList.add('hidden');
+  const occ=inventory[locId_];
+  if(occ){selectedItem=occ.item;}
+  setView('map');
+  
+  setTimeout(()=>{
+    const areas=document.querySelectorAll('.map-area-title');
+    areas.forEach(el=>{
+      if(el.textContent.trim().startsWith(areaName)){
+        el.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    });
+  },100);
+}
+
+function openIlocPanel(code){
+  const item=ITEMS.find(i=>i.code===code);
+  if(!item)return;
+  document.getElementById('iloc-title').textContent=code+' — '+(item.name||'');
+  document.getElementById('iloc-sub').textContent=item.cat;
+
+  const locs=[];
+  Object.entries(inventory).forEach(([id,data])=>{
+    if(data&&data.item===code)locs.push({id,label:locLabel(id),qty:data.qty});
+  });
+
+  let html='';
+  if(!locs.length){
+    html=`<div class="iloc-nostock">Not currently in stock</div>`;
+  }else{
+    const total=locs.reduce((s,l)=>s+l.qty,0);
+    html+=`<div style="font-size:10px;color:var(--text3);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">${locs.length} location(s) · <span style="color:var(--accent);font-weight:700">${total.toLocaleString()}</span> total units</div>`;
+    locs.forEach(l=>{
+      html+=`<div class="iloc-row">
+        <span class="iloc-loc">${l.label}</span>
+        <span class="iloc-qty">${l.qty.toLocaleString()}</span>
+        <button class="iloc-map-btn" onclick="jumpToItemOnMap('${code}','${l.id}')">View on Map</button>
+      </div>`;
+    });
+  }
+  document.getElementById('iloc-body').innerHTML=html;
+  document.getElementById('iloc-overlay').classList.remove('hidden');
+}
+function closeIlocPanel(e){
+  if(!e||e.target===document.getElementById('iloc-overlay'))
+    document.getElementById('iloc-overlay').classList.add('hidden');
+}
+function jumpToItemOnMap(code, locId_){
+  document.getElementById('iloc-overlay').classList.add('hidden');
+  selectedItem=code;
+  setView('map');
+  
+  const parts=locId_.split('|');
+  const areaName=parts[0]||'';
+  setTimeout(()=>{
+    const areas=document.querySelectorAll('.map-area-title');
+    areas.forEach(el=>{
+      if(el.textContent.trim().startsWith(areaName)){
+        el.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+    });
+  },120);
+}
+
+loadData();
+loadTheme();
+countSession=loadCountSession();
+planData=loadPlanDia();
+refresh();
+updateCountSessionUI();
+</script>
+</body>
+</html>
