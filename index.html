@@ -3096,14 +3096,15 @@ function syncViewEntry(i){
       const item=ITEMS.find(i2=>i2.code===code);
       const name=item?item.name:'(unknown)';
       return `<tr>
-        <td style="font-weight:700;color:var(--accent2)">${code}</td>
+        <td style="font-weight:700;color:var(--accent2);white-space:nowrap">${code}</td>
         <td style="color:var(--text2);font-size:11px">${name}</td>
-        <td style="font-weight:700">${summary[code].toLocaleString()}</td>
+        <td style="font-weight:700;white-space:nowrap;text-align:right">${summary[code].toLocaleString()}</td>
       </tr>`;
     }).join('');
     body.innerHTML=`<div style="font-size:10px;color:var(--text3);margin-bottom:8px">${codes.length} codes · read-only snapshot, does not affect today's inventory</div>
-      <table class="log-table plan-table">
-        <thead><tr><th>Code</th><th>Description</th><th>Qty</th></tr></thead>
+      <table class="log-table" style="table-layout:fixed;width:100%">
+        <colgroup><col style="width:78px"><col><col style="width:64px"></colgroup>
+        <thead><tr><th>Code</th><th>Description</th><th style="text-align:right">Qty</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
   }
