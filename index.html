@@ -3471,12 +3471,39 @@ function jumpToItemOnMap(code, locId_){
   },120);
 }
 
+async function autoLoadIfEmpty(){
+  if(Object.keys(inventory).length>0)return; // ya hay datos locales — nunca los toca
+  if(syncMode()!=='sharepoint')return; // sin SharePoint conectado, no hay de dónde traer
+  try{
+    const res=await fetch(getFlowUrl(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'list'})});
+    if(!res.ok)return;
+    const j=await res.json();
+    const raw=Array.isArray(j)?j:(j.value||j.items||[]);
+    if(!raw.length)return;
+    const r=raw[0]; // el flujo ya los devuelve ordenados "Created desc" — el primero es el más reciente
+    let parsedData=r.data;
+    if(r.JsonData!==undefined){
+      try{ parsedData=typeof r.JsonData==='string'?JSON.parse(r.JsonData):r.JsonData; }
+      catch(e){ parsedData=null; }
+    }
+    if(parsedData&&Object.keys(parsedData).length){
+      inventory=parsedData;
+      saveData();
+      const dateLabel=r.date||r.InventoryDate||'';
+      addLog('SYNC IMPORT','Auto-loaded latest SharePoint backup on empty device ('+dateLabel+')');
+      refresh();
+      showToast('Loaded latest inventory from SharePoint ('+dateLabel+').','success');
+    }
+  }catch(e){/* silencioso — si falla, se queda vacío/local, no interrumpe el arranque */}
+}
+
 loadData();
 loadTheme();
 countSession=loadCountSession();
 planData=loadPlanDia();
 refresh();
 updateCountSessionUI();
+autoLoadIfEmpty();
 </script>
 </body>
 </html>
