@@ -3035,7 +3035,7 @@ async function renderSyncHistory(){
           catch(e){ parsedData={}; }
         }
         return{
-          date:r.date||r.InventoryDate||'',
+          date:r.date||r.InventoryDate||r.WMS_Backups||'',
           turno:r.turno||'',
           turnoLabel:r.turnoLabel||r.Shift||'',
           data:parsedData||{}
@@ -3489,7 +3489,7 @@ async function autoLoadIfEmpty(){
     if(parsedData&&Object.keys(parsedData).length){
       inventory=parsedData;
       saveData();
-      const dateLabel=r.date||r.InventoryDate||'';
+      const dateLabel=r.date||r.InventoryDate||r.WMS_Backups||'';
       addLog('SYNC IMPORT','Auto-loaded latest SharePoint backup on empty device ('+dateLabel+')');
       refresh();
       showToast('Loaded latest inventory from SharePoint ('+dateLabel+').','success');
