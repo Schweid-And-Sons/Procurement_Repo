@@ -569,8 +569,8 @@ try{
     </div>
     <div class="sidebar-body">
       <div class="stat-grid">
-        <div class="stat"><div class="stat-num" id="stat-racks">0</div><div class="stat-lbl">Racks Avail/Total</div></div>
-        <div class="stat"><div class="stat-num" id="stat-floor" style="color:var(--success)">0</div><div class="stat-lbl">Floor Avail/Total</div></div>
+        <div class="stat" style="cursor:pointer" onclick="openRackBreakdown()"><div class="stat-num" id="stat-racks">0</div><div class="stat-lbl">Racks Avail/Total</div></div>
+        <div class="stat" style="cursor:pointer" onclick="openFloorBreakdown()"><div class="stat-num" id="stat-floor" style="color:var(--success)">0</div><div class="stat-lbl">Floor Avail/Total</div></div>
         <div class="stat"><div class="stat-num" id="stat-units" style="color:var(--warn)">0</div><div class="stat-lbl">Total Units</div></div>
         <div class="stat"><div class="stat-num" id="stat-skus" style="color:var(--accent2)">0</div><div class="stat-lbl">SKUs Active/Catalog</div></div>
       </div>
@@ -856,6 +856,16 @@ try{
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="breakdown-overlay" onclick="closeBreakdownModal(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="width:420px;max-height:80vh;display:flex;flex-direction:column">
+    <h3 id="breakdown-title" style="color:var(--accent2)">Breakdown</h3>
+    <div id="breakdown-body" style="overflow-y:auto;flex:1"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeBreakdownModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="boxroom-overlay" onclick="closeBoxRoomMap(event)">
   <div class="boxroom-modal-box" onclick="event.stopPropagation()">
     <div class="boxroom-toolbar">
@@ -951,6 +961,7 @@ function vendorEquivCode(code){
 }
 
 const ITEMS = [
+  {code:'NON-DM',name:'Occupied — Non-Direct-Materials items (not tracked in this system)',cat:'MISC'},
   
   {code:'BX1000-1',name:'SS B-1 Sonic',cat:'BOXES'},
   {code:'BX1000PCA-1',name:'SS B-1 PCA',cat:'BOXES'},
@@ -1102,12 +1113,12 @@ const AREAS = {
   'LOADING DOCK':{type:'rack',sections:{
     1:{1:[1,2],2:[1,2]},2:{1:[1,2],2:[1,2]},3:{1:[1,2],2:[1,2]},
     4:{1:[1,2],2:[1,2]},5:{1:[1,2],2:[1,2]},6:{1:[1,2],2:[1,2]},
-    7:{1:[1,2],2:[1,2]},8:{2:[1,2,3]}
+    7:{2:[1,2]},8:{2:[1,2,3]}
   }},
   'HALLWAY':{type:'rack',sections:{
     1:{1:[1,2,3,4],2:[1,2,3,4,5,6]},
     2:{1:[1,2,3,4],2:[1,2,3,4]},
-    3:{1:[1,2],2:[1,2,3,4]}
+    3:{2:[1,2,3,4]}
   }},
   'HALLWAY FLOOR':{type:'floor',slots:FLOOR_SLOTS},
   'BOX ROOM':{type:'rack',sections:{
@@ -1233,6 +1244,70 @@ function calcStats(){
   document.getElementById('stat-floor').textContent=(floorTotal-floorOcc)+' / '+floorTotal;
   document.getElementById('stat-units').textContent=totalUnits.toLocaleString();
   document.getElementById('stat-skus').textContent=skus.size+' / '+ITEMS.length;
+}
+
+function getRackFloorBreakdown(){
+  const rackAreas={},floorAreas={};
+  for(const[an,ad]of Object.entries(AREAS)){
+    if(ad.type==='rack'){
+      if(an==='BOX ROOM'){
+        rackAreas['BOX ROOM — LEFT SIDE']={occ:0,total:0};
+        rackAreas['BOX ROOM — RIGHT SIDE']={occ:0,total:0};
+        for(const[s,tiers]of Object.entries(ad.sections)){
+          const key=[1,2,3,4].includes(+s)?'BOX ROOM — LEFT SIDE':'BOX ROOM — RIGHT SIDE';
+          for(const[t,positions]of Object.entries(tiers))
+            positions.forEach(pos=>{
+              rackAreas[key].total++;
+              if(inventory[locId(an,+s,+t,pos)])rackAreas[key].occ++;
+            });
+        }
+      }else{
+        if(!rackAreas[an])rackAreas[an]={occ:0,total:0};
+        for(const[s,tiers]of Object.entries(ad.sections))
+          for(const[t,positions]of Object.entries(tiers))
+            positions.forEach(pos=>{
+              rackAreas[an].total++;
+              if(inventory[locId(an,+s,+t,pos)])rackAreas[an].occ++;
+            });
+      }
+    }else{
+      if(!floorAreas[an])floorAreas[an]={occ:0,total:0};
+      for(let i=1;i<=ad.slots;i++){
+        floorAreas[an].total++;
+        if(inventory[locId(an,null,null,i)])floorAreas[an].occ++;
+      }
+    }
+  }
+  return{rackAreas,floorAreas};
+}
+function showBreakdownModal(title,rows){
+  document.getElementById('breakdown-title').textContent=title;
+  document.getElementById('breakdown-body').innerHTML=`<table class="log-table" style="table-layout:fixed;width:100%">
+    <colgroup><col><col style="width:100px"></colgroup>
+    <thead><tr><th>Area</th><th style="text-align:right">Avail / Total</th></tr></thead>
+    <tbody>${rows.map(r=>{
+      const avail=r.total-r.occ;
+      const color=avail===0?'var(--danger)':(avail===r.total?'var(--success)':'var(--warn)');
+      return `<tr><td style="font-size:11px">${r.name}</td><td style="text-align:right;font-weight:700;color:${color}">${avail} / ${r.total}</td></tr>`;
+    }).join('')}</tbody>
+  </table>`;
+  document.getElementById('breakdown-overlay').classList.remove('hidden');
+}
+function openRackBreakdown(){
+  const{rackAreas}=getRackFloorBreakdown();
+  const order=['LOADING DOCK','HALLWAY','BOX ROOM — LEFT SIDE','BOX ROOM — RIGHT SIDE','RETAIL COOLER SLEEVES RACK'];
+  const rows=order.filter(k=>rackAreas[k]).map(k=>({name:k,occ:rackAreas[k].occ,total:rackAreas[k].total}));
+  showBreakdownModal('📦 Racks Available — by Area',rows);
+}
+function openFloorBreakdown(){
+  const{floorAreas}=getRackFloorBreakdown();
+  const order=['HALLWAY FLOOR','BOX ROOM FLOOR','RETAIL COOLER FLOOR','FROZEN COOLER FLOOR'];
+  const rows=order.filter(k=>floorAreas[k]).map(k=>({name:k,occ:floorAreas[k].occ,total:floorAreas[k].total}));
+  showBreakdownModal('🟩 Floor Available — by Area',rows);
+}
+function closeBreakdownModal(e){
+  if(!e||e.target===document.getElementById('breakdown-overlay'))
+    document.getElementById('breakdown-overlay').classList.add('hidden');
 }
 
 function getItemSummary(){
@@ -1659,7 +1734,7 @@ function saveLocation(){
   const qty=parseInt(document.getElementById('modal-qty').value)||1;
   if(!item){showToast('Tap an item from the list to select it.','error');return;}
   const prev=inventory[modalLoc];
-  const _saveBefore=JSON.stringify(inventory);
+  const _saveBefore=JSON.stringify({__t:'loc',l:modalLoc,v:prev||null});
   inventory[modalLoc]={item,qty};
   saveData();
   const loc=locLabel(modalLoc);
@@ -1685,7 +1760,7 @@ function clearLocation(){
   const _clLabel=locLabel(modalLoc);
   const _clItem=occ?occ.item:'?';
   const _clQty=occ?occ.qty:'?';
-  const _clBefore=JSON.stringify(inventory);
+  const _clBefore=JSON.stringify({__t:'loc',l:modalLoc,v:occ||null});
   delete inventory[modalLoc];
   saveData();
   addLog('CLEAR', _clLabel+' — '+_clItem+' · Qty: '+_clQty+' removed', _clBefore);
@@ -1988,12 +2063,21 @@ function undoLogEntry(id){
   const entry = log[idx];
   if(!entry.undo){showToast('This entry cannot be undone.','error');return;}
   if(!confirm('Undo this action?\n\n'+entry.action+' — '+entry.detail))return;
-  const beforeUndo = JSON.stringify(inventory);
-  try{
-    inventory = JSON.parse(entry.undo);
-  }catch(err){showToast('Error al deshacer: '+err.message,'error');return;}
-  saveData();
-  addLog('UNDO','Revertido → '+entry.action+' ('+entry.ts+'): '+entry.detail, beforeUndo);
+  let parsed;
+  try{ parsed=JSON.parse(entry.undo); }catch(err){showToast('Error al deshacer: '+err.message,'error');return;}
+  if(parsed && parsed.__t==='loc'){
+    // formato liviano — solo una posición (SAVE / CLEAR individuales)
+    const beforeUndo=JSON.stringify({__t:'loc',l:parsed.l,v:inventory[parsed.l]||null});
+    if(parsed.v)inventory[parsed.l]=parsed.v;else delete inventory[parsed.l];
+    saveData();
+    addLog('UNDO','Revertido → '+entry.action+' ('+entry.ts+'): '+entry.detail, beforeUndo);
+  }else{
+    // formato completo — Clear Section / Clear All / entradas viejas de antes de este arreglo
+    const beforeUndo=JSON.stringify(inventory);
+    inventory=parsed;
+    saveData();
+    addLog('UNDO','Revertido → '+entry.action+' ('+entry.ts+'): '+entry.detail, beforeUndo);
+  }
   refresh();
   showToast('Action undone.','success');
 }
