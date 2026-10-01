@@ -140,11 +140,17 @@
 
   
   .map-area{margin-bottom:22px;}
-  .map-area-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:8px;}
-  .map-area-title span{flex:1;height:1px;background:var(--border);}
+  .map-area-title{font-size:15px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+  .map-area-title span{flex:1;height:2px;background:var(--border);}
   .sections-row{display:flex;gap:8px;flex-wrap:wrap;}
   .section-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;min-width:90px;}
-  .section-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+  .section-label{font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;white-space:nowrap;}
+  .section-label .sec-num{font-size:17px;color:var(--text);margin-left:2px;vertical-align:-1px;}
+  @media(max-width:679px){
+    .map-area-title{font-size:13px;}
+    .section-label{font-size:10px;}
+    .section-label .sec-num{font-size:15px;}
+  }
   .tier-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
   .tier-lbl{font-size:9px;color:var(--text3);width:16px;flex-shrink:0;}
   .pos-cell{width:30px;height:30px;border-radius:4px;border:1px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:8px;font-weight:700;}
@@ -421,6 +427,28 @@
   .plan-rem-over{color:var(--accent2);font-weight:700;}
   .plan-alert{background:var(--surface2);border:1px solid var(--danger);border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--danger);font-weight:700;}
   .plan-table td,.plan-table th{white-space:nowrap;}
+  .plan-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--text3);background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;padding:0;line-height:1;}
+  .plan-check.on{background:var(--success);border-color:var(--success);}
+  .plan-table tr.plan-row-done td{background:rgba(34,197,94,.16);}
+  .plan-table tr.plan-row-done td:not(:first-child){opacity:.7;}
+  .plan-table tr.plan-row-done td:nth-child(2){text-decoration:line-through;text-decoration-thickness:2px;}
+  .pos-cell.mixed,.floor-cell.mixed{position:relative;}
+  .mix-badge{position:absolute;top:-6px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:var(--text);color:var(--surface);font-size:8px;font-weight:800;line-height:15px;text-align:center;box-shadow:0 0 0 1.5px var(--surface);pointer-events:none;}
+  .mx-wrap{border:1px dashed var(--border);border-radius:8px;padding:8px 10px;margin:10px 0 4px;}
+  .mx-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;}
+  .mx-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);}
+  .mx-row:last-child{border-bottom:none;}
+  .mx-code{font-size:11px;font-weight:700;color:var(--accent2);min-width:64px;}
+  .mx-name{flex:1;font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mx-qty{width:72px!important;margin:0!important;padding:5px 6px!important;font-size:12px!important;}
+  .mx-del{background:none;border:1px solid var(--border);color:var(--danger);border-radius:5px;width:26px;height:26px;cursor:pointer;font-weight:700;flex-shrink:0;}
+  .mx-add-btn{width:100%;margin-top:6px;padding:7px;border:1px solid var(--accent2);background:transparent;color:var(--accent2);border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;}
+  .mx-hint{font-size:11px;color:var(--warn);font-weight:700;margin-top:6px;}
+  .ro-mix{margin-top:8px;border:1px dashed var(--border);border-radius:8px;padding:8px 10px;}
+  .ro-mix-title{font-size:10px;font-weight:800;color:var(--warn);margin-bottom:6px;}
+  .ro-mix-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;}
+  .pos-cell.last-touched,.floor-cell.last-touched{outline:3px solid #ff8c00!important;outline-offset:2px;box-shadow:0 0 0 2px #fff,0 0 12px 4px rgba(255,140,0,.9)!important;position:relative;z-index:2;transition:none;animation:lastPulse 1.6s ease-in-out infinite;}
+  @keyframes lastPulse{0%,100%{outline-color:#ff8c00;}50%{outline-color:#ffb347;}}
 
   
   .stats-subtabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap;}
@@ -690,6 +718,12 @@ try{
     <div id="modal-item-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;background:var(--surface2);"></div>
     <label>Qty <span style="color:var(--text3);font-size:9px">(cases / units / rolls — what you count)</span></label>
     <input type="number" id="modal-qty" min="1" placeholder="e.g. 1000">
+    <div class="mx-wrap">
+      <div class="mx-title">Mixed pallet — additional items <span id="mx-count"></span></div>
+      <div id="modal-extras"></div>
+      <button type="button" class="mx-add-btn" id="mx-add-btn" onclick="startAddExtra()">+ Add item to this pallet</button>
+      <div id="mx-hint" class="mx-hint" style="display:none">👆 Tap the additional item in the list above</div>
+    </div>
     <div class="modal-actions">
       <button class="btn-primary" onclick="saveLocation()">Save</button>
       <button class="btn-clear" onclick="clearLocation()">Clear Location</button>
@@ -749,6 +783,7 @@ try{
       <span class="ro-lbl">Quantity</span>
       <span id="ro-qty" class="ro-val"></span>
     </div>
+    <div id="ro-mix"></div>
     <div class="ro-row" style="border-bottom:none;margin-top:4px;justify-content:space-between">
       <span class="ro-badge locked">🔒 Browse Mode — Read Only</span>
       <button class="btn-cancel" style="padding:6px 12px;font-size:10px" onclick="closeRoModal()">Close</button>
@@ -837,6 +872,8 @@ try{
 
     <div id="sync-import-body" class="hidden">
       <div style="font-size:10px;color:var(--text3);margin-bottom:8px">Importing completely replaces the inventory on screen. It does not merge with the current data.</div>
+      <button class="btn-primary" style="background:var(--accent2);width:100%;margin-bottom:6px" onclick="exportFullHistory()">📥 Export Full History (Excel)</button>
+      <div id="sync-export-history-status" style="font-size:10px;color:var(--text3);min-height:14px;margin-bottom:8px"></div>
       <div id="sync-history-list" style="max-height:260px;overflow-y:auto"></div>
     </div>
 
@@ -1230,13 +1267,13 @@ function calcStats(){
           positions.forEach(pos=>{
             rackTotal++;
             const id=locId(an,+s,+t,pos);
-            if(inventory[id]){rackOcc++;skus.add(inventory[id].item);totalUnits+=inventory[id].qty||0;}
+            if(inventory[id]){rackOcc++;occItems(inventory[id]).forEach(x=>{skus.add(x.item);totalUnits+=x.qty;});}
           });
     }else{
       for(let i=1;i<=ad.slots;i++){
         floorTotal++;
         const id=locId(an,null,null,i);
-        if(inventory[id]){floorOcc++;skus.add(inventory[id].item);totalUnits+=inventory[id].qty||0;}
+        if(inventory[id]){floorOcc++;occItems(inventory[id]).forEach(x=>{skus.add(x.item);totalUnits+=x.qty;});}
       }
     }
   }
@@ -1310,16 +1347,33 @@ function closeBreakdownModal(e){
     document.getElementById('breakdown-overlay').classList.add('hidden');
 }
 
+/* MIXED PALLETS — one position can hold the main item (anchor) + up to 3 extras.
+   Every total in the app goes through occItems(), so each case is counted exactly once
+   and a mixed position still counts as ONE occupied position. */
+const MAX_ITEMS_PER_POS=4;
+function occItems(occ){
+  if(!occ||!occ.item)return [];
+  const out=[{item:occ.item,qty:occ.qty||0,extra:false}];
+  if(Array.isArray(occ.extras))occ.extras.forEach(e=>{if(e&&e.item)out.push({item:e.item,qty:e.qty||0,extra:true});});
+  return out;
+}
+function occHas(occ,code){return !!code&&occItems(occ).some(x=>x.item===code);}
+function occTotalQty(occ){return occItems(occ).reduce((a,x)=>a+x.qty,0);}
+function occExtraCount(occ){return occ&&Array.isArray(occ.extras)?occ.extras.length:0;}
+function occTip(occ){return occItems(occ).map(x=>x.item+' · '+x.qty.toLocaleString()).join('  +  ');}
 function getItemSummary(){
   const s={};
   for(const[id,data]of Object.entries(inventory)){
-    if(!data.item)continue;
-    if(!s[data.item])s[data.item]={qty:0,locs:[]};
-    s[data.item].qty+=data.qty||1;
-    s[data.item].locs.push(id);
+    occItems(data).forEach(x=>{
+      if(!s[x.item])s[x.item]={qty:0,locs:[],mix:[]};
+      s[x.item].qty+=x.qty;
+      if(!s[x.item].locs.includes(id))s[x.item].locs.push(id);
+      if(x.extra&&!s[x.item].mix.includes(id))s[x.item].mix.push(id);
+    });
   }
   return s;
 }
+function locAbbrevMix(id,stock){return locAbbrev(id)+(stock&&stock.mix&&stock.mix.includes(id)?' (mix)':'');}
 
 function renderSidebar(){
   const sideBody=document.getElementById('sidebar-list');
@@ -1379,6 +1433,7 @@ function renderMap(){
     <div class="leg"><div class="leg-dot" style="background:var(--floor-emp);border-color:var(--border)"></div>Empty floor</div>
     <div class="leg"><div class="leg-dot" style="background:var(--floor-occ);border-color:var(--floor-occ-bd)"></div>Occupied floor</div>
     <div class="leg"><div class="leg-dot" style="background:var(--accent2);border-color:var(--accent2)"></div>Selected item</div>
+    <div class="leg"><div class="leg-dot" style="background:transparent;border:2px solid #ff8c00;box-shadow:0 0 5px rgba(255,140,0,.8)"></div>Last touched<span id="last-touched-lbl">${lastTouchedLoc?' · '+locShort(lastTouchedLoc)+' <span style="cursor:pointer;color:var(--text3)" onclick="clearLastTouched()" title="Clear marker">✕</span>':''}</span></div>
   </div>`;
   if(currentMode==='count')
     html+=`<div class="count-banner">COUNT MODE${selectedItem?` · Assigning: <strong>${selectedItem}</strong>`:'  · Tap any position to assign an item'}</div>`;
@@ -1395,7 +1450,7 @@ function renderMap(){
     if(aDef.type==='rack'){
       html+=`<div class="sections-row">`;
       for(const[sec,tiers]of Object.entries(aDef.sections)){
-        html+=`<div class="section-block"><div class="section-label" style="cursor:pointer" onclick="openSecPanel('${aName}',${sec})">Section ${sec} ▾</div>`;
+        html+=`<div class="section-block"><div class="section-label" style="cursor:pointer" onclick="openSecPanel('${aName}',${sec})">Section <span class="sec-num">${sec}</span> ▾</div>`;
         const maxTier=Math.max(...Object.keys(tiers).map(Number));
         for(let t=maxTier;t>=1;t--){
           const positions=tiers[t]||[];if(!positions.length)continue;
@@ -1404,10 +1459,11 @@ function renderMap(){
             const id=locId(aName,+sec,t,pos);
             const occ=inventory[id];
             const isOcc=!!occ;
-            const isHL=selectedItem&&occ&&occ.item===selectedItem;
+            const isHL=selectedItem&&occHas(occ,selectedItem);
             const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
-            const tip=isOcc?`${occ.item}  ·  Qty: ${occ.qty.toLocaleString()}`:`${aName} S${sec} T${t} P${pos} — Empty`;
-            html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}</div>`;
+            const tip=isOcc?occTip(occ):`${aName} S${sec} T${t} P${pos} — Empty`;
+            const nMix=occExtraCount(occ);
+            html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
           });
           html+=`</div>`;
         }
@@ -1421,10 +1477,11 @@ function renderMap(){
         const id=locId(aName,null,null,i);
         const occ=inventory[id];
         const isOcc=!!occ;
-        const isHL=selectedItem&&occ&&occ.item===selectedItem;
+        const isHL=selectedItem&&occHas(occ,selectedItem);
         const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
-        const tip=isOcc?`${occ.item}  ·  Qty: ${occ.qty.toLocaleString()}`:`${aName} Slot ${i} — Empty`;
-        html+=`<div class="floor-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}" onclick="openModal('${id}')" title="${tip}">${isOcc?'●':i}</div>`;
+        const tip=isOcc?occTip(occ):`${aName} Slot ${i} — Empty`;
+        const nMix=occExtraCount(occ);
+        html+=`<div class="floor-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?'●':i}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
       }
       html+=`</div>`;
     }
@@ -1437,7 +1494,7 @@ function renderRackAreaBlock(aName,aDef,titleOverride,sectionKeys){
   sectionKeys.forEach(sec=>{
     const tiers=aDef.sections[sec];
     if(!tiers)return;
-    html+=`<div class="section-block"><div class="section-label" style="cursor:pointer" onclick="openSecPanel('${aName}',${sec})">Section ${sec} ▾</div>`;
+    html+=`<div class="section-block"><div class="section-label" style="cursor:pointer" onclick="openSecPanel('${aName}',${sec})">Section <span class="sec-num">${sec}</span> ▾</div>`;
     const maxTier=Math.max(...Object.keys(tiers).map(Number));
     for(let t=maxTier;t>=1;t--){
       const positions=tiers[t]||[];if(!positions.length)continue;
@@ -1446,10 +1503,11 @@ function renderRackAreaBlock(aName,aDef,titleOverride,sectionKeys){
         const id=locId(aName,+sec,t,pos);
         const occ=inventory[id];
         const isOcc=!!occ;
-        const isHL=selectedItem&&occ&&occ.item===selectedItem;
+        const isHL=selectedItem&&occHas(occ,selectedItem);
         const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
-        const tip=isOcc?`${occ.item}  ·  Qty: ${occ.qty.toLocaleString()}`:`${aName} S${sec} T${t} P${pos} — Empty`;
-        html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}</div>`;
+        const tip=isOcc?occTip(occ):`${aName} S${sec} T${t} P${pos} — Empty`;
+        const nMix=occExtraCount(occ);
+            html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
       });
       html+=`</div>`;
     }
@@ -1603,21 +1661,39 @@ function renderLocationsView(){
     html+=`<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:30px;font-size:12px">No inventory recorded yet. Go to Map → Count Mode to start.</td></tr>`;
   }else{
     entries.forEach(([id,data])=>{
-      const item=ITEMS.find(x=>x.code===data.item);
-      html+=`<tr>
-        <td style="color:var(--text2)">${locLabel(id)}</td>
-        <td style="color:var(--accent2);font-weight:700">${data.item}</td>
-        <td style="color:var(--text2)">${item?item.name:''}</td>
-        <td style="color:var(--text3)">${item?item.cat:''}</td>
-        <td style="text-align:right;color:var(--accent);font-weight:700">${data.qty.toLocaleString()}</td>
-      </tr>`;
+      occItems(data).forEach(x=>{
+        const item=ITEMS.find(i2=>i2.code===x.item);
+        html+=`<tr>
+          <td style="color:var(--text2)">${locLabel(id)}${x.extra?' <span style="color:var(--warn);font-size:9px">(mix)</span>':''}</td>
+          <td style="color:var(--accent2);font-weight:700">${x.item}</td>
+          <td style="color:var(--text2)">${item?item.name:''}</td>
+          <td style="color:var(--text3)">${item?item.cat:''}</td>
+          <td style="text-align:right;color:var(--accent);font-weight:700">${x.qty.toLocaleString()}</td>
+        </tr>`;
+      });
     });
   }
   html+=`</tbody></table></div>`;
   document.getElementById('main-content').innerHTML=html;
 }
 
+const LAST_LOC_KEY='wms_last_touched_loc';
+let lastTouchedLoc=(function(){try{return localStorage.getItem(LAST_LOC_KEY)||null;}catch(e){return null;}})();
+function setLastTouched(id){
+  lastTouchedLoc=id;
+  try{localStorage.setItem(LAST_LOC_KEY,id);}catch(e){}
+  document.querySelectorAll('.last-touched').forEach(el=>el.classList.remove('last-touched'));
+  document.querySelectorAll('[data-loc="'+id+'"]').forEach(el=>el.classList.add('last-touched'));
+  const lbl=document.getElementById('last-touched-lbl');
+  if(lbl)lbl.innerHTML=' · '+locShort(id)+' <span style="cursor:pointer;color:var(--text3)" onclick="clearLastTouched()" title="Clear marker">✕</span>';
+}
+function clearLastTouched(){
+  lastTouchedLoc=null;
+  try{localStorage.removeItem(LAST_LOC_KEY);}catch(e){}
+  refresh();
+}
 function openModal(id){
+  setLastTouched(id);
   markLocReviewed(id);
   if(currentMode==='browse'){
     openRoModal(id);
@@ -1659,6 +1735,9 @@ function openModal(id){
       filterModalItems(''); // re-render to show selection highlight
     }
     if(qtyEl)qtyEl.value=existing?existing.qty:'';
+    _pickTarget='primary';
+    _modalExtras=(existing&&Array.isArray(existing.extras))?existing.extras.map(function(e){return{item:e.item,qty:e.qty};}):[];
+    renderModalExtras();
     setTimeout(function(){
       var s=document.getElementById('modal-item-search');
       if(s)s.focus();
@@ -1675,6 +1754,37 @@ function normalizeSearch(s){
 
 // Store all options for filtering
 let _allModalOptions = [];
+let _modalExtras = [];
+let _pickTarget = 'primary';
+function renderModalExtras(){
+  var wrap=document.getElementById('modal-extras');
+  if(!wrap)return;
+  wrap.innerHTML=_modalExtras.map(function(e,i){
+    var it=ITEMS.find(function(x){return x.code===e.item;});
+    return '<div class="mx-row"><span class="mx-code">'+e.item+'</span><span class="mx-name">'+(it?it.name:'')+'</span>'
+      +'<input type="number" min="1" class="mx-qty" id="mx-qty-'+i+'" placeholder="Qty" value="'+(e.qty===''||e.qty==null?'':e.qty)+'" oninput="_modalExtras['+i+'].qty=this.value">'
+      +'<button type="button" class="mx-del" title="Remove from pallet" onclick="removeExtra('+i+')">✕</button></div>';
+  }).join('');
+  var n=1+_modalExtras.length;
+  var cnt=document.getElementById('mx-count');
+  if(cnt)cnt.textContent=_modalExtras.length?('· '+n+' items in this position'):'';
+  var btn=document.getElementById('mx-add-btn');
+  if(btn)btn.style.display=n>=MAX_ITEMS_PER_POS?'none':'';
+  var hint=document.getElementById('mx-hint');
+  if(hint)hint.style.display=_pickTarget==='extra'?'':'none';
+}
+function startAddExtra(){
+  if(!document.getElementById('modal-item').value){showToast('Select the main (anchor) item first.','error');return;}
+  if(1+_modalExtras.length>=MAX_ITEMS_PER_POS){showToast('Max '+MAX_ITEMS_PER_POS+' items per position.','error');return;}
+  _pickTarget='extra';
+  var se=document.getElementById('modal-item-search');
+  if(se){se.value='';filterModalItems('');se.focus();}
+  renderModalExtras();
+}
+function removeExtra(i){
+  _modalExtras.splice(i,1);
+  renderModalExtras();
+}
 
 function filterModalItems(q){
   try{
@@ -1715,6 +1825,24 @@ function filterModalItems(q){
 }
 
 function selectModalItem(code){
+  if(_pickTarget==='extra'){
+    _pickTarget='primary';
+    var primary=document.getElementById('modal-item').value;
+    var se=document.getElementById('modal-item-search');
+    if(se){se.value='';filterModalItems('');}
+    if(code===primary){
+      renderModalExtras();
+      showToast('That is already the main item — just update its qty.','error');
+      setTimeout(function(){var q=document.getElementById('modal-qty');if(q)q.focus();},80);
+      return;
+    }
+    var ex=_modalExtras.findIndex(function(e){return e.item===code;});
+    if(ex<0){_modalExtras.push({item:code,qty:''});ex=_modalExtras.length-1;}
+    else showToast(code+' is already on this pallet — update its qty.','error');
+    renderModalExtras();
+    setTimeout(function(){var q=document.getElementById('mx-qty-'+ex);if(q){q.focus();q.select();}},80);
+    return;
+  }
   document.getElementById('modal-item').value=code;
   var item=ITEMS.find(function(i){return i.code===code;});
   var lbl=document.getElementById('modal-selected-label');
@@ -1733,9 +1861,20 @@ function saveLocation(){
   const item=document.getElementById('modal-item').value;
   const qty=parseInt(document.getElementById('modal-qty').value)||1;
   if(!item){showToast('Tap an item from the list to select it.','error');return;}
+  // Validate + merge extras: same code twice never creates two lines; same code as the anchor adds to the anchor.
+  let mainQty=qty;
+  const merged=[];
+  for(const e of _modalExtras){
+    const eq=parseInt(e.qty);
+    if(!eq||eq<1){showToast('Enter a qty for '+e.item+' (or remove it).','error');return;}
+    if(e.item===item){mainQty+=eq;continue;}
+    const m=merged.find(x=>x.item===e.item);
+    if(m)m.qty+=eq;else merged.push({item:e.item,qty:eq});
+  }
+  if(merged.length>MAX_ITEMS_PER_POS-1){showToast('Max '+MAX_ITEMS_PER_POS+' items per position.','error');return;}
   const prev=inventory[modalLoc];
   const _saveBefore=JSON.stringify({__t:'loc',l:modalLoc,v:prev||null});
-  inventory[modalLoc]={item,qty};
+  inventory[modalLoc]=merged.length?{item,qty:mainQty,extras:merged}:{item,qty:mainQty};
   saveData();
   const loc=locLabel(modalLoc);
   let detail;
@@ -1748,6 +1887,9 @@ function saveLocation(){
   } else {
     detail=loc+' — '+item+' · Qty: '+qty;
   }
+  if(mainQty!==qty)detail=detail.replace(/(\d+)$/,mainQty);
+  if(merged.length)detail+=' + mixed: '+merged.map(x=>x.item+' · '+x.qty).join(', ');
+  else if(prev&&occExtraCount(prev))detail+=' (mixed items removed)';
   addLog('SAVE', detail, _saveBefore);
   document.getElementById('modal-overlay').classList.add('hidden');
   modalLoc=null;refresh();
@@ -1755,11 +1897,11 @@ function saveLocation(){
 function clearLocation(){
   if(!modalLoc)return;
   const occ=inventory[modalLoc];
-  const label=occ?`Clear ${occ.item} (Qty: ${occ.qty})?`:'Clear this location?';
+  const label=occ?(occExtraCount(occ)?`Clear this MIXED pallet? This will remove ${1+occExtraCount(occ)} items: ${occTip(occ)}.`:`Clear ${occ.item} (Qty: ${occ.qty})?`):'Clear this location?';
   if(!confirm(label+' This cannot be undone.'))return;
   const _clLabel=locLabel(modalLoc);
-  const _clItem=occ?occ.item:'?';
-  const _clQty=occ?occ.qty:'?';
+  const _clItem=occ?(occExtraCount(occ)?occTip(occ):occ.item):'?';
+  const _clQty=occ?occTotalQty(occ):'?';
   const _clBefore=JSON.stringify({__t:'loc',l:modalLoc,v:occ||null});
   delete inventory[modalLoc];
   saveData();
@@ -1972,6 +2114,34 @@ function exportExcel(){
     }
   });
 
+  // MIXED PALLETS block — appended AFTER all positions so the main layout never shifts.
+  const mixRows=[];
+  AREA_EXPORT_ORDER.forEach(aName=>{
+    const aDef=AREAS[aName];
+    if(!aDef)return;
+    if(aDef.type==='rack'){
+      for(const[sec,tiers]of Object.entries(aDef.sections)){
+        const maxTier=Math.max(...Object.keys(tiers).map(Number));
+        for(let t=maxTier;t>=1;t--){
+          (tiers[t]||[]).forEach(pos=>{
+            const occ=inventory[locId(aName,+sec,t,pos)];
+            if(occExtraCount(occ))occ.extras.forEach(e=>mixRows.push(['',aName,+sec,'',t,'',pos,'','',e.item,e.qty,'with '+occ.item]));
+          });
+        }
+      }
+    }else{
+      for(let i=1;i<=aDef.slots;i++){
+        const occ=inventory[locId(aName,null,null,i)];
+        if(occExtraCount(occ))occ.extras.forEach(e=>mixRows.push(['',aName,'','','','',i,'','',e.item,e.qty,'with '+occ.item]));
+      }
+    }
+  });
+  if(mixRows.length){
+    s2.push([]);
+    s2.push(['',MIX_BLOCK_TITLE]);
+    s2.push(['','AREA','SECTION','','TIER','','POSITION','','','ITEM','QTY','MAIN ITEM']);
+    mixRows.forEach(r=>s2.push(r));
+  }
   const ws2=XLSX.utils.aoa_to_sheet(s2);
   ws2['!cols']=[{wch:2},{wch:22},{wch:9},{wch:2},{wch:6},{wch:2},{wch:9},{wch:2},{wch:2},{wch:22},{wch:8}];
   XLSX.utils.book_append_sheet(wb,ws2,'Location Detail');
@@ -2320,13 +2490,13 @@ function previewClearSection(){
         positions.forEach(pos=>{
           total++;
           const id=locId(area,+s,+t,pos);
-          if(inventory[id]){occ++;items[inventory[id].item]=(items[inventory[id].item]||0)+inventory[id].qty;}
+          if(inventory[id]){occ++;occItems(inventory[id]).forEach(x=>{items[x.item]=(items[x.item]||0)+x.qty;});}
         });
   }else{
     for(let i=1;i<=aDef.slots;i++){
       total++;
       const id=locId(area,null,null,i);
-      if(inventory[id]){occ++;items[inventory[id].item]=(items[inventory[id].item]||0)+inventory[id].qty;}
+      if(inventory[id]){occ++;occItems(inventory[id]).forEach(x=>{items[x.item]=(items[x.item]||0)+x.qty;});}
     }
   }
   if(!occ){
@@ -2463,6 +2633,7 @@ function triggerImport(){
   openPinModal('import');
 }
 
+const MIX_BLOCK_TITLE='MIXED PALLETS - ADDITIONAL ITEMS (same position as main item, not extra positions)';
 function importExcel(input){
   var file=input.files[0];if(!file)return;
   var reader=new FileReader();
@@ -2480,8 +2651,10 @@ function importExcel(input){
         var av=String(rows[i][1]||'').trim().toUpperCase();
         if(KNOWN_AREAS.includes(av)){startRow=i;break;}
       }
+      var mixStart=-1;
       for(var i=startRow;i<rows.length;i++){
         var row=rows[i];
+        if(String(row[1]||'').trim().toUpperCase().indexOf('MIXED PALLETS')===0){mixStart=i;break;}
         var areaVal=String(row[1]||'').trim().toUpperCase();
         var secVal=row[2]!==''?parseInt(row[2]):null;
         var tierVal=row[4]!==''?parseInt(row[4]):null;
@@ -2513,9 +2686,38 @@ function importExcel(input){
         inventory[id]={item:resolvedItem,qty:qtyVal||1};
         loaded++;
       }
+      // Mixed pallets block: every row names its full location; attach to that position's main item.
+      var mixLoaded=0,mixOrphans=[];
+      if(mixStart>-1){
+        for(var j=mixStart+2;j<rows.length;j++){
+          var mr=rows[j];
+          var mArea=String(mr[1]||'').trim().toUpperCase();
+          var mItem=String(mr[9]||'').trim();
+          if(!mArea||!mItem)continue;
+          var mKey=Object.keys(AREAS).find(function(k){return k.toUpperCase()===mArea;});
+          var mPos=parseInt(mr[6]);
+          if(!mKey||isNaN(mPos)){mixOrphans.push(mArea+' '+mItem);continue;}
+          var mId=AREAS[mKey].type==='rack'?locId(mKey,parseInt(mr[2]),parseInt(mr[4]),mPos):locId(mKey,null,null,mPos);
+          if(!ITEMS.find(function(x){return x.code===mItem;})){
+            if(PHYS_TO_SL[mItem])mItem=PHYS_TO_SL[mItem];else{mixOrphans.push(mItem+' (unknown code)');continue;}
+          }
+          var mQty=parseInt(mr[10])||1;
+          var host=inventory[mId];
+          if(!host){mixOrphans.push(mItem+' @ '+locLabel(mId)+' (no main item)');continue;}
+          if(host.item===mItem){host.qty+=mQty;mixLoaded++;continue;}
+          if(!host.extras)host.extras=[];
+          var same=host.extras.find(function(e){return e.item===mItem;});
+          if(same){same.qty+=mQty;mixLoaded++;continue;}
+          if(host.extras.length>=MAX_ITEMS_PER_POS-1){mixOrphans.push(mItem+' @ '+locLabel(mId)+' (max '+MAX_ITEMS_PER_POS+' items)');continue;}
+          host.extras.push({item:mItem,qty:mQty});
+          mixLoaded++;
+        }
+      }
       saveData();refresh();
-      addLog('IMPORT','Excel import — '+loaded+' positions loaded, '+skipped+' skipped');
-      showToast('Import OK — '+loaded+' positions loaded, '+skipped+' skipped','success');
+      var mixMsg=mixLoaded?(', '+mixLoaded+' mixed-pallet items'):'';
+      addLog('IMPORT','Excel import — '+loaded+' positions loaded'+mixMsg+', '+skipped+' skipped'+(mixOrphans.length?' · NOT loaded: '+mixOrphans.join('; '):''));
+      showToast('Import OK — '+loaded+' positions loaded'+mixMsg+', '+skipped+' skipped','success');
+      if(mixOrphans.length)alert('These mixed-pallet items could not be attached and were NOT loaded:\n\n'+mixOrphans.join('\n'));
     }catch(err){
       showToast('Import failed: '+err.message,'error');
     }
@@ -2673,6 +2875,16 @@ function updatePlanDelivered(code,val){
   renderPlanView();
 }
 
+function togglePlanDone(kind,code){
+  if(!planData)return;
+  const list=kind==='s'?(planData.sleeves||[]):planData.items;
+  const it=list.find(i=>i.code===code);
+  if(!it)return;
+  it.done=!it.done;
+  savePlanDia();
+  renderPlanView();
+}
+
 function clearPlanDia(){
   if(!planData){showToast('No hay plan cargado.','error');return;}
   if(!confirm('Delete the current Daily Plan? This will not affect your inventory.'))return;
@@ -2685,20 +2897,20 @@ function clearPlanDia(){
 function exportPlanWorkFile(){
   if(!planData||!planData.items.length){showToast('No plan to export.','error');return;}
   const summary=getItemSummary();
-  const rows=[['Code','Description','Needed','Delivered','Remaining','Stock (at export time)','Stock After (at export time)']];
+  const rows=[['Code','Description','Needed','Delivered','Remaining','Stock (at export time)','Stock After (at export time)','Ready']];
   planData.items.forEach(it=>{
     const stock=summary[it.code];
     const equivCode=vendorEquivCode(it.code);
     const equivStock=equivCode?summary[equivCode]:null;
     const stockQty=(stock?stock.qty:0)+(equivStock?equivStock.qty:0);
-    rows.push([it.code,it.desc,it.needed,it.delivered,it.needed-it.delivered,stockQty,stockQty-it.needed]);
+    rows.push([it.code,it.desc,it.needed,it.delivered,it.needed-it.delivered,stockQty,stockQty-it.needed,it.done?'YES':'']);
   });
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.aoa_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb,ws,'Plan');
   if(planData.sleeves&&planData.sleeves.length){
-    const srows=[['SL Code','Description','Line 22','Line 23','Total Sleeves','Boxes Needed']];
-    planData.sleeves.forEach(s=>srows.push([s.code,s.desc,s.line22,s.line23,s.total,s.boxesNeeded]));
+    const srows=[['SL Code','Description','Line 22','Line 23','Total Sleeves','Boxes Needed','Ready']];
+    planData.sleeves.forEach(s=>srows.push([s.code,s.desc,s.line22,s.line23,s.total,s.boxesNeeded,s.done?'YES':'']));
     const sws=XLSX.utils.aoa_to_sheet(srows);
     XLSX.utils.book_append_sheet(wb,sws,'Sleeves');
   }
@@ -2728,7 +2940,8 @@ function importPlanWorkFile(input){
           code:code.toUpperCase(),
           desc:String(row[1]||'').trim(),
           needed:Number(row[2])||0,
-          delivered:Number(row[3])||0
+          delivered:Number(row[3])||0,
+          done:String(row[7]||'').trim().toUpperCase()==='YES'
         });
       }
       if(!items.length){showToast('El archivo no tiene filas de plan reconocibles.','error');return;}
@@ -2746,7 +2959,8 @@ function importPlanWorkFile(input){
             line22:Number(row[2])||0,
             line23:Number(row[3])||0,
             total:Number(row[4])||0,
-            boxesNeeded:Number(row[5])||0
+            boxesNeeded:Number(row[5])||0,
+            done:String(row[6]||'').trim().toUpperCase()==='YES'
           });
         }
       }
@@ -2777,7 +2991,7 @@ function renderPlanView(){
   }
   const summary=getItemSummary();
   const items=planData.items;
-  let totalNeeded=0,totalDelivered=0,noStockCount=0,shortCount=0;
+  let totalNeeded=0,totalDelivered=0,noStockCount=0,shortCount=0,doneCount=0;
   const rowsHtml=items.map(it=>{
     totalNeeded+=it.needed;totalDelivered+=it.delivered;
     const remaining=it.needed-it.delivered;
@@ -2787,13 +3001,15 @@ function renderPlanView(){
     const stockQty=(stock?stock.qty:0)+(equivStock?equivStock.qty:0);
     const stockAfter=stockQty-it.needed;
     const allLocs=[...(stock?stock.locs:[]),...(equivStock?equivStock.locs:[])];
-    const locTxt=allLocs.length?allLocs.map(locAbbrev).join(', '):'<span style="color:var(--danger)">No stock</span>';
+    const locTxt=allLocs.length?[...(stock?stock.locs.map(l=>locAbbrevMix(l,stock)):[]),...(equivStock?equivStock.locs.map(l=>locAbbrevMix(l,equivStock)):[])].join(', '):'<span style="color:var(--danger)">No stock</span>';
     if(!allLocs.length)noStockCount++;
     if(stockAfter<0)shortCount++;
     const remCls=remaining<0?'plan-rem-over':remaining===0?'plan-rem-ok':'plan-rem-pending';
     const stockAfterCls=stockAfter<0?'plan-rem-pending':'plan-rem-ok';
     const equivNote=equivStock?`<div style="font-size:9px;color:var(--warn)">incl. ${equivCode}</div>`:'';
-    return `<tr>
+    if(it.done)doneCount++;
+    return `<tr class="${it.done?'plan-row-done':''}">
+      <td><button class="plan-check${it.done?' on':''}" onclick="togglePlanDone('b','${it.code}')" title="Mark ready">${it.done?'✓':''}</button></td>
       <td style="font-weight:700;color:var(--accent2)">${it.code}</td>
       <td style="color:var(--text2);font-size:11px">${it.desc}</td>
       <td>${it.needed.toLocaleString()}</td>
@@ -2820,14 +3036,15 @@ function renderPlanView(){
     </div>
     <div class="plan-meta">Source: ${planData.source} · Loaded: ${importedDate}${planData.meta&&planData.meta.linePriority?' · Line Priority: '+planData.meta.linePriority:''}</div>
     ${alertBanner}
-    <div class="stat-grid" style="margin-bottom:14px">
+    <div class="stat-grid" style="margin-bottom:14px;grid-template-columns:repeat(auto-fit,minmax(100px,1fr))">
       <div class="stat"><div class="stat-num">${items.length}</div><div class="stat-lbl">Box Codes</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--success)">${doneCount}/${items.length}</div><div class="stat-lbl">Ready ✓</div></div>
       <div class="stat"><div class="stat-num" style="color:var(--warn)">${totalNeeded.toLocaleString()}</div><div class="stat-lbl">Needed (Total)</div></div>
       <div class="stat"><div class="stat-num" style="color:var(--success)">${totalDelivered.toLocaleString()}</div><div class="stat-lbl">Delivered (Total)</div></div>
       <div class="stat"><div class="stat-num" style="color:var(--danger)">${(totalNeeded-totalDelivered).toLocaleString()}</div><div class="stat-lbl">Remaining (Total)</div></div>
     </div>
     ${items.length?`<div style="overflow-x:auto"><table class="log-table plan-table">
-      <thead><tr><th>Code</th><th>Description</th><th>Needed</th><th>Delivered</th><th>Remaining</th><th>Stock</th><th>Stock After</th><th>Location</th></tr></thead>
+      <thead><tr><th>✓</th><th>Code</th><th>Description</th><th>Needed</th><th>Delivered</th><th>Remaining</th><th>Stock</th><th>Stock After</th><th>Location</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table></div>`:`<div class="log-empty">No box codes in this plan.</div>`}
     ${renderSleevesNeeded(summary)}`;
@@ -2838,9 +3055,10 @@ function renderSleevesNeeded(summary){
   const rows=planData.sleeves.map(s=>{
     const stock=summary[s.code];
     const stockQty=stock?stock.qty:0;
-    const locTxt=stock?stock.locs.map(locAbbrev).join(', '):'<span style="color:var(--danger)">No stock</span>';
+    const locTxt=stock?stock.locs.map(l=>locAbbrevMix(l,stock)).join(', '):'<span style="color:var(--danger)">No stock</span>';
     const physDisp=PHYS_CODES[s.code]?`<div class="ic-phys">Physical: ${PHYS_CODES[s.code].join(' · ')}</div>`:'';
-    return `<tr>
+    return `<tr class="${s.done?'plan-row-done':''}">
+      <td><button class="plan-check${s.done?' on':''}" onclick="togglePlanDone('s','${s.code}')" title="Mark ready">${s.done?'✓':''}</button></td>
       <td style="font-weight:700;color:var(--accent2)">${s.code}</td>
       <td style="color:var(--text2);font-size:11px">${s.desc}${physDisp}</td>
       <td>${s.line22?s.line22.toLocaleString():'—'}</td>
@@ -2853,7 +3071,7 @@ function renderSleevesNeeded(summary){
   }).join('');
   return `<div class="plan-meta" style="margin-top:20px;font-weight:700;color:var(--text2);font-size:12px">🧵 Sleeves Needed (Line 22 + Line 23 · 325 sleeves/box)</div>
     <div style="overflow-x:auto"><table class="log-table plan-table">
-      <thead><tr><th>SL Code</th><th>Description</th><th>Line 22</th><th>Line 23</th><th>Total Sleeves</th><th>Boxes Needed</th><th>Stock</th><th>Location</th></tr></thead>
+      <thead><tr><th>✓</th><th>SL Code</th><th>Description</th><th>Line 22</th><th>Line 23</th><th>Total Sleeves</th><th>Boxes Needed</th><th>Stock</th><th>Location</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
 }
@@ -2980,6 +3198,7 @@ function renderBoxRoomSlot(sec,tier,pos){
     <div class="boxroom-slot-code">${occ.item}</div>
     <div class="boxroom-slot-desc">${desc}</div>
     <div class="boxroom-slot-qty">Qty ${(occ.qty||0).toLocaleString()}</div>
+    ${occExtraCount(occ)?`<div class="boxroom-slot-desc" style="font-weight:bold">+ ${occ.extras.map(e=>e.item+' ('+e.qty+')').join(', ')}</div>`:''}
   </div>`;
 }
 function printBoxRoomMap(){
@@ -3134,16 +3353,49 @@ async function renderSyncHistory(){
   }
   _syncHistoryCache=items;
   if(!items.length){wrap.innerHTML='<div style="color:var(--text3);font-size:11px;text-align:center;padding:12px">No saved copies yet.</div>';return;}
-  wrap.innerHTML=items.map((it,i)=>{
-    const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno||'';
-    return `<div class="sync-hist-row">
-      <div><span style="color:var(--accent2);font-weight:700">${it.date}</span> · ${label}</div>
-      <div style="display:flex;gap:6px">
-        <button class="sync-view-btn" onclick="syncViewEntry(${i})">👁 View</button>
-        <button class="sync-import-btn" onclick="syncImportEntry(${i})">⬇ Load</button>
+
+  // Group entries by month (YYYY-MM) so the list stays navigable as history
+  // grows over months/years — reuses the same collapsible pattern as the
+  // "By Category" blocks in Stats (cat-block / toggleCatBlock).
+  const groups={};
+  items.forEach((it,i)=>{
+    const ym=(it.date||'').slice(0,7)||'unknown';
+    if(!groups[ym])groups[ym]=[];
+    groups[ym].push(i);
+  });
+  const months=Object.keys(groups).sort().reverse();
+  wrap.innerHTML=months.map((ym,mi)=>{
+    const idxs=groups[ym];
+    const rows=idxs.map(i=>{
+      const it=items[i];
+      const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno||'';
+      return `<div class="sync-hist-row">
+        <div><span style="color:var(--accent2);font-weight:700">${it.date}</span> · ${label}</div>
+        <div style="display:flex;gap:6px">
+          <button class="sync-view-btn" onclick="syncViewEntry(${i})">👁 View</button>
+          <button class="sync-import-btn" onclick="syncImportEntry(${i})">⬇ Load</button>
+        </div>
+      </div>`;
+    }).join('');
+    const key='sync_'+ym.replace(/[^0-9]/g,'');
+    const label=ym==='unknown'?'Unknown Date':monthLabel(ym);
+    return `<div class="cat-block" id="cb-${key}">
+      <div class="cat-block-header" onclick="toggleCatBlock('${key}')">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="cat-block-title">${label}</span>
+          <span class="cat-block-meta">${idxs.length} ${idxs.length===1?'copy':'copies'}</span>
+        </div>
+        <span class="cat-block-chevron${mi===0?' open':''}" id="chev-${key}">▶</span>
       </div>
+      <div class="cat-block-body${mi===0?' open':''}" id="cbb-${key}">${rows}</div>
     </div>`;
   }).join('');
+}
+function monthLabel(ym){
+  const parts=ym.split('-');
+  const names=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const mIdx=parseInt(parts[1],10)-1;
+  return (names[mIdx]||ym)+' '+parts[0];
 }
 function syncImportEntry(i){
   const it=_syncHistoryCache[i];
@@ -3159,6 +3411,89 @@ function syncImportEntry(i){
   showToast('Inventory imported from '+it.date+'.','success');
 }
 
+async function exportFullHistory(){
+  const statusEl=document.getElementById('sync-export-history-status');
+  statusEl.textContent='Fetching full history...';
+  let items=[];
+  if(syncMode()==='sharepoint'){
+    try{
+      const res=await fetch(getFlowUrl(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'list'})});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const j=await res.json();
+      const raw=Array.isArray(j)?j:(j.value||j.items||[]);
+      items=raw.map(r=>{
+        let parsedData=r.data;
+        if(r.JsonData!==undefined){
+          try{ parsedData=typeof r.JsonData==='string'?JSON.parse(r.JsonData):r.JsonData; }
+          catch(e){ parsedData={}; }
+        }
+        return{
+          date:r.date||r.InventoryDate||r.WMS_Backups||'',
+          turno:r.turno||'',
+          turnoLabel:r.turnoLabel||r.Shift||'',
+          data:parsedData||{}
+        };
+      });
+    }catch(err){
+      statusEl.textContent='⚠ Could not fetch history: '+err.message;
+      showToast('Could not fetch history.','error');
+      return;
+    }
+  }else{
+    items=loadSyncHistoryLocal();
+  }
+  if(!items.length){
+    statusEl.textContent='No history to export.';
+    return;
+  }
+
+  // Collect every item code that appears across all snapshots, ordered to
+  // match the catalog (CAT_ORDER) so the spreadsheet reads like the app.
+  const codesSeen=new Set();
+  items.forEach(it=>{
+    Object.values(it.data||{}).forEach(occ=>{
+      occItems(occ).forEach(x=>codesSeen.add(x.item));
+    });
+  });
+  const orderedCodes=[];
+  CAT_ORDER.forEach(cat=>{
+    ITEMS.filter(i2=>i2.cat===cat).forEach(i2=>{
+      if(codesSeen.has(i2.code)){orderedCodes.push(i2.code);codesSeen.delete(i2.code);}
+    });
+  });
+  Array.from(codesSeen).sort().forEach(c=>orderedCodes.push(c));
+
+  // Oldest → newest, so the sheet reads as a time series.
+  const sorted=items.slice().sort((a,b)=>{
+    const d=(a.date||'').localeCompare(b.date||'');
+    if(d!==0)return d;
+    return (a.turnoLabel||'').localeCompare(b.turnoLabel||'');
+  });
+
+  const header=['Date','Shift',...orderedCodes.map(c=>{
+    const it2=ITEMS.find(i2=>i2.code===c);
+    return it2?`${c} - ${it2.name}`:c;
+  })];
+  const rows=[header];
+  sorted.forEach(it=>{
+    const summary={};
+    Object.values(it.data||{}).forEach(occ=>{
+      occItems(occ).forEach(x=>{summary[x.item]=(summary[x.item]||0)+x.qty;});
+    });
+    const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno||'';
+    rows.push([it.date,label,...orderedCodes.map(c=>summary[c]||0)]);
+  });
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:22},...orderedCodes.map(()=>({wch:14}))];
+  XLSX.utils.book_append_sheet(wb,ws,'Full History');
+  const stamp=today().replace(/\//g,'-');
+  XLSX.writeFile(wb,`WMS_NJ_FullHistory_${stamp}.xlsx`);
+  statusEl.textContent=`✓ Exported ${sorted.length} snapshots · ${orderedCodes.length} item codes.`;
+  showToast('Full history exported.','success');
+}
+
 function syncViewEntry(i){
   const it=_syncHistoryCache[i];
   if(!it){showToast('Entry not found.','error');return;}
@@ -3167,9 +3502,7 @@ function syncViewEntry(i){
   const snapshot=it.data||{};
   const summary={};
   Object.values(snapshot).forEach(occ=>{
-    if(!occ||!occ.item)return;
-    if(!summary[occ.item])summary[occ.item]=0;
-    summary[occ.item]+=occ.qty||0;
+    occItems(occ).forEach(x=>{summary[x.item]=(summary[x.item]||0)+x.qty;});
   });
   const codes=Object.keys(summary).sort();
   const body=document.getElementById('sync-view-body');
@@ -3334,6 +3667,7 @@ function openRoModal(id){
   if(data&&item){
     document.getElementById('ro-item-code').textContent=data.item;
     document.getElementById('ro-item-name').textContent=item.name;
+    document.getElementById('ro-item-name').className='ro-val';
     document.getElementById('ro-item-cat').textContent=item.cat;
     document.getElementById('ro-qty').textContent=data.qty.toLocaleString();
     document.getElementById('ro-item-code').className='ro-val';
@@ -3347,6 +3681,9 @@ function openRoModal(id){
     document.getElementById('ro-qty').textContent='—';
     document.getElementById('ro-qty').className='ro-empty';
   }
+  const mixEl=document.getElementById('ro-mix');
+  const nMix=occExtraCount(data);
+  if(mixEl)mixEl.innerHTML=nMix?`<div class="ro-mix"><div class="ro-mix-title">📦 Mixed pallet · ${1+nMix} items in this position</div>${occItems(data).map(x=>{const d=ITEMS.find(i2=>i2.code===x.item);return `<div class="ro-mix-row"><span><b style="color:var(--accent2)">${x.item}</b> <span style="color:var(--text3);font-size:10px">${d?d.name:''}</span>${x.extra?'':' <span style="font-size:9px;color:var(--text3)">(main)</span>'}</span><b>${x.qty.toLocaleString()}</b></div>`;}).join('')}</div>`:'';
   document.getElementById('ro-overlay').classList.remove('hidden');
 }
 function closeRoModal(e){
@@ -3418,20 +3755,24 @@ function openSecPanel(areaName, sec){
   if(!tiers)return;
 
   const rows=[];
+  let occPos=0;
   Object.entries(tiers).forEach(([t,positions])=>{
     positions.forEach(pos=>{
       const id=locId(areaName,+sec,+t,pos);
       const occ=inventory[id];
       if(occ){
-        const item=ITEMS.find(x=>x.code===occ.item);
-        rows.push({id,label:locLabel(id),code:occ.item,name:item?item.name:'',qty:occ.qty});
+        occPos++;
+        occItems(occ).forEach(x=>{
+          const item=ITEMS.find(i2=>i2.code===x.item);
+          rows.push({id,label:locLabel(id)+(x.extra?' (mix)':''),code:x.item,name:item?item.name:'',qty:x.qty});
+        });
       }
     });
   });
 
   const total=rows.reduce((s,r)=>s+r.qty,0);
   document.getElementById('sec-panel-title').textContent=`${areaName} · Section ${sec}`;
-  document.getElementById('sec-panel-meta').textContent=rows.length+' position(s) occupied · '+total.toLocaleString()+' total units';
+  document.getElementById('sec-panel-meta').textContent=occPos+' position(s) occupied · '+total.toLocaleString()+' total units';
 
   let html='';
   if(!rows.length){
@@ -3460,18 +3801,22 @@ function openFloorPanel(areaName){
   if(!aDef||aDef.type!=='floor')return;
 
   const rows=[];
+  let occPos=0;
   for(let i=1;i<=aDef.slots;i++){
     const id=locId(areaName,null,null,i);
     const occ=inventory[id];
     if(occ){
-      const item=ITEMS.find(x=>x.code===occ.item);
-      rows.push({id,slot:i,code:occ.item,name:item?item.name:'',qty:occ.qty});
+      occPos++;
+      occItems(occ).forEach(x=>{
+        const item=ITEMS.find(i2=>i2.code===x.item);
+        rows.push({id,slot:i+(x.extra?' (mix)':''),code:x.item,name:item?item.name:'',qty:x.qty});
+      });
     }
   }
 
   const total=rows.reduce((s,r)=>s+r.qty,0);
   document.getElementById('sec-panel-title').textContent=`${areaName}`;
-  document.getElementById('sec-panel-meta').textContent=rows.length+' slot(s) occupied · '+total.toLocaleString()+' total units';
+  document.getElementById('sec-panel-meta').textContent=occPos+' slot(s) occupied · '+total.toLocaleString()+' total units';
 
   let html='';
   if(!rows.length){
@@ -3514,7 +3859,7 @@ function openIlocPanel(code){
 
   const locs=[];
   Object.entries(inventory).forEach(([id,data])=>{
-    if(data&&data.item===code)locs.push({id,label:locLabel(id),qty:data.qty});
+    occItems(data).forEach(x=>{if(x.item===code)locs.push({id,label:locLabel(id)+(x.extra?' (mix)':''),qty:x.qty});});
   });
 
   let html='';
