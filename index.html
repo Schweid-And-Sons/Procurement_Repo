@@ -73,6 +73,25 @@
   .boxroom-modal-box{background:#fff;max-width:1000px;margin:0 auto;padding:16px;border-radius:12px;}
   #boxroom-overlay{overflow-y:auto;align-items:flex-start;padding:20px 0;}
   .boxroom-toolbar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px;flex-wrap:wrap;}
+  .cal-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 10px;}
+  .cal-nav button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;width:34px;height:30px;cursor:pointer;font-size:14px;}
+  .cal-nav button:disabled{opacity:.3;cursor:default;}
+  .cal-year-lbl{font-size:18px;font-weight:800;color:var(--text);min-width:64px;text-align:center;}
+  .cal-year{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  @media(max-width:520px){.cal-year{grid-template-columns:repeat(2,1fr);}}
+  .cal-month{border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--surface2);}
+  .cal-month.has{border-color:var(--accent2);}
+  .cal-mname{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);text-align:center;margin-bottom:4px;}
+  .cal-month.has .cal-mname{color:var(--accent2);}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;}
+  .cal-wd{font-size:7px;color:var(--text3);text-align:center;font-weight:700;}
+  .cal-d{font-size:9px;text-align:center;line-height:18px;height:18px;border-radius:4px;color:var(--text3);}
+  .cal-d.data{background:var(--accent2);color:#fff;font-weight:800;cursor:pointer;}
+  .cal-d.data.multi{box-shadow:inset 0 -3px 0 rgba(0,0,0,.35);}
+  .cal-d.sel{outline:2px solid #ff8c00;outline-offset:1px;}
+  .cal-d.today{text-decoration:underline;font-weight:800;color:var(--text);}
+  .cal-day-panel{margin-top:12px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+  .cal-day-title{font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px;}
   .sync-hist-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2);}
   .sync-hist-row:last-child{border-bottom:none;}
   .sync-import-btn{padding:5px 11px;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:5px;cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;text-transform:uppercase;white-space:nowrap;}
@@ -145,11 +164,11 @@
   .sections-row{display:flex;gap:8px;flex-wrap:wrap;}
   .section-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;min-width:90px;}
   .section-label{font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;white-space:nowrap;}
-  .section-label .sec-num{font-size:17px;color:var(--text);margin-left:2px;vertical-align:-1px;}
+  .section-label .sec-num{font-size:14px;color:var(--text);margin-left:2px;vertical-align:-1px;}
   @media(max-width:679px){
     .map-area-title{font-size:13px;}
     .section-label{font-size:10px;}
-    .section-label .sec-num{font-size:15px;}
+    .section-label .sec-num{font-size:13px;}
   }
   .tier-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
   .tier-lbl{font-size:9px;color:var(--text3);width:16px;flex-shrink:0;}
@@ -850,7 +869,7 @@ try{
 </div>
 
 <div class="modal-overlay hidden" id="sync-overlay" onclick="closeSyncModal(event)">
-  <div class="modal" onclick="event.stopPropagation()" style="width:440px">
+  <div class="modal" onclick="event.stopPropagation()" style="width:620px;max-width:96vw;max-height:92vh;overflow-y:auto">
     <h3 style="color:var(--accent2)">☁ SharePoint Sync</h3>
     <div id="sync-mode-label" style="font-size:10px;color:var(--text3);margin-bottom:14px">💾 Mode: Local (this device)</div>
 
@@ -874,7 +893,7 @@ try{
       <div style="font-size:10px;color:var(--text3);margin-bottom:8px">Importing completely replaces the inventory on screen. It does not merge with the current data.</div>
       <button class="btn-primary" style="background:var(--accent2);width:100%;margin-bottom:6px" onclick="exportFullHistory()">📥 Export Full History (Excel)</button>
       <div id="sync-export-history-status" style="font-size:10px;color:var(--text3);min-height:14px;margin-bottom:8px"></div>
-      <div id="sync-history-list" style="max-height:260px;overflow-y:auto"></div>
+      <div id="sync-history-list"></div>
     </div>
 
     <div class="modal-actions">
@@ -3354,48 +3373,88 @@ async function renderSyncHistory(){
   _syncHistoryCache=items;
   if(!items.length){wrap.innerHTML='<div style="color:var(--text3);font-size:11px;text-align:center;padding:12px">No saved copies yet.</div>';return;}
 
-  // Group entries by month (YYYY-MM) so the list stays navigable as history
-  // grows over months/years — reuses the same collapsible pattern as the
-  // "By Category" blocks in Stats (cat-block / toggleCatBlock).
-  const groups={};
+  // Almanac view: 12 months of a year, days with saved inventories highlighted.
+  _syncByDay={};_syncUndated=[];
   items.forEach((it,i)=>{
-    const ym=(it.date||'').slice(0,7)||'unknown';
-    if(!groups[ym])groups[ym]=[];
-    groups[ym].push(i);
+    const dp=syncDateParts(it.date);
+    if(!dp){_syncUndated.push(i);return;}
+    const k=syncDayKey(dp);
+    (_syncByDay[k]=_syncByDay[k]||[]).push(i);
   });
-  const months=Object.keys(groups).sort().reverse();
-  wrap.innerHTML=months.map((ym,mi)=>{
-    const idxs=groups[ym];
-    const rows=idxs.map(i=>{
-      const it=items[i];
-      const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno||'';
-      return `<div class="sync-hist-row">
-        <div><span style="color:var(--accent2);font-weight:700">${it.date}</span> · ${label}</div>
-        <div style="display:flex;gap:6px">
-          <button class="sync-view-btn" onclick="syncViewEntry(${i})">👁 View</button>
-          <button class="sync-import-btn" onclick="syncImportEntry(${i})">⬇ Load</button>
-        </div>
-      </div>`;
-    }).join('');
-    const key='sync_'+ym.replace(/[^0-9]/g,'');
-    const label=ym==='unknown'?'Unknown Date':monthLabel(ym);
-    return `<div class="cat-block" id="cb-${key}">
-      <div class="cat-block-header" onclick="toggleCatBlock('${key}')">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="cat-block-title">${label}</span>
-          <span class="cat-block-meta">${idxs.length} ${idxs.length===1?'copy':'copies'}</span>
-        </div>
-        <span class="cat-block-chevron${mi===0?' open':''}" id="chev-${key}">▶</span>
-      </div>
-      <div class="cat-block-body${mi===0?' open':''}" id="cbb-${key}">${rows}</div>
-    </div>`;
-  }).join('');
+  const keys=Object.keys(_syncByDay).sort();
+  const latest=keys.length?keys[keys.length-1]:null;
+  if(!_calYear||!keys.some(k=>+k.slice(0,4)===_calYear))_calYear=latest?+latest.slice(0,4):new Date().getFullYear();
+  if(!_calSelKey||!_syncByDay[_calSelKey])_calSelKey=latest;
+  renderSyncCalendar('month');
 }
-function monthLabel(ym){
-  const parts=ym.split('-');
-  const names=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const mIdx=parseInt(parts[1],10)-1;
-  return (names[mIdx]||ym)+' '+parts[0];
+const CAL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+let _syncByDay={},_syncUndated=[],_calYear=null,_calSelKey=null;
+function syncDateParts(str){
+  const t=String(str||'').trim();
+  let m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m)return{y:+m[1],m:+m[2],d:+m[3]};
+  m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){let y=+m[3];if(y<100)y+=2000;return{y,m:+m[1],d:+m[2]};}
+  return null;
+}
+function syncDayKey(p){return p.y+'-'+String(p.m).padStart(2,'0')+'-'+String(p.d).padStart(2,'0');}
+function syncShiftRank(it){const l=(it.turnoLabel||it.turno||'').toLowerCase();return l.includes('before')||l.includes('pre')?0:l.includes('after')||l.includes('post')?1:2;}
+function syncEntryRow(i){
+  const it=_syncHistoryCache[i];
+  const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno||'';
+  return `<div class="sync-hist-row">
+    <div><span style="color:var(--accent2);font-weight:700">${label||'—'}</span></div>
+    <div style="display:flex;gap:6px">
+      <button class="sync-view-btn" onclick="syncViewEntry(${i})">👁 View</button>
+      <button class="sync-import-btn" onclick="syncImportEntry(${i})">⬇ Load</button>
+    </div>
+  </div>`;
+}
+function calSetYear(delta){_calYear+=delta;renderSyncCalendar();}
+function calSelectDay(k){_calSelKey=k;renderSyncCalendar('panel');}
+function renderSyncCalendar(scrollTo){
+  const wrap=document.getElementById('sync-history-list');
+  if(!wrap)return;
+  const years=Object.keys(_syncByDay).map(k=>+k.slice(0,4));
+  const minY=years.length?Math.min(...years):_calYear, maxY=years.length?Math.max(...years):_calYear;
+  const now=new Date();
+  const todayKey=syncDayKey({y:now.getFullYear(),m:now.getMonth()+1,d:now.getDate()});
+  let html=`<div class="cal-nav">
+    <button onclick="calSetYear(-1)" ${_calYear<=minY?'disabled':''}>◀</button>
+    <span class="cal-year-lbl">${_calYear}</span>
+    <button onclick="calSetYear(1)" ${_calYear>=maxY?'disabled':''}>▶</button>
+  </div><div class="cal-year">`;
+  for(let m=1;m<=12;m++){
+    const first=new Date(_calYear,m-1,1).getDay();
+    const days=new Date(_calYear,m,0).getDate();
+    let cells='',hasAny=false;
+    ['S','M','T','W','T','F','S'].forEach(w=>cells+=`<div class="cal-wd">${w}</div>`);
+    for(let b=0;b<first;b++)cells+='<div></div>';
+    for(let d=1;d<=days;d++){
+      const k=syncDayKey({y:_calYear,m,d});
+      const n=_syncByDay[k]?_syncByDay[k].length:0;
+      if(n)hasAny=true;
+      const cls='cal-d'+(n?' data':'')+(n>1?' multi':'')+(k===_calSelKey?' sel':'')+(k===todayKey?' today':'');
+      cells+=n?`<div class="${cls}" title="${n} cop${n>1?'ies':'y'}" onclick="calSelectDay('${k}')">${d}</div>`:`<div class="${cls}">${d}</div>`;
+    }
+    const selMonth=_calSelKey&&+_calSelKey.slice(0,4)===_calYear&&+_calSelKey.slice(5,7)===m;
+    html+=`<div class="cal-month${hasAny?' has':''}"${selMonth?' id="cal-sel-month"':''}><div class="cal-mname">${CAL_MONTHS[m-1]}</div><div class="cal-grid">${cells}</div></div>`;
+  }
+  html+=`</div>`;
+  if(_calSelKey&&_syncByDay[_calSelKey]){
+    const [y,mo,d]=_calSelKey.split('-').map(Number);
+    const idxs=_syncByDay[_calSelKey].slice().sort((a,b)=>syncShiftRank(_syncHistoryCache[a])-syncShiftRank(_syncHistoryCache[b]));
+    const dow=new Date(y,mo-1,d).toLocaleDateString('en-US',{weekday:'long'});
+    html+=`<div class="cal-day-panel" id="cal-day-panel"><div class="cal-day-title">📅 ${dow}, ${CAL_MONTHS[mo-1]} ${d}, ${y} · ${idxs.length} cop${idxs.length>1?'ies':'y'}</div>${idxs.map(syncEntryRow).join('')}</div>`;
+  }else{
+    html+=`<div class="cal-day-panel" style="color:var(--text3);font-size:11px;text-align:center">Tap a highlighted day to see its saved inventories.</div>`;
+  }
+  if(_syncUndated.length){
+    html+=`<div class="cal-day-panel"><div class="cal-day-title" style="color:var(--text3)">Copies without a readable date</div>${_syncUndated.map(syncEntryRow).join('')}</div>`;
+  }
+  wrap.innerHTML=html;
+  const target=scrollTo==='panel'?document.getElementById('cal-day-panel'):scrollTo==='month'?document.getElementById('cal-sel-month'):null;
+  if(target)setTimeout(()=>target.scrollIntoView({behavior:'smooth',block:'center'}),60);
 }
 function syncImportEntry(i){
   const it=_syncHistoryCache[i];
@@ -3464,10 +3523,11 @@ async function exportFullHistory(){
   Array.from(codesSeen).sort().forEach(c=>orderedCodes.push(c));
 
   // Oldest → newest, so the sheet reads as a time series.
+  const dk=it=>{const p=syncDateParts(it.date);return p?syncDayKey(p):'0000';};
   const sorted=items.slice().sort((a,b)=>{
-    const d=(a.date||'').localeCompare(b.date||'');
+    const d=dk(a).localeCompare(dk(b));
     if(d!==0)return d;
-    return (a.turnoLabel||'').localeCompare(b.turnoLabel||'');
+    return syncShiftRank(a)-syncShiftRank(b);
   });
 
   const header=['Date','Shift',...orderedCodes.map(c=>{
