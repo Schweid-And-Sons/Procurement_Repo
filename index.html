@@ -52,6 +52,9 @@
   .plant-btn .pb-code{font-size:40px;font-weight:900;color:var(--pc);line-height:1;}
   .plant-btn .pb-name{font-size:16px;font-weight:800;letter-spacing:.15em;}
   .plant-btn .pb-sum{font-size:10px;color:var(--text3);line-height:1.5;}
+  .plant-batch{display:flex;flex-direction:column;gap:2px;margin-top:6px;padding:14px;border-radius:12px;border:2px dashed var(--border);color:var(--text);text-decoration:none;font-weight:800;letter-spacing:.12em;font-size:13px;}
+  .plant-batch span{font-size:9px;color:var(--text3);letter-spacing:.08em;font-weight:400;}
+  .plant-batch:hover{border-color:var(--accent2);}
   .plant-rem{font-size:11px;color:var(--text2);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
 
   
@@ -626,6 +629,7 @@ try{
       <span class="pb-code">GA</span><span class="pb-name">GEORGIA</span><span class="pb-sum" id="plant-sum-GA"></span>
     </button>
     <label class="plant-rem"><input type="checkbox" id="plant-remember"> Remember this plant on this device</label>
+    <a class="plant-batch" href="batch.html">🥩 BATCH SHEETS <span>Production · NJ / GA</span></a>
   </div>
 </div>
 <div class="app">

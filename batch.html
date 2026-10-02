@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schweid & Sons · Batch Sheets</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    color-scheme:light;
+    --bg:#f1f5f9;--surface:#ffffff;--surface2:#f8fafc;--border:#e2e8f0;
+    --accent:#2563eb;--accent2:#0891b2;--success:#16a34a;--warn:#d97706;--danger:#dc2626;
+    --text:#0f172a;--text2:#334155;--text3:#64748b;--plant:#1d4ed8;
+  }
+  html.theme-dark,body.theme-dark{
+    color-scheme:dark;
+    --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3350;
+    --accent:#3b82f6;--accent2:#22d3ee;--success:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+    --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;font-size:13px;min-height:100vh;}
+  button,input,select,textarea{font-family:inherit;}
+  .strip{background:var(--plant);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 14px;position:sticky;top:0;z-index:50;}
+  .strip b{font-size:14px;letter-spacing:.12em;}
+  .strip a{color:#fff;text-decoration:none;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,.7);border-radius:5px;padding:3px 8px;white-space:nowrap;}
+  .plant-tg{display:flex;gap:4px;}
+  .plant-tg button{background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;border-radius:5px;padding:3px 9px;font-weight:800;cursor:pointer;font-size:11px;}
+  .plant-tg button.on{background:#fff;color:var(--plant);}
+  .wrap{max-width:980px;margin:0 auto;padding:14px;}
+  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;}
+  .bar h1{font-size:15px;letter-spacing:.1em;text-transform:uppercase;flex:1;min-width:140px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;}
+  .card h2{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:10px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+  label{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:3px;}
+  input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 9px;font-size:13px;}
+  textarea{min-height:56px;resize:vertical;}
+  .btn{padding:8px 13px;border-radius:6px;border:1px solid var(--accent2);background:transparent;color:var(--accent2);cursor:pointer;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
+  .btn.primary{background:var(--accent2);color:#fff;}
+  .btn.ok{border-color:var(--success);color:var(--success);}
+  .btn.ok.primary{background:var(--success);color:#fff;}
+  .btn.danger{border-color:var(--danger);color:var(--danger);}
+  .btn.big{padding:12px 16px;font-size:12px;}
+  .scanrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .scanrow input{flex:1;min-width:200px;font-size:14px;border:2px dashed var(--accent2);}
+  table{width:100%;border-collapse:collapse;}
+  th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);text-align:left;padding:6px 4px;border-bottom:1px solid var(--border);}
+  td{padding:5px 4px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12px;}
+  td input,td select{padding:6px;font-size:12px;}
+  .tbl-wrap{overflow-x:auto;}
+  .rm-desc{font-size:10px;color:var(--text3);margin-top:2px;}
+  .tot{display:flex;justify-content:flex-end;gap:18px;margin-top:10px;font-weight:800;font-size:13px;}
+  .tot span{color:var(--accent2);}
+  .list-card{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;}
+  .list-card:hover{border-color:var(--accent2);}
+  .badge{font-size:9px;font-weight:800;padding:3px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
+  .badge.draft{background:rgba(217,119,6,.15);color:var(--warn);}
+  .badge.done{background:rgba(22,163,74,.15);color:var(--success);}
+  .muted{color:var(--text3);font-size:11px;}
+  .empty{text-align:center;color:var(--text3);padding:26px;font-size:12px;}
+  .hidden{display:none!important;}
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:12px;}
+  .modal{background:var(--surface);border-radius:12px;padding:16px;width:min(480px,96vw);max-height:92vh;overflow-y:auto;}
+  .modal h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);margin-bottom:10px;}
+  .raw{font-size:10px;color:var(--text3);word-break:break-all;background:var(--surface2);border-radius:6px;padding:6px;margin-bottom:10px;}
+  video{width:100%;border-radius:8px;background:#000;max-height:60vh;}
+  .scan-frame{position:relative;}
+  .scan-frame::after{content:'';position:absolute;left:8%;right:8%;top:42%;height:16%;border:2px solid #ff8c00;border-radius:6px;pointer-events:none;}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--success);color:var(--success);padding:9px 16px;border-radius:8px;font-size:12px;z-index:300;opacity:0;transition:opacity .25s;pointer-events:none;}
+  .toast.err{border-color:var(--danger);color:var(--danger);}
+  .print-only{display:none;}
+  @media(max-width:600px){
+    .wrap{padding:10px;}
+    .hide-sm{display:none;}
+  }
+  @media print{
+    .strip,.bar,.scanrow,.no-print,.btn,.toast{display:none!important;}
+    .print-only{display:block;}
+    body{background:#fff;color:#000;}
+    .card{border:1px solid #999;break-inside:avoid;}
+    input,select,textarea{border:none;background:none;padding:2px;appearance:none;-webkit-appearance:none;}
+  }
+</style>
+</head>
+<body>
+<div class="strip">
+  <span>🥩 <b id="plant-name">—</b> · Batch Sheets</span>
+  <span style="display:flex;gap:8px;align-items:center">
+    <span class="plant-tg"><button id="pt-NJ" onclick="setPlant('NJ')">NJ</button><button id="pt-GA" onclick="setPlant('GA')">GA</button></span>
+    <a href="index.html">← WMS</a>
+  </span>
+</div>
+
+<div class="wrap">
+  <!-- LIST VIEW -->
+  <div id="view-list">
+    <div class="bar">
+      <h1>Batch Sheets</h1>
+      <input type="date" id="list-date" style="width:auto" onchange="renderList()">
+      <button class="btn" onclick="exportDay()">⬇ Export day</button>
+      <button class="btn primary big" onclick="newBatch()">+ New Batch</button>
+    </div>
+    <div id="batch-list"></div>
+  </div>
+
+  <!-- EDITOR VIEW -->
+  <div id="view-edit" class="hidden">
+    <div class="bar">
+      <button class="btn" onclick="showList()">← Batches</button>
+      <h1 id="ed-title">Batch</h1>
+      <span id="ed-status" class="badge draft">Draft</span>
+    </div>
+    <div class="print-only" id="print-head" style="margin-bottom:10px"></div>
+
+    <div class="card">
+      <h2>1 · Batch info</h2>
+      <div class="grid">
+        <div style="grid-column:span 2;min-width:0"><label>Product / Meat Block</label><select id="f-product" onchange="setField('product',this.value)"></select></div>
+        <div><label>Line</label><select id="f-line" onchange="setField('line',this.value)"></select></div>
+        <div><label>Batch #</label><input id="f-batchNo" onchange="setField('batchNo',this.value)"></div>
+        <div><label>Date</label><input type="date" id="f-date" onchange="setField('date',this.value)"></div>
+        <div><label>Start time</label><input type="time" id="f-startTime" onchange="setField('startTime',this.value)"></div>
+        <div><label>Operator</label><input id="f-operator" placeholder="Name" onchange="setField('operator',this.value)"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Raw materials (combos / boxes)</h2>
+      <div class="scanrow no-print">
+        <input id="scan-input" placeholder="🔫 Scan barcode here (or type it) + Enter" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();onScanInput();}">
+        <button class="btn primary" onclick="openCamera()">📷 Camera</button>
+        <button class="btn" onclick="addManual()">+ Manual</button>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>#</th><th>RM Code</th><th>Lot / Serial</th><th class="hide-sm">Pack date</th><th class="hide-sm">EST #</th><th>Net LBS</th><th class="no-print"></th></tr></thead>
+        <tbody id="rm-body"></tbody>
+      </table></div>
+      <div class="tot">Boxes: <span id="tot-count">0</span> &nbsp; Total Net: <span id="tot-lbs">0</span> lbs</div>
+    </div>
+
+    <div class="card">
+      <h2>3 · Quality</h2>
+      <div class="grid">
+        <div><label>Fat test (%)</label><input type="number" step="0.1" id="f-fatTest" onchange="setField('fatTest',this.value)"></div>
+        <div><label>Grind temp (°F)</label><input type="number" step="0.1" id="f-grindTemp" onchange="setField('grindTemp',this.value)"></div>
+        <div style="grid-column:1/-1"><label>Notes</label><textarea id="f-notes" onchange="setField('notes',this.value)"></textarea></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>4 · Sign-off</h2>
+      <div class="grid">
+        <div><label>Completed by</label><input id="f-completedBy" placeholder="Name" onchange="setField('completedBy',this.value)"></div>
+        <div><label>Completed at</label><input id="f-completedAt" readonly placeholder="—"></div>
+      </div>
+      <div class="row-actions no-print">
+        <button class="btn ok primary big" id="btn-complete" onclick="toggleComplete()">✓ Mark complete</button>
+        <button class="btn" onclick="exportBatch()">⬇ Excel</button>
+        <button class="btn" onclick="window.print()">🖨 Print</button>
+        <button class="btn danger" onclick="deleteBatch()">🗑 Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCAN CONFIRM -->
+<div class="ov hidden" id="confirm-ov">
+  <div class="modal">
+    <h3>Add raw material</h3>
+    <div class="raw" id="cf-raw"></div>
+    <div class="grid">
+      <div style="grid-column:1/-1"><label>RM Code</label><select id="cf-rm"></select></div>
+      <div><label>Lot / Serial</label><input id="cf-lot"></div>
+      <div><label>Pack date</label><input id="cf-pack" placeholder="MM/DD/YYYY"></div>
+      <div><label>EST #</label><input id="cf-est"></div>
+      <div><label>Net LBS</label><input type="number" step="0.01" id="cf-lbs"></div>
+    </div>
+    <label style="display:flex;gap:6px;align-items:center;margin-top:10px;font-size:10px;text-transform:none;letter-spacing:0" id="cf-remember-wrap"><input type="checkbox" id="cf-remember" style="width:auto" checked> Remember this product barcode → RM code (next scans fill it automatically)</label>
+    <div class="row-actions">
+      <button class="btn ok primary big" onclick="confirmAdd()">+ Add</button>
+      <button class="btn" onclick="closeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAMERA -->
+<div class="ov hidden" id="cam-ov">
+  <div class="modal">
+    <h3>📷 Scan label</h3>
+    <div class="scan-frame"><video id="cam-video" playsinline muted></video></div>
+    <div class="muted" id="cam-msg" style="margin:8px 0">Point the camera at the barcode on the box label.</div>
+    <button class="btn" onclick="closeCamera()">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const RM_CODES=[{"code": "NM4165", "name": "Natural trim 65% Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4185", "name": "Natural trim 85% Certied Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4050", "name": "Natural trim 50%", "group": "NATURAL", "vendor": ""}, {"code": "NM4180", "name": "Natural 80/20 trim Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4065", "name": "Natural trim 65%", "group": "NATURAL", "vendor": ""}, {"code": "NM4085", "name": "Natural trim 85%", "group": "NATURAL", "vendor": ""}, {"code": "GM3080", "name": "Grass Fed Trim 80%", "group": "GRASS FED", "vendor": ""}, {"code": "PM5100", "name": "USDA Prime Chuck", "group": "PRIME", "vendor": ""}, {"code": "PM5150", "name": "USDA Prime Chuck Clod", "group": "PRIME", "vendor": ""}, {"code": "CM2500", "name": "Cab Prime Chuck", "group": "CAB PRIME", "vendor": ""}, {"code": "CM2200", "name": "Cab Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "BM0200", "name": "Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "CM2065", "name": "Cab Trim 65%", "group": "CAB", "vendor": ""}, {"code": "CM2085", "name": "Cab Trim 85%", "group": "CAB", "vendor": ""}, {"code": "CM2050", "name": "Cab Trim 50%", "group": "CAB", "vendor": ""}, {"code": "CM2075", "name": "Cab Trim 75%", "group": "CAB", "vendor": ""}, {"code": "CM2180", "name": "Cab Chuck Trim 80%", "group": "CAB", "vendor": ""}, {"code": "CM2160", "name": "Cab Short Plate Rib", "group": "CAB", "vendor": ""}, {"code": "CM2800", "name": "Cab Loin Wing", "group": "CAB", "vendor": ""}, {"code": "AM1065", "name": "Angus trim 65%", "group": "ANGUS", "vendor": ""}, {"code": "AM1085", "name": "Angus Trim 85%", "group": "ANGUS", "vendor": ""}, {"code": "AM1180", "name": "Angus Chuck Trim 80%", "group": "ANGUS", "vendor": ""}, {"code": "AM1175", "name": "Angus Trim 75%", "group": "ANGUS", "vendor": ""}, {"code": "AM1050", "name": "Angus Trim 50%", "group": "ANGUS", "vendor": ""}, {"code": "SM010", "name": "Cab Peeled Tri Tips", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1011", "name": "Coulottes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM8780", "name": "Halal trim 80%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1010", "name": "Rib Eyes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6455", "name": "Wagyu Trim 65%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6450", "name": "Wagyu Trim 50%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6475", "name": "Wagyu Trim 75%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6460", "name": "Wagyu Round Trim", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "TM0065", "name": "Trim 65%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0085", "name": "Trim 85%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0090", "name": "Trim 90%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0073", "name": "Trim 73%", "group": "TRIMMINGS", "vendor": ""}, {"code": "LM2800", "name": "Loin Wing", "group": "TRIMMINGS", "vendor": ""}, {"code": "FZ9995", "name": "Frozen Bull Meat AU/NZ 95%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9966", "name": "Frozen Bull Meat AU/NZ 65%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9900", "name": "BLBT", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9920", "name": "Cab Block FTB", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9070", "name": "Frozen 70%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9075", "name": "Frozen Angus 75/25 Halal", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9680", "name": "Wagyu Frozen Block", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9085", "name": "Frozen 85%", "group": "FROZEN BLOCKS", "vendor": ""}];
+const MEAT_BLOCKS=[{"mb": "10", "name": "Fresh 90/10"}, {"mb": "", "name": "Halal 75/25"}, {"mb": "5", "name": "Wagyu"}, {"mb": "7", "name": "Natural Angus Ground Beef - CH 80/20"}, {"mb": "8", "name": "Natural Angus Ground Beef 75/25"}, {"mb": "12", "name": "CAB Prime Chuck"}, {"mb": "13", "name": "Prime Chuck"}, {"mb": "15", "name": "CAB Chuck"}, {"mb": "17", "name": "CAB Chuck Brisket Sirloin"}, {"mb": "18", "name": "CAB Chuck Brisket"}, {"mb": "19", "name": "CAB Chuck Brisket Short Rib"}, {"mb": "23", "name": "CAB Ground Beef 75/25"}, {"mb": "26", "name": "Angus Chuck"}, {"mb": "30", "name": "Angus Ground Beef 75/25"}, {"mb": "", "name": "Angus Ground Beef 80/20"}, {"mb": "35", "name": "Chuck Brisket"}, {"mb": "37", "name": "Chuck Brisket Short Rib"}, {"mb": "38", "name": "Chuck Brisket Steaktail"}, {"mb": "39", "name": "Chuck Rib Eye"}, {"mb": "40", "name": "Fuddruckers"}, {"mb": "", "name": "Fresh 73/27"}, {"mb": "42", "name": "Fresh 5 Guys"}, {"mb": "45", "name": "Fresh 85/15"}, {"mb": "50", "name": "Fresh 80/20"}, {"mb": "51", "name": "Fresh 80/20 USF"}, {"mb": "55", "name": "Ranchers 80/20"}, {"mb": "60", "name": "Fresh 75/25"}, {"mb": "62", "name": "Ranchers 75/25"}, {"mb": "75", "name": "Tower Isle Patties 50051"}, {"mb": "90", "name": "RT The Steakhouse Blend"}, {"mb": "91", "name": "RT The Korean Blend"}, {"mb": "92", "name": "RT The Taco Blend"}];
+const PROD_LINES=["Line 2", "Line 3", "Line 4", "Line 6-7", "Line 22 - Retail", "Line 23 - Retail", "TI"];
+
+const PLANT_COLORS={NJ:'#1d4ed8',GA:'#15803d'};
+const PLANT_NAMES={NJ:'NEW JERSEY',GA:'GEORGIA'};
+const MAP_KEY='batch_barcode_map';           // barcode product key -> {rm, est}
+let plant='NJ', batches=[], cur=null;
+
+/* ---------- storage ---------- */
+function bKey(){return 'batch_sheets_'+plant.toLowerCase();}
+function loadBatches(){try{batches=JSON.parse(localStorage.getItem(bKey())||'[]')||[];}catch(e){batches=[];}}
+function saveBatches(){try{localStorage.setItem(bKey(),JSON.stringify(batches));}catch(e){toast('Could not save: '+e.message,true);}}
+function loadMap(){try{return JSON.parse(localStorage.getItem(MAP_KEY)||'{}')||{};}catch(e){return{};}}
+function saveMap(m){try{localStorage.setItem(MAP_KEY,JSON.stringify(m));}catch(e){}}
+
+/* ---------- helpers ---------- */
+function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(err?' err':'');t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>t.style.opacity='0',2600);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function isoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function nowTime(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function rmByCode(c){return RM_CODES.find(r=>r.code===c);}
+function lineShort(l){return l==='TI'?'TI':'L'+String(l).replace(/[^0-9-]/g,'').replace(/-$/,'');}
+function fmtLbs(n){return (Math.round((+n||0)*100)/100).toLocaleString();}
+
+/* ---------- GS1-128 parser ----------
+   Accepts "(01)…(3202)…" human-readable form, raw scanner output with FNC1/GS (\x1d)
+   separators, or symbology-prefixed text (]C1…). Non-GS1 codes are returned as-is. */
+const GS1_FIXED={'00':18,'01':14,'02':14,'11':6,'12':6,'13':6,'15':6,'16':6,'17':6,'20':2};
+const GS1_VAR={'10':20,'21':20,'22':20,'30':8,'37':8,'240':30,'241':30,'250':30,'251':30,'400':30,'401':30,'402':17,'403':30,'7030':30,'7031':30,'7032':30,'7033':30};
+function gs1AiAt(s,i){
+  const two=s.substr(i,2), three=s.substr(i,3), four=s.substr(i,4);
+  if(/^3[1-6]\d\d$/.test(four))return{ai:four,len:6};
+  if(/^41[0-7]$/.test(three))return{ai:three,len:13};
+  if(GS1_VAR[four])return{ai:four,max:GS1_VAR[four]};
+  if(GS1_VAR[three])return{ai:three,max:GS1_VAR[three]};
+  if(GS1_FIXED[two])return{ai:two,len:GS1_FIXED[two]};
+  if(GS1_VAR[two])return{ai:two,max:GS1_VAR[two]};
+  if(/^9\d$/.test(two))return{ai:two,max:90};
+  return null;
+}
+function yymmdd(v){if(!/^\d{6}$/.test(v))return v;let y=2000+ +v.slice(0,2),m=v.slice(2,4),d=v.slice(4,6);if(d==='00')d='01';return m+'/'+d+'/'+y;}
+function parseBarcode(input){
+  let raw=String(input||'').trim();
+  const out={raw,ai:{},isGS1:false};
+  let s=raw.replace(/^\][A-Za-z]\d/,'');
+  const ai={};
+  if(/^\(\d{2,4}\)/.test(s)){
+    const re=/\((\d{2,4})\)([^(]*)/g;let m;
+    while((m=re.exec(s)))ai[m[1]]=m[2].replace(/\x1d/g,'').trim();
+  }else if(/^\d{2}/.test(s)&&(/\x1d/.test(s)||/^(01|02|00)\d{14}/.test(s))){
+    let i=0,guard=0;
+    while(i<s.length&&guard++<40){
+      if(s[i]==='\x1d'){i++;continue;}
+      const a=gs1AiAt(s,i);
+      if(!a){ai._rest=s.slice(i);break;}
+      i+=a.ai.length;
+      let v;
+      if(a.len){v=s.substr(i,a.len);i+=a.len;}
+      else{let j=s.indexOf('\x1d',i);if(j<0)j=s.length;v=s.slice(i,Math.min(j,i+a.max));i=Math.min(j,i+a.max);}
+      ai[a.ai]=v;
+    }
+  }
+  const keys=Object.keys(ai).filter(k=>k!=='_rest');
+  if(keys.length&&(ai['01']||ai['02']||keys.some(k=>/^3[1-4]0\d$/.test(k)))){
+    out.isGS1=true;out.ai=ai;
+    out.gtin=ai['01']||ai['02']||'';
+    out.lot=ai['10']||'';out.serial=ai['21']||'';
+    out.packDate=ai['13']?yymmdd(ai['13']):ai['11']?yymmdd(ai['11']):'';
+    for(const k of Object.keys(ai)){
+      const dec=+k[3];
+      if(/^320\d$/.test(k))out.netLbs=+ai[k]/Math.pow(10,dec);
+      else if(/^310\d$/.test(k)&&out.netLbs==null)out.netLbs=Math.round(+ai[k]/Math.pow(10,dec)*2.20462*100)/100;
+      else if(/^340\d$/.test(k))out.grossLbs=+ai[k]/Math.pow(10,dec);
+      else if(/^330\d$/.test(k)&&out.grossLbs==null)out.grossLbs=Math.round(+ai[k]/Math.pow(10,dec)*2.20462*100)/100;
+    }
+    if(ai['7030'])out.est=ai['7030'].slice(3);
+    out.key=out.gtin||raw;
+  }else{
+    out.key=raw;
+  }
+  return out;
+}
+
+/* ---------- plant ---------- */
+function setPlant(p){
+  plant=p;
+  try{localStorage.setItem('batch_last_plant',p);}catch(e){}
+  document.documentElement.style.setProperty('--plant',PLANT_COLORS[p]);
+  document.getElementById('plant-name').textContent=PLANT_NAMES[p];
+  ['NJ','GA'].forEach(x=>document.getElementById('pt-'+x).classList.toggle('on',x===p));
+  loadBatches();showList();
+}
+
+/* ---------- list ---------- */
+function showList(){
+  cur=null;
+  document.getElementById('view-edit').classList.add('hidden');
+  document.getElementById('view-list').classList.remove('hidden');
+  renderList();
+}
+function batchTotals(b){return{n:b.items.length,lbs:b.items.reduce((a,x)=>a+(+x.netLbs||0),0)};}
+function renderList(){
+  const d=document.getElementById('list-date').value;
+  const rows=batches.filter(b=>b.date===d).sort((a,b)=>(a.createdAt<b.createdAt?1:-1));
+  const el=document.getElementById('batch-list');
+  if(!rows.length){el.innerHTML='<div class="card empty">No batches for this day yet.<br>Tap <b>+ New Batch</b> to start one.</div>';return;}
+  el.innerHTML=rows.map(b=>{const t=batchTotals(b);return `<div class="card list-card" onclick="openBatch('${b.id}')">
+    <div><div style="font-weight:800;font-size:14px">${esc(b.product||'(no product yet)')}</div>
+    <div class="muted">#${esc(b.batchNo)} · ${esc(b.line||'—')} · ${t.n} box${t.n===1?'':'es'} · ${fmtLbs(t.lbs)} lbs${b.operator?' · '+esc(b.operator):''}</div></div>
+    <span class="badge ${b.completedAt?'done':'draft'}">${b.completedAt?'✓ Complete':'Draft'}</span></div>`;}).join('');
+}
+
+/* ---------- editor ---------- */
+function nextBatchNo(date,line,self){
+  const ymd=date.replace(/-/g,'').slice(2);
+  const n=batches.filter(b=>b!==self&&b.date===date&&b.line===line).length+1;
+  return ymd+'-'+lineShort(line)+'-'+n;
+}
+function newBatch(){
+  const date=document.getElementById('list-date').value||isoToday();
+  const line=PROD_LINES[0];
+  const b={id:'b'+Date.now(),plant,date,line,product:'',batchNo:nextBatchNo(date,line),startTime:nowTime(),operator:'',items:[],fatTest:'',grindTemp:'',notes:'',completedBy:'',completedAt:'',createdAt:new Date().toISOString()};
+  batches.push(b);saveBatches();openBatch(b.id);
+}
+function openBatch(id){
+  cur=batches.find(b=>b.id===id);if(!cur)return;
+  document.getElementById('view-list').classList.add('hidden');
+  document.getElementById('view-edit').classList.remove('hidden');
+  const ps=document.getElementById('f-product');
+  ps.innerHTML='<option value="">— Select product —</option>'+MEAT_BLOCKS.map(m=>{const v=(m.mb?m.mb+' · ':'')+m.name;return `<option value="${esc(v)}">${esc(v)}</option>`;}).join('');
+  document.getElementById('f-line').innerHTML=PROD_LINES.map(l=>`<option>${esc(l)}</option>`).join('');
+  ['product','line','batchNo','date','startTime','operator','fatTest','grindTemp','notes','completedBy'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=cur[k]||'';});
+  renderEditor();
+  window.scrollTo(0,0);
+}
+function setField(k,v){
+  if(!cur)return;
+  cur[k]=v;
+  if((k==='line'||k==='date')&&!cur._batchNoEdited){cur.batchNo=nextBatchNo(cur.date,cur.line,cur);document.getElementById('f-batchNo').value=cur.batchNo;}
+  if(k==='batchNo')cur._batchNoEdited=true;
+  saveBatches();renderEditor(true);
+}
+function rmOptions(sel){
+  let html='<option value="">— RM code —</option>',g='';
+  RM_CODES.forEach(r=>{if(r.group!==g){if(g)html+='</optgroup>';g=r.group;html+=`<optgroup label="${esc(g)}">`;}html+=`<option value="${r.code}"${r.code===sel?' selected':''}>${r.code} — ${esc(r.name)}</option>`;});
+  return html+'</optgroup>';
+}
+function renderEditor(light){
+  const t=batchTotals(cur);
+  document.getElementById('ed-title').textContent=(cur.product||'New batch')+' · #'+cur.batchNo;
+  const st=document.getElementById('ed-status');st.textContent=cur.completedAt?'✓ Complete':'Draft';st.className='badge '+(cur.completedAt?'done':'draft');
+  document.getElementById('f-completedAt').value=cur.completedAt?new Date(cur.completedAt).toLocaleString():'';
+  document.getElementById('btn-complete').textContent=cur.completedAt?'↺ Reopen batch':'✓ Mark complete';
+  document.getElementById('tot-count').textContent=t.n;
+  document.getElementById('tot-lbs').textContent=fmtLbs(t.lbs);
+  document.getElementById('print-head').innerHTML=`<b>Schweid &amp; Sons · ${plant} · Batch Sheet</b><br>${esc(cur.product)} · #${esc(cur.batchNo)} · ${esc(cur.line)} · ${esc(cur.date)}`;
+  if(light)return;
+  document.getElementById('rm-body').innerHTML=cur.items.length?cur.items.map((x,i)=>{const r=rmByCode(x.rm);return `<tr>
+    <td>${i+1}</td>
+    <td style="min-width:150px"><select onchange="setItem(${i},'rm',this.value)">${rmOptions(x.rm)}</select>${r?'':'<div class="rm-desc" style="color:var(--danger)">Select RM code</div>'}</td>
+    <td><input value="${esc(x.lot)}" onchange="setItem(${i},'lot',this.value)" style="min-width:90px"></td>
+    <td class="hide-sm"><input value="${esc(x.packDate)}" onchange="setItem(${i},'packDate',this.value)" style="min-width:90px"></td>
+    <td class="hide-sm"><input value="${esc(x.est)}" onchange="setItem(${i},'est',this.value)" style="min-width:60px"></td>
+    <td><input type="number" step="0.01" value="${esc(x.netLbs)}" onchange="setItem(${i},'netLbs',this.value)" style="min-width:70px"></td>
+    <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="7" class="empty">Scan the first box label or add it manually.</td></tr>';
+}
+function setItem(i,k,v){cur.items[i][k]=v;saveBatches();renderEditor(k!=='rm');}
+function removeItem(i){if(!confirm('Remove box #'+(i+1)+'?'))return;cur.items.splice(i,1);saveBatches();renderEditor();}
+function toggleComplete(){
+  if(!cur.completedAt){
+    if(!cur.product){toast('Select the product first.',true);return;}
+    if(!cur.items.length){toast('Add at least one raw material.',true);return;}
+    if(cur.items.some(x=>!x.rm)){toast('Every box needs an RM code.',true);return;}
+    if(!cur.completedBy){toast('Enter who completed the batch.',true);document.getElementById('f-completedBy').focus();return;}
+    cur.completedAt=new Date().toISOString();
+  }else{
+    if(!confirm('Reopen this batch for editing?'))return;
+    cur.completedAt='';
+  }
+  saveBatches();renderEditor();
+}
+function deleteBatch(){if(!confirm('Delete batch #'+cur.batchNo+'? This cannot be undone.'))return;batches=batches.filter(b=>b.id!==cur.id);saveBatches();showList();}
+
+/* ---------- adding raw materials ---------- */
+let pending=null;
+function onScanInput(){
+  const el=document.getElementById('scan-input');const v=el.value;el.value='';
+  if(!v.trim())return;
+  handleScan(v);
+}
+function handleScan(text){
+  if(!cur)return;
+  const p=parseBarcode(text);
+  const map=loadMap();const known=map[p.key];
+  if(p.isGS1&&p.serial&&cur.items.some(x=>x.serial===p.serial&&x.key===p.key)){toast('This box (serial '+p.serial+') is already on the batch.',true);return;}
+  pending={key:p.key,raw:p.raw,gtin:p.gtin||'',serial:p.serial||'',lot:p.lot||p.serial||'',packDate:p.packDate||'',est:p.est||(known&&known.est)||'',netLbs:p.netLbs!=null?p.netLbs:'',rm:(known&&known.rm)||''};
+  // Known product + weight read from the label → add straight away (fastest path)
+  if(known&&known.rm&&pending.netLbs!==''){addPending();toast('✓ '+pending.rm+' · '+fmtLbs(pending.netLbs)+' lbs added');pending=null;return;}
+  openConfirm(p);
+}
+function addManual(){pending={key:'',raw:'',gtin:'',serial:'',lot:'',packDate:'',est:'',netLbs:'',rm:''};openConfirm(null);}
+function openConfirm(p){
+  document.getElementById('cf-raw').textContent=p?('Scanned: '+p.raw.replace(/\x1d/g,'␝')+(p.isGS1?'  ·  GS1 label read':'  ·  plain code')):'Manual entry';
+  document.getElementById('cf-rm').innerHTML=rmOptions(pending.rm);
+  document.getElementById('cf-lot').value=pending.lot;
+  document.getElementById('cf-pack').value=pending.packDate;
+  document.getElementById('cf-est').value=pending.est;
+  document.getElementById('cf-lbs').value=pending.netLbs;
+  document.getElementById('cf-remember-wrap').style.display=pending.key?'':'none';
+  document.getElementById('confirm-ov').classList.remove('hidden');
+  setTimeout(()=>document.getElementById(pending.rm?'cf-lbs':'cf-rm').focus(),80);
+}
+function closeConfirm(){document.getElementById('confirm-ov').classList.add('hidden');pending=null;setTimeout(()=>{const s=document.getElementById('scan-input');if(s)s.focus();},50);}
+function confirmAdd(){
+  pending.rm=document.getElementById('cf-rm').value;
+  pending.lot=document.getElementById('cf-lot').value.trim();
+  pending.packDate=document.getElementById('cf-pack').value.trim();
+  pending.est=document.getElementById('cf-est').value.trim();
+  pending.netLbs=document.getElementById('cf-lbs').value;
+  if(!pending.rm){toast('Select the RM code.',true);return;}
+  if(!(+pending.netLbs>0)){toast('Enter the net weight (lbs).',true);return;}
+  if(pending.key&&document.getElementById('cf-remember').checked){const m=loadMap();m[pending.key]={rm:pending.rm,est:pending.est};saveMap(m);}
+  addPending();closeConfirm();toast('✓ Added');
+}
+function addPending(){
+  cur.items.push({rm:pending.rm,lot:pending.lot,serial:pending.serial,packDate:pending.packDate,est:pending.est,netLbs:pending.netLbs,key:pending.key,gtin:pending.gtin,raw:pending.raw,at:new Date().toISOString()});
+  saveBatches();renderEditor();
+}
+
+/* ---------- camera scanning ---------- */
+let camStream=null,camTimer=null,zxReader=null;
+function loadZXing(){
+  return new Promise((res,rej)=>{
+    if(window.ZXing)return res();
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+    s.onload=()=>res();s.onerror=()=>rej(new Error('Could not load the scanner library'));
+    document.head.appendChild(s);
+  });
+}
+async function openCamera(){
+  const ov=document.getElementById('cam-ov'),video=document.getElementById('cam-video'),msg=document.getElementById('cam-msg');
+  ov.classList.remove('hidden');msg.textContent='Starting camera…';
+  const done=text=>{closeCamera();if(navigator.vibrate)navigator.vibrate(80);handleScan(text);};
+  try{
+    if('BarcodeDetector' in window){
+      const det=new BarcodeDetector({formats:['code_128','data_matrix','qr_code','ean_13','upc_a','itf']});
+      camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+      video.srcObject=camStream;await video.play();
+      msg.textContent='Point the camera at the barcode on the box label.';
+      camTimer=setInterval(async()=>{try{const r=await det.detect(video);if(r&&r.length)done(r[0].rawValue);}catch(e){}},250);
+    }else{
+      await loadZXing();
+      const hints=new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.DATA_MATRIX,ZXing.BarcodeFormat.QR_CODE,ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.ITF]);
+      zxReader=new ZXing.BrowserMultiFormatReader(hints);
+      msg.textContent='Point the camera at the barcode on the box label.';
+      zxReader.decodeFromConstraints({video:{facingMode:'environment'}},video,(result)=>{if(result)done(result.getText());});
+    }
+  }catch(e){msg.textContent='Camera not available: '+e.message+'. Use the scan field instead.';}
+}
+function closeCamera(){
+  document.getElementById('cam-ov').classList.add('hidden');
+  if(camTimer){clearInterval(camTimer);camTimer=null;}
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  if(zxReader){try{zxReader.reset();}catch(e){}zxReader=null;}
+}
+
+/* ---------- Excel ---------- */
+function batchRows(b){
+  const rows=[['Schweid & Sons · '+b.plant+' · Batch Sheet'],[],
+    ['Product',b.product],['Line',b.line],['Batch #',b.batchNo],['Date',b.date],['Start time',b.startTime],['Operator',b.operator],[],
+    ['#','RM Code','Description','Lot / Serial','Pack date','EST #','Net LBS']];
+  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);rows.push([i+1,x.rm,r?r.name:'',x.lot,x.packDate,x.est,+x.netLbs||0]);});
+  const t=batchTotals(b);
+  rows.push(['','','','','','TOTAL',Math.round(t.lbs*100)/100],[],['Fat test (%)',b.fatTest],['Grind temp (°F)',b.grindTemp],['Notes',b.notes],[],['Completed by',b.completedBy],['Completed at',b.completedAt?new Date(b.completedAt).toLocaleString():'(draft)']);
+  return rows;
+}
+function exportBatch(){
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(batchRows(cur));
+  ws['!cols']=[{wch:16},{wch:12},{wch:34},{wch:18},{wch:12},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws,'Batch');
+  XLSX.writeFile(wb,'Batch_'+plant+'_'+cur.batchNo+'.xlsx');
+}
+function exportDay(){
+  const d=document.getElementById('list-date').value;
+  const rows=batches.filter(b=>b.date===d);
+  if(!rows.length){toast('No batches for this day.',true);return;}
+  const wb=XLSX.utils.book_new();
+  const sum=[['Batch #','Product','Line','Boxes','Net LBS','Fat %','Grind °F','Operator','Completed by','Status']];
+  rows.forEach(b=>{const t=batchTotals(b);sum.push([b.batchNo,b.product,b.line,t.n,Math.round(t.lbs*100)/100,b.fatTest,b.grindTemp,b.operator,b.completedBy,b.completedAt?'Complete':'Draft']);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),'Summary');
+  rows.forEach(b=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(batchRows(b)),String(b.batchNo).replace(/[\\\/\?\*\[\]:]/g,'-').slice(0,31)));
+  XLSX.writeFile(wb,'Batches_'+plant+'_'+d+'.xlsx');
+}
+
+/* ---------- start ---------- */
+(function(){
+  try{if(localStorage.getItem('wms_theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch(e){}
+  document.getElementById('list-date').value=isoToday();
+  let p='NJ';try{p=localStorage.getItem('batch_last_plant')||localStorage.getItem('wms_plant_remember')||'NJ';}catch(e){}
+  setPlant(PLANT_COLORS[p]?p:'NJ');
+})();
+</script>
+</body>
+</html>
