@@ -36,6 +36,23 @@
   html{background:var(--bg);}
   body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;min-height:100vh;font-size:13px;}
   .app{display:flex;height:100vh;overflow:hidden;}
+  :root{--plant:#1d4ed8;}
+  .plant-strip{background:var(--plant);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 14px;font-size:12px;letter-spacing:.08em;cursor:pointer;user-select:none;flex-shrink:0;}
+  .plant-strip b{font-size:14px;letter-spacing:.12em;}
+  .plant-strip .ps-switch{font-size:10px;font-weight:700;border:1px solid rgba(255,255,255,.7);border-radius:5px;padding:3px 8px;white-space:nowrap;}
+  @media(max-width:679px){.plant-strip .ps-sub{display:none;}}
+  #plant-overlay{background:var(--bg);align-items:center;justify-content:center;}
+  .plant-box{width:min(460px,92vw);display:flex;flex-direction:column;gap:14px;text-align:center;}
+  .plant-brand{font-size:15px;font-weight:800;letter-spacing:.12em;color:var(--accent2);text-transform:uppercase;}
+  .plant-q{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.15em;margin-bottom:4px;}
+  .plant-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 16px;border-radius:14px;border:3px solid var(--pc);background:var(--surface);color:var(--text);cursor:pointer;font-family:inherit;transition:transform .1s,background .15s;}
+  .plant-btn:hover{background:var(--surface2);}
+  .plant-btn:active{transform:scale(.98);}
+  .plant-btn.current{box-shadow:0 0 0 4px rgba(0,0,0,.08);}
+  .plant-btn .pb-code{font-size:40px;font-weight:900;color:var(--pc);line-height:1;}
+  .plant-btn .pb-name{font-size:16px;font-weight:800;letter-spacing:.15em;}
+  .plant-btn .pb-sum{font-size:10px;color:var(--text3);line-height:1.5;}
+  .plant-rem{font-size:11px;color:var(--text2);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
 
   
   .sidebar{width:260px;min-width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
@@ -598,6 +615,19 @@ try{
 </script>
 </head>
 <body>
+<div class="modal-overlay hidden" id="plant-overlay" style="z-index:10000">
+  <div class="plant-box">
+    <div class="plant-brand">Schweid &amp; Sons · WMS</div>
+    <div class="plant-q">Select plant</div>
+    <button class="plant-btn" data-plant="NJ" style="--pc:#1d4ed8" onclick="choosePlant('NJ')">
+      <span class="pb-code">NJ</span><span class="pb-name">NEW JERSEY</span><span class="pb-sum" id="plant-sum-NJ"></span>
+    </button>
+    <button class="plant-btn" data-plant="GA" style="--pc:#15803d" onclick="choosePlant('GA')">
+      <span class="pb-code">GA</span><span class="pb-name">GEORGIA</span><span class="pb-sum" id="plant-sum-GA"></span>
+    </button>
+    <label class="plant-rem"><input type="checkbox" id="plant-remember"> Remember this plant on this device</label>
+  </div>
+</div>
 <div class="app">
 
   
@@ -635,7 +665,7 @@ try{
       <button class="export-btn" onclick="exportExcel()">⬇ Export to Excel</button>
       <button class="import-btn" onclick="triggerImport()">⬆ Import from Excel</button>
       <button class="sync-btn" onclick="openSyncModal()">☁ Sync with SharePoint</button>
-      <button class="import-btn" onclick="openBoxRoomMap()">📦 Box Room Map</button>
+      <button class="import-btn nj-only" onclick="openBoxRoomMap()">📦 Box Room Map</button>
       <input type="file" id="import-file-input" accept=".xlsx" style="display:none" onchange="importExcel(this)">
       <button class="clear-all-btn" onclick="triggerClearAll()">🗑 Clear All Inventory</button>
       <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal()">🗑 Clear Section</button>
@@ -645,6 +675,10 @@ try{
 
   
   <div class="main">
+    <div class="plant-strip" onclick="requestPlantSwitch()" title="Switch plant">
+      <span>📍 <b id="plant-strip-name">—</b> <span class="ps-sub">· Direct Materials</span></span>
+      <span class="ps-switch">⇄ Switch plant</span>
+    </div>
     <div class="topbar">
       <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
       <span class="topbar-title" id="view-title">Warehouse Map</span>
@@ -679,7 +713,7 @@ try{
       <button class="export-btn" onclick="exportExcel();closeActionsDrawer()">⬇ Export to Excel</button>
       <button class="import-btn" onclick="triggerImport();closeActionsDrawer()">⬆ Import from Excel</button>
       <button class="sync-btn" onclick="openSyncModal();closeActionsDrawer()">☁ Sync with SharePoint</button>
-      <button class="import-btn" onclick="openBoxRoomMap();closeActionsDrawer()">📦 Box Room Map</button>
+      <button class="import-btn nj-only" onclick="openBoxRoomMap();closeActionsDrawer()">📦 Box Room Map</button>
       <button class="clear-all-btn" onclick="triggerClearAll();closeActionsDrawer()">🗑 Clear All Inventory</button>
       <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal();closeActionsDrawer()">🗑 Clear Section</button>
       <button class="add-item-btn" onclick="openAddItemModal();closeActionsDrawer()">＋ Add Custom Item</button>
@@ -937,7 +971,7 @@ try{
 <script>
 const CAT_ORDER = ['BOXES','FILM','PATTY PAPER','SLEEVES','TRAYS','LINER BAGS','LABELS','SEASONINGS','PACKAGING','PPE','TOWER ISLE','MISC'];
 
-const PHYS_CODES = {
+let PHYS_CODES = {
   'SL1000-1':['75905','35089','15905'],
   'SL1050-1':['77805','17805'],
   'SL1500-1':['74505','14505'],
@@ -961,10 +995,14 @@ const PHYS_CODES = {
   'SL18908-1':['78908','18908'],
 };
 
-const PHYS_TO_SL = {};
-Object.entries(PHYS_CODES).forEach(function([sl, physArr]){
-  physArr.forEach(function(p){ PHYS_TO_SL[p] = sl; });
-});
+let PHYS_TO_SL = {};
+function rebuildPhysToSl(){
+  PHYS_TO_SL={};
+  Object.entries(PHYS_CODES).forEach(function([sl, physArr]){
+    physArr.forEach(function(p){ PHYS_TO_SL[p] = sl; });
+  });
+}
+rebuildPhysToSl();
 
 const SUBSTITUTIONS = [
   {code:'BX1000', box:'SS B1 Fresh',                sub:"SS B25 <span class='sub-code'>(BX1100)</span>", note:'Bidirectional · group B1 ↔ B25 ↔ B8'},
@@ -1002,7 +1040,7 @@ const SUBSTITUTIONS = [
 
 /* ── Vendor equivalence (Sonic ↔ PCA) — same physical box, two codes.
    Global so both the Substitutions view AND Daily Plan can use it. ── */
-const VENDOR_EQUIV=[
+let VENDOR_EQUIV=[
   {a:'BX1000-1',b:'BX1000PCA-1',box:'SS B-1'},
   {a:'BX1850-1',b:'BX1850PCA-1',box:'6 Pack Retail Master Case'},
   {a:'BX1875-1',b:'BX1875PCA-1',box:'Retail Carton 6 Bricks'},
@@ -1016,7 +1054,7 @@ function vendorEquivCode(code){
   return pair.a===code?pair.b:pair.a;
 }
 
-const ITEMS = [
+let ITEMS = [
   {code:'NON-DM',name:'Occupied — Non-Direct-Materials items (not tracked in this system)',cat:'MISC'},
   
   {code:'BX1000-1',name:'SS B-1 Sonic',cat:'BOXES'},
@@ -1165,7 +1203,7 @@ const ITEMS = [
 
 const FLOOR_SLOTS = 20;
 
-const AREAS = {
+let AREAS = {
   'LOADING DOCK':{type:'rack',sections:{
     1:{1:[1,2],2:[1,2]},2:{1:[1,2],2:[1,2]},3:{1:[1,2],2:[1,2]},
     4:{1:[1,2],2:[1,2]},5:{1:[1,2],2:[1,2]},6:{1:[1,2],2:[1,2]},
@@ -1241,7 +1279,9 @@ const AREA_ABBR={
   'LOADING DOCK':'LD','HALLWAY':'HW','HALLWAY FLOOR':'HWF',
   'BOX ROOM':'BR','BOX ROOM FLOOR':'BRF',
   'RETAIL COOLER SLEEVES RACK':'RCS','RETAIL COOLER FLOOR':'RCF',
-  'FROZEN COOLER FLOOR':'FCF'
+  'FROZEN COOLER FLOOR':'FCF',
+  'DM ROOM':'DM','DM ROOM EXTRA':'DMX','DM ROOM FLOOR INVENTORY':'DMF','DN ROOM FLOOR INVENTORY':'DNF',
+  'LABEL RACKS':'LBR','FRONT DOCK FLOOR':'FDF','BACK DOCK FLOOR':'BDF','DOCK DOORS':'DD','SAMPLES':'SMP'
 };
 function locAbbrev(id){
   const p=parseLocId(id);
@@ -1250,7 +1290,7 @@ function locAbbrev(id){
 }
 function today(){return new Date().toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'});}
 
-const WMS_KEY = 'wms_schweid_nj';
+let WMS_KEY = 'wms_schweid_nj';
 function loadData(){
   try{
     const s=localStorage.getItem(WMS_KEY);
@@ -1351,13 +1391,13 @@ function showBreakdownModal(title,rows){
 }
 function openRackBreakdown(){
   const{rackAreas}=getRackFloorBreakdown();
-  const order=['LOADING DOCK','HALLWAY','BOX ROOM — LEFT SIDE','BOX ROOM — RIGHT SIDE','RETAIL COOLER SLEEVES RACK'];
+  const order=Object.keys(rackAreas);
   const rows=order.filter(k=>rackAreas[k]).map(k=>({name:k,occ:rackAreas[k].occ,total:rackAreas[k].total}));
   showBreakdownModal('📦 Racks Available — by Area',rows);
 }
 function openFloorBreakdown(){
   const{floorAreas}=getRackFloorBreakdown();
-  const order=['HALLWAY FLOOR','BOX ROOM FLOOR','RETAIL COOLER FLOOR','FROZEN COOLER FLOOR'];
+  const order=Object.keys(floorAreas);
   const rows=order.filter(k=>floorAreas[k]).map(k=>({name:k,occ:floorAreas[k].occ,total:floorAreas[k].total}));
   showBreakdownModal('🟩 Floor Available — by Area',rows);
 }
@@ -1696,7 +1736,7 @@ function renderLocationsView(){
   document.getElementById('main-content').innerHTML=html;
 }
 
-const LAST_LOC_KEY='wms_last_touched_loc';
+let LAST_LOC_KEY='wms_last_touched_loc';
 let lastTouchedLoc=(function(){try{return localStorage.getItem(LAST_LOC_KEY)||null;}catch(e){return null;}})();
 function setLastTouched(id){
   lastTouchedLoc=id;
@@ -1720,7 +1760,7 @@ function openModal(id){
   }
   try{
     modalLoc=id;
-    document.getElementById('modal-loc-label').textContent=locLabel(id);
+    document.getElementById('modal-loc-label').textContent=currentPlant+' · '+locLabel(id);
     
     _allModalOptions=[];
     ITEMS.forEach(function(item){
@@ -1971,7 +2011,7 @@ function render(){
 }
 function refresh(){calcStats();renderSidebar();render();}
 
-const COUNT_SESSION_KEY = 'wms_count_session';
+let COUNT_SESSION_KEY = 'wms_count_session';
 function getAllLocationIds(){
   const ids=[];
   for(const[an,ad]of Object.entries(AREAS)){
@@ -2046,7 +2086,7 @@ function updateCountSessionUI(){
   });
 }
 
-const AREA_EXPORT_ORDER = [
+let AREA_EXPORT_ORDER = [
   'LOADING DOCK',
   'HALLWAY',
   'HALLWAY FLOOR',
@@ -2057,13 +2097,266 @@ const AREA_EXPORT_ORDER = [
   'FROZEN COOLER FLOOR',
 ];
 
+/* ══════════════════════════════════════════════════════
+   GEORGIA PLANT DATA — taken as-is from Jonathan's
+   "GA Inventory Racks" / "GA" sheets (DM_Inventory_Count_Sheet).
+   Floor-type areas = the unnumbered rows of the sheet, so the
+   export lines up row-for-row with his workbook.
+══════════════════════════════════════════════════════ */
+const GA_ITEMS = [
+  {code:'NON-DM',name:'Occupied — Non-Direct-Materials items (not tracked in this system)',cat:'MISC'},
+  {code:'BX1000-4',name:'SS B-1',cat:'BOXES'},
+  {code:'BX1000PCA-4',name:'SS B-1',cat:'BOXES'},
+  {code:'BX1003-4',name:'Ranchers Select',cat:'BOXES'},
+  {code:'BX1050-4',name:'SS B1-IQF',cat:'BOXES'},
+  {code:'BX1075-4',name:'B-1 IQF Plain',cat:'BOXES'},
+  {code:'BX1100-4',name:'SS B-25',cat:'BOXES'},
+  {code:'BX1200-4',name:'SS CAB 10lb',cat:'BOXES'},
+  {code:'BX1300-4',name:'SS 4/5 Loaf',cat:'BOXES'},
+  {code:'BX1350-4',name:'SS IQF 20LB',cat:'BOXES'},
+  {code:'BX1400-4',name:'SS LRG Fresh 10#',cat:'BOXES'},
+  {code:'BX1850-4',name:'6 PACK Retail Master case',cat:'BOXES'},
+  {code:'BX1850PCA-4',name:'6 PACK Retail Master case',cat:'BOXES'},
+  {code:'BX1875-4',name:'Retail Carton, 6 Bricks',cat:'BOXES'},
+  {code:'BX1875PCA-4',name:'Retail Carton, 6 Bricks',cat:'BOXES'},
+  {code:'BX1900-4',name:'Retail Carton, 4 Trays',cat:'BOXES'},
+  {code:'BX2003-4',name:'Ranchers Select 20lb Loaf',cat:'BOXES'},
+  {code:'BX2300-4',name:'SS Fresh 20LB',cat:'BOXES'},
+  {code:'BX2350-4',name:'Plain 20lbs',cat:'BOXES'},
+  {code:'BX3000-4',name:'CATTLEMAN 10lb',cat:'BOXES'},
+  {code:'BX3050-4',name:'CATTLEMAN 10# IQF',cat:'BOXES'},
+  {code:'BX3100-4',name:'CATTLEMAN 20LB 4/5 loaf',cat:'BOXES'},
+  {code:'BX3125-4',name:'Plain White 4/5 Loaf',cat:'BOXES'},
+  {code:'BX3150-4',name:'CATTLEMAN 10# 2/5 Bulk',cat:'BOXES'},
+  {code:'BX3200-4',name:'Harvest Value IQF',cat:'BOXES'},
+  {code:'BX3300-4',name:'Fresh Stockyard',cat:'BOXES'},
+  {code:'BX6500-4',name:'Prairie Creek Distinctions',cat:'BOXES'},
+  {code:'BX7800-4',name:'FUDDRUCKER',cat:'BOXES'},
+  {code:'BX7900-4',name:'BX7900 BURGERFI 44#',cat:'BOXES'},
+  {code:'BX8000-4',name:'Cattleman Large',cat:'BOXES'},
+  {code:'BX8200-4',name:'Ranchers Select, Large',cat:'BOXES'},
+  {code:'BX8300PCA-4',name:'S&S 48oz/384 pc- small slider',cat:'BOXES'},
+  {code:'BX5LBS-4',name:'5 LB SAMPLE BOX, S&S BRANDED',cat:'BOXES'},
+  {code:'F1400-4',name:'Forming 361 Film (ATL) - Line 72 & 73',cat:'FILM'},
+  {code:'F1550-4',name:'Non-Forming 355 Film (ATL) - Line 72 & 73',cat:'FILM'},
+  {code:'F1500-4',name:'Forming 363 Film (ATL) - Line 75',cat:'FILM'},
+  {code:'F1450-4',name:'Non-Forming 344 Film (ATL) - Line 75',cat:'FILM'},
+  {code:'F1600B-4',name:'Non-Forming 344 Film (ATL) Black - Line 75',cat:'FILM'},
+  {code:'F1650-4',name:'Forming 421 Film (ATL) - Line 74',cat:'FILM'},
+  {code:'F1600-4',name:'Non-Forming 415 Film (ATL) - Line 74',cat:'FILM'},
+  {code:'F1625-4',name:'Non-Forming 415 Film Black - Line 74',cat:'FILM'},
+  {code:'F1800-4',name:'Forming Clear 469 7 mil Film 366M - Line 79',cat:'FILM'},
+  {code:'F1825-4',name:'Non-Forming Black 464 7 mil Film 914M - Line 79',cat:'FILM'},
+  {code:'BTB1000-4',name:'Black Top Film 555mm x 3000 - Line 78 3mil',cat:'FILM'},
+  {code:'HBH1000-4',name:'High Barrier Bottom Film 563mm x 1500 - Line 78 7mil',cat:'FILM'},
+  {code:'F1060-4',name:'LIDDING FILM 1060 - Line 76 & 77',cat:'FILM'},
+  {code:'E1650060-4',name:'355mm x 5250 Anti Fog Lidding Film',cat:'FILM'},
+  {code:'P2000-4',name:'5 X 5 Double (Provisur / Patty Master)',cat:'PATTY PAPER'},
+  {code:'P3100-4',name:'5 1/2 X 5 1/2 Double',cat:'PATTY PAPER'},
+  {code:'P4100-4',name:'6 x 6 Double (Provisur / Patty Master)',cat:'PATTY PAPER'},
+  {code:'P6000-4',name:'Roll Stock Paper -',cat:'PATTY PAPER'},
+  {code:'SL1000-4',name:'75905 Chuck Brisket 5.3oz - 35089',cat:'SLEEVES'},
+  {code:'SL1050-4',name:'77805 Katana Blend 5.3oz - 17805',cat:'SLEEVES'},
+  {code:'SL11906-4',name:'CAB Heritage (11906/71906)',cat:'SLEEVES'},
+  {code:'SL1500-4',name:'74505 Butchers Blend 5.3oz - 14505',cat:'SLEEVES'},
+  {code:'SL1508-4',name:'75908 Smokehouse Sig Series CAB Short Rib 5.3oz 15908',cat:'SLEEVES'},
+  {code:'SL1600-4',name:'The Rib Eye Blend - 15705',cat:'SLEEVES'},
+  {code:'SL15099-4',name:'75099 - The Signature Series, Slider 2.5 OZ - 15099',cat:'SLEEVES'},
+  {code:'SL15211-4',name:'15211 2lb SS Chuck brisket loaf (New)',cat:'SLEEVES'},
+  {code:'SL15906-4',name:'75906 The Heritage, 5.3 Oz - 15906',cat:'SLEEVES'},
+  {code:'SL18512-4',name:'78512/ 18512 CAB Butcher\'s Blend, 8 Oz. - 18512',cat:'SLEEVES'},
+  {code:'SL18908-4',name:'78908, CAB The Smokehouse, 5.3 Oz - 18908',cat:'SLEEVES'},
+  {code:'SL1900-4',name:'74512 Buthcers Blend 8oz - 14512',cat:'SLEEVES'},
+  {code:'SL2000-4',name:'78505 CAB All American 5.3oz - 18505',cat:'SLEEVES'},
+  {code:'SL2100-4',name:'78105 CAB Butchers Blend 5.3oz - 18105',cat:'SLEEVES'},
+  {code:'SL2150-4',name:'CAB Signature Blend 2.5 oz - 10999',cat:'SLEEVES'},
+  {code:'SL2200-4',name:'78905 CAB Custom Blend 5.3oz - 18905',cat:'SLEEVES'},
+  {code:'SL2250-4',name:'76505 Prime Burger 5.3oz - 16505',cat:'SLEEVES'},
+  {code:'SL3000-4',name:'74805 Grass Fed 5.3 oz',cat:'SLEEVES'},
+  {code:'SL4100-4',name:'78605 One Percenter 5.3oz - 18605',cat:'SLEEVES'},
+  {code:'SL5000-4',name:'76506 Prime Burger 6oz - 16506',cat:'SLEEVES'},
+  {code:'SL7000-4',name:'76507 Chuck Brisket 6oz. - 16507',cat:'SLEEVES'},
+  {code:'SL15299-4',name:'75299 Retail Fresh The Signature Blend Smashburgers 2.5 oz 7/8 75/25',cat:'SLEEVES'},
+  {code:'T2000-4',name:'CS1178PB Trays - 5.3 oz Retail',cat:'TRAYS'},
+  {code:'T2000-B-4',name:'CS1178PB Trays - 5.3 oz Retail',cat:'TRAYS'},
+  {code:'T2000-P-4',name:'CS1178PB Trays - 5.3 oz Retail',cat:'TRAYS'},
+  {code:'T2100-4',name:'CS1178B Trays - 2.5 oz sliders',cat:'TRAYS'},
+  {code:'T2100-B-4',name:'CS1178B Trays - 2.5 oz slidders',cat:'TRAYS'},
+  {code:'T2100-P-4',name:'CS1178B Trays - 2.5 oz slidders',cat:'TRAYS'},
+  {code:'BG1000-4',name:'1ml CLEAR POLY BAGS - 10lb frozen boxes - 1000 per case',cat:'LINER BAGS'},
+  {code:'BG2000-4',name:'2ml CLEAR POLY BAGS - 20lb frozen boxes - 500 per case',cat:'LINER BAGS'},
+  {code:'BG1450-4',name:'Trash Bags/ Black Can Liners',cat:'MISC'},
+  {code:'L15308FRONT-4',name:'Signature Series 3.25" FRONT',cat:'LABELS'},
+  {code:'L15308BACK-4',name:'Signature Series 3.25" BACK',cat:'LABELS'},
+  {code:'L14008FRONT-4',name:'Butchers Blend 3.25" FRONT',cat:'LABELS'},
+  {code:'L14008BACK-4',name:'Butchers Blend 3.25" BACK',cat:'LABELS'},
+  {code:'L18008FRONT-4',name:'Butchers Blend, CAB FRONT',cat:'LABELS'},
+  {code:'L18008BACK-4',name:'Butchers Blend, CAB BACK',cat:'LABELS'},
+  {code:'L15918FRONT-4',name:'Signature Series, CAB FRONT',cat:'LABELS'},
+  {code:'L15918BACK-4',name:'Signature Series, CAB BACK',cat:'LABELS'},
+  {code:'L17110FRONT-4',name:'Taco blend FRONT',cat:'LABELS'},
+  {code:'L17110BACK-4',name:'Taco blend BACK',cat:'LABELS'},
+  {code:'L17111FRONT-4',name:'Steak house blend FRONT',cat:'LABELS'},
+  {code:'L17111BACK-4',name:'Steak house blend BACK',cat:'LABELS'},
+  {code:'L17112FRONT-4',name:'The Korean BBQ Blend Label FRONT',cat:'LABELS'},
+  {code:'L17112BACK-4',name:'The Korean BBQ Blend Label BACK',cat:'LABELS'},
+  {code:'L15308FRONT-PLAS-4',name:'Signature Blend Brisket-FRONT',cat:'LABELS'},
+  {code:'L15308BACK-PLAS-4',name:'Signature Blend Brisket- BACK',cat:'LABELS'},
+  {code:'L14008FRONT-PLAS-4',name:'Butchers Blend- FRONT',cat:'LABELS'},
+  {code:'L14008BACK-PLAS-4',name:'Butchers Blend- BACK',cat:'LABELS'},
+  {code:'L18008FRONT-PLAS-4',name:'Butchers Blend Angus CAB - FRONT',cat:'LABELS'},
+  {code:'L18008BACK-PLAS-4',name:'Butchers Blend Angus CAB - BACK',cat:'LABELS'},
+  {code:'L15918FRONT-PLAS-4',name:'Signature Blend Angus CAB-Front',cat:'LABELS'},
+  {code:'L15918BACK-PLAS-4',name:'Signature Blend Angus CAB-BACK',cat:'LABELS'},
+  {code:'L17110FRONT-PLAS-4',name:'Taco blend FRONT',cat:'LABELS'},
+  {code:'L17110BACK-PLAS-4',name:'Taco blend BACK',cat:'LABELS'},
+  {code:'L17111FRONT-PLAS-4',name:'Steak house blend FRONT',cat:'LABELS'},
+  {code:'L17111BACK-PLAS-4',name:'Steak house blend BACK',cat:'LABELS'},
+  {code:'L17112FRONT-PLAS-4',name:'The Korean BBQ Blend Label FRONT',cat:'LABELS'},
+  {code:'L17112BACK-PLAS-4',name:'The Korean BBQ Blend Label BACK',cat:'LABELS'},
+  {code:'MWHITE-4',name:'Thermal Labels 4x6" Zebra Printer ZP505 (White ) 1" core',cat:'LABELS'},
+  {code:'MYELLOW-4',name:'Thermal Labels 4x6" Zebra Printer ZP505 (Yellow ) 1" core',cat:'LABELS'},
+  {code:'S5050-4',name:'3931 Mustard 42 LBS @ 4 X 10.5 LBS',cat:'SEASONINGS'},
+  {code:'F06984-4',name:'Salt and Pepper Burger Blend 40 LB MWB',cat:'SEASONINGS'},
+  {code:'F07190-4',name:'Korean BBQ Type Allergen Free Beef Brick (NEW)',cat:'SEASONINGS'},
+  {code:'F07191-4',name:'Taco Beef Brick w/ Natural Inhibitors (NEW)',cat:'SEASONINGS'},
+  {code:'F07192-4',name:'Steakhouse Beef Brick w/ Natural Inhibitors (NEW)',cat:'SEASONINGS'},
+  {code:'F07004-4',name:'Steak house blend 30 LB Bulk',cat:'SEASONINGS'},
+  {code:'F07003-4',name:'Taco blend 30 LB Bulk',cat:'SEASONINGS'},
+  {code:'F07005-4',name:'Korean BBQ blend 25 lb Bulk',cat:'SEASONINGS'},
+  {code:'M1150-4',name:'Box Tape - Machine Roll 914m',cat:'PACKAGING'},
+  {code:'M1200-4',name:'Box Tape - Hand Roll',cat:'PACKAGING'},
+  {code:'STRWRAP-4',name:'Stretch Wrap',cat:'PACKAGING'},
+  {code:'GLOVCOT-4',name:'Cotton Gloves',cat:'PPE'},
+  {code:'H134/S-4',name:'Blue Gloves, SM nitrile 6 mil',cat:'PPE'},
+  {code:'H134L-4',name:'Blue Gloves, Large nitrile 6 mil',cat:'PPE'},
+  {code:'H134XL-4',name:'Blue Gloves, XL nitrile 6 mil',cat:'PPE'},
+  {code:'H219/B-4',name:'Polyethylene 4 Mil Aprons, Blue, 28" x 46"',cat:'PPE'},
+  {code:'H242/XL-120C-4',name:'Velcro Closures Lab Coats w/ No Pockets and Elast',cat:'PPE'},
+  {code:'H264B/L-4',name:'Hair & Beard Nets/ One Piece Bouffant',cat:'PPE'},
+  {code:'1809B-4',name:'PE Sleeves, Blue, 18", 1/CA/2000',cat:'PPE'},
+  {code:'P400-4',name:'Metal Detectable Corded Earplugs Blue Detectable Cord NRR 30 200/box',cat:'PPE'},
+  {code:'BX1900PCA-4',name:'Retail Carton, 4 Trays (PCA)',cat:'BOXES'},
+];
+const GA_AREAS = {
+  'DM ROOM':{type:'rack',sections:{
+    1:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    2:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    3:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    4:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    5:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    6:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    7:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    8:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    9:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    10:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    11:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    12:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    13:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    14:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    15:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,4]},
+    16:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
+    17:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]}
+  }},
+  'DM ROOM EXTRA':{type:'floor',slots:16},
+  'DM ROOM FLOOR INVENTORY':{type:'floor',slots:4},
+  'DN ROOM FLOOR INVENTORY':{type:'floor',slots:39},
+  'LABEL RACKS':{type:'floor',slots:15},
+  'FRONT DOCK FLOOR':{type:'floor',slots:14},
+  'BACK DOCK FLOOR':{type:'floor',slots:51},
+  'DOCK DOORS':{type:'floor',slots:19},
+  'SAMPLES':{type:'floor',slots:16},
+};
+// '' = blank spacer row (row 365 in Jonathan's GA sheet) so the export pastes row-aligned.
+const GA_EXPORT_ORDER = ['DM ROOM','DM ROOM EXTRA','DM ROOM FLOOR INVENTORY','DN ROOM FLOOR INVENTORY','LABEL RACKS','FRONT DOCK FLOOR','BACK DOCK FLOOR','DOCK DOORS','','SAMPLES'];
+
+/* ══════════════════════════════════════════════════════
+   PLANTS — one app, one plant active at a time.
+   NJ keeps its original storage keys (no migration needed);
+   GA uses its own keys, so nothing ever crosses between plants.
+══════════════════════════════════════════════════════ */
+const PLANTS={
+  NJ:{code:'NJ',name:'NEW JERSEY',color:'#1d4ed8',boxRoom:true,
+      keys:{wms:'wms_schweid_nj',log:'wms_schweid_log',plan:'wms_plan_dia',count:'wms_count_session',sync:'wms_sync_history_local',last:'wms_last_touched_loc'}},
+  GA:{code:'GA',name:'GEORGIA',color:'#15803d',boxRoom:false,
+      keys:{wms:'wms_schweid_ga',log:'wms_schweid_log_ga',plan:'wms_plan_dia_ga',count:'wms_count_session_ga',sync:'wms_sync_history_local_ga',last:'wms_last_touched_loc_ga'}}
+};
+// GA physical/vendor codes: same vendor codes as NJ, mapped onto the -4 catalog where the item exists in GA.
+const GA_CODES=new Set(GA_ITEMS.map(i=>i.code));
+const GA_PHYS={};
+Object.entries(PHYS_CODES).forEach(([k,v])=>{const g=k.replace(/-1$/,'-4');if(GA_CODES.has(g))GA_PHYS[g]=v.slice();});
+const GA_EQUIV=VENDOR_EQUIV.map(r=>({a:r.a.replace(/-1$/,'-4'),b:r.b.replace(/-1$/,'-4'),box:r.box})).filter(r=>GA_CODES.has(r.a)&&GA_CODES.has(r.b));
+const PLANT_DATA={
+  NJ:{areas:AREAS,items:ITEMS,phys:PHYS_CODES,equiv:VENDOR_EQUIV,exportOrder:AREA_EXPORT_ORDER},
+  GA:{areas:GA_AREAS,items:GA_ITEMS,phys:GA_PHYS,equiv:GA_EQUIV,exportOrder:GA_EXPORT_ORDER}
+};
+let currentPlant=null;
+const PLANT_REMEMBER_KEY='wms_plant_remember';
+
+function applyPlant(p){
+  const cfg=PLANTS[p], d=PLANT_DATA[p];
+  currentPlant=p;
+  AREAS=d.areas; ITEMS=d.items; PHYS_CODES=d.phys; VENDOR_EQUIV=d.equiv; AREA_EXPORT_ORDER=d.exportOrder;
+  rebuildPhysToSl();
+  WMS_KEY=cfg.keys.wms; LOG_KEY=cfg.keys.log; PLAN_DIA_KEY=cfg.keys.plan;
+  COUNT_SESSION_KEY=cfg.keys.count; SYNC_HISTORY_KEY=cfg.keys.sync; LAST_LOC_KEY=cfg.keys.last;
+  inventory={}; loadData();
+  countSession=loadCountSession();
+  planData=loadPlanDia();
+  try{lastTouchedLoc=localStorage.getItem(LAST_LOC_KEY)||null;}catch(e){lastTouchedLoc=null;}
+  selectedItem=null; modalLoc=null; _syncHistoryCache=[]; _calSelKey=null; _calYear=null;
+  if(currentMode==='count')currentMode='browse';
+  document.querySelectorAll('.modal-overlay').forEach(o=>o.classList.add('hidden'));
+  document.documentElement.style.setProperty('--plant',cfg.color);
+  const strip=document.getElementById('plant-strip-name'); if(strip)strip.textContent=cfg.name;
+  const sub=document.querySelector('.logo .sub'); if(sub)sub.textContent=p+' · Direct Materials Inventory';
+  document.title='Schweid & Sons WMS · '+p+' Direct Materials';
+  document.querySelectorAll('.nj-only').forEach(el=>el.style.display=cfg.boxRoom?'':'none');
+  document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===currentMode));
+  refresh();
+  updateCountSessionUI();
+  autoLoadIfEmpty();
+}
+function plantSummary(p){
+  const cfg=PLANTS[p], areas=PLANT_DATA[p].areas;
+  let total=0; for(const ad of Object.values(areas)){ if(ad.type==='rack'){for(const t of Object.values(ad.sections))for(const ps of Object.values(t))total+=ps.length;} else total+=ad.slots; }
+  let inv={}; try{inv=JSON.parse(localStorage.getItem(cfg.keys.wms)||'{}')||{};}catch(e){}
+  const occ=Object.keys(inv).length;
+  const units=Object.values(inv).reduce((a,o)=>a+occTotalQty(o),0);
+  let last=''; try{const lg=JSON.parse(localStorage.getItem(cfg.keys.log)||'[]');if(lg.length)last=lg[0].ts;}catch(e){}
+  return `${occ} / ${total} positions occupied · ${units.toLocaleString()} units${last?'<br>Last activity: '+last:''}`;
+}
+function showPlantSelector(){
+  document.querySelectorAll('.modal-overlay').forEach(o=>o.classList.add('hidden'));
+  ['NJ','GA'].forEach(p=>{const el=document.getElementById('plant-sum-'+p);if(el)el.innerHTML=plantSummary(p);});
+  let rem=null; try{rem=localStorage.getItem(PLANT_REMEMBER_KEY);}catch(e){}
+  const cb=document.getElementById('plant-remember'); if(cb)cb.checked=!!rem;
+  document.querySelectorAll('.plant-btn').forEach(b=>b.classList.toggle('current',b.dataset.plant===currentPlant));
+  document.getElementById('plant-overlay').classList.remove('hidden');
+}
+function choosePlant(p){
+  const cb=document.getElementById('plant-remember');
+  try{ if(cb&&cb.checked)localStorage.setItem(PLANT_REMEMBER_KEY,p); else localStorage.removeItem(PLANT_REMEMBER_KEY);}catch(e){}
+  document.getElementById('plant-overlay').classList.add('hidden');
+  if(p!==currentPlant)applyPlant(p);
+  try{history.pushState({wmsPlant:p},'');}catch(e){}
+}
+function requestPlantSwitch(){
+  if(!confirm('Switch plant? Everything in '+PLANTS[currentPlant].name+' stays saved exactly as it is.'))return;
+  showPlantSelector();
+}
+window.addEventListener('popstate',function(){
+  const ov=document.getElementById('plant-overlay');
+  if(ov&&ov.classList.contains('hidden')&&currentPlant)showPlantSelector();
+});
+
 function exportExcel(){
   const wb=XLSX.utils.book_new();
   const dateStr=today();
   const summary=getItemSummary();
 
     const s1=[
-    ['Schweid & Sons · NJ Direct Materials Inventory'],
+    ['Schweid & Sons · '+currentPlant+' Direct Materials Inventory'],
     [`Count Date: ${dateStr}   |   Generated by: Julian Dominguez · Inventory Control`],
     [],
     ['Item Code','Item Name','Category','Total Qty','Locations','Location Detail'],
@@ -2092,6 +2385,7 @@ function exportExcel(){
   ];
 
   AREA_EXPORT_ORDER.forEach(aName=>{
+    if(aName===''){s2.push([]);return;}
     const aDef=AREAS[aName];
     if(!aDef)return;
     if(aDef.type==='rack'){
@@ -2167,7 +2461,7 @@ function exportExcel(){
 
   const ctFileMap={'pre9':'pre9am','post9':'post9am','eom':'EOM'};
   const ctFile=ctSel?ctFileMap[ctSel.value]||'pre9am':'pre9am';
-  XLSX.writeFile(wb,`WMS_NJ_${dateStr.replace(/\//g,'-')}_${ctFile}.xlsx`);
+  XLSX.writeFile(wb,`WMS_${currentPlant}_${dateStr.replace(/\//g,'-')}_${ctFile}.xlsx`);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -2185,7 +2479,7 @@ function showToast(msg,type){
   clearTimeout(t._timer);t._timer=setTimeout(function(){t.style.opacity='0';},3500);
 }
 
-const LOG_KEY = 'wms_schweid_log';
+let LOG_KEY = 'wms_schweid_log';
 const LOG_MAX = 500;
 
 function loadLog(){
@@ -2744,7 +3038,7 @@ function importExcel(input){
   reader.readAsArrayBuffer(file);
 }
 
-const PLAN_DIA_KEY = 'wms_plan_dia';
+let PLAN_DIA_KEY = 'wms_plan_dia';
 let planData = null; 
 
 function loadPlanDia(){
@@ -2934,7 +3228,7 @@ function exportPlanWorkFile(){
     XLSX.utils.book_append_sheet(wb,sws,'Sleeves');
   }
   const d=today().replace(/\//g,'-');
-  XLSX.writeFile(wb,'WMS_DailyPlan_'+d+'.xlsx');
+  XLSX.writeFile(wb,'WMS_'+currentPlant+'_DailyPlan_'+d+'.xlsx');
   addLog('PLAN EXPORT','Work file exported — '+planData.items.length+' boxes');
   showToast('Work file exported.','success');
 }
@@ -3275,11 +3569,25 @@ async function shareBoxRoomMap(){
 
 const POWER_AUTOMATE_URL = 'https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/26/workflows/b66c79f1c1574893ac70de04d0443e3c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=XhJeiUCbbu51E5kCOqDI8sZhgZMSr9rWjSXQk0Q6XM0';
 
-const SYNC_HISTORY_KEY = 'wms_sync_history_local';
+let SYNC_HISTORY_KEY = 'wms_sync_history_local';
 let syncTab = 'export';
 let _syncHistoryCache = [];
 
 function getFlowUrl(){return POWER_AUTOMATE_URL.trim();}
+/* One place that understands every shape a SharePoint/local record can come in.
+   Note: the SharePoint column shown as "InventoryDate" has the internal name WMS_Backups. */
+function normalizeSyncRecord(r){
+  let data=r.data;
+  if(r.JsonData!==undefined){
+    try{data=typeof r.JsonData==='string'?JSON.parse(r.JsonData):r.JsonData;}catch(e){data={};}
+  }
+  let label=String(r.turnoLabel||r.Shift||'');
+  let plant='NJ';
+  const m=label.match(/^([A-Z]{2}) · (.*)$/);
+  if(m&&PLANTS[m[1]]){plant=m[1];label=m[2];}
+  else if(r.plant&&PLANTS[r.plant])plant=r.plant;
+  return{date:r.date||r.InventoryDate||r.WMS_Backups||'',turno:r.turno||'',turnoLabel:label,plant,data:data||{}};
+}
 function syncMode(){return getFlowUrl()?'sharepoint':'local';}
 function loadSyncHistoryLocal(){try{const s=localStorage.getItem(SYNC_HISTORY_KEY);return s?JSON.parse(s):[];}catch(e){return [];}}
 function saveSyncHistoryLocal(h){try{localStorage.setItem(SYNC_HISTORY_KEY,JSON.stringify(h));}catch(e){}}
@@ -3310,9 +3618,11 @@ function setSyncTab(t){
 }
 async function syncExport(){
   const turnoSel=document.getElementById('sync-turno-sel').value;
-  const turnoLabel=SYNC_TURNO_LABELS[turnoSel];
+  // NJ keeps its original labels; other plants prefix the shift ("GA · Before 9am (Morning)").
+  // The flow's date+Shift filter then keeps each plant's copy separate — no flow change needed.
+  const turnoLabel=(currentPlant==='NJ'?'':currentPlant+' · ')+SYNC_TURNO_LABELS[turnoSel];
   const d=today();
-  const payload={date:d,turno:turnoSel,turnoLabel:turnoLabel,ts:new Date().toISOString(),data:inventory};
+  const payload={date:d,turno:turnoSel,turnoLabel:turnoLabel,plant:currentPlant,ts:new Date().toISOString(),data:inventory};
   const statusEl=document.getElementById('sync-export-status');
   if(syncMode()==='sharepoint'){
     statusEl.textContent='Sending to SharePoint...';
@@ -3350,25 +3660,13 @@ async function renderSyncHistory(){
       // Accepts either a plain array, {value:[...]} (raw SharePoint "Get items" shape),
       // or {items:[...]} (already-normalized shape) — whichever the flow returns.
       const raw=Array.isArray(j)?j:(j.value||j.items||[]);
-      items=raw.map(r=>{
-        let parsedData=r.data;
-        if(r.JsonData!==undefined){
-          try{ parsedData=typeof r.JsonData==='string'?JSON.parse(r.JsonData):r.JsonData; }
-          catch(e){ parsedData={}; }
-        }
-        return{
-          date:r.date||r.InventoryDate||r.WMS_Backups||'',
-          turno:r.turno||'',
-          turnoLabel:r.turnoLabel||r.Shift||'',
-          data:parsedData||{}
-        };
-      });
+      items=raw.map(normalizeSyncRecord).filter(r=>r.plant===currentPlant);
     }catch(err){
       wrap.innerHTML='<div style="color:var(--danger);font-size:11px">Could not load SharePoint history ('+err.message+').</div>';
       return;
     }
   }else{
-    items=loadSyncHistoryLocal();
+    items=loadSyncHistoryLocal().map(normalizeSyncRecord).filter(r=>r.plant===currentPlant);
   }
   _syncHistoryCache=items;
   if(!items.length){wrap.innerHTML='<div style="color:var(--text3);font-size:11px;text-align:center;padding:12px">No saved copies yet.</div>';return;}
@@ -3480,26 +3778,14 @@ async function exportFullHistory(){
       if(!res.ok)throw new Error('HTTP '+res.status);
       const j=await res.json();
       const raw=Array.isArray(j)?j:(j.value||j.items||[]);
-      items=raw.map(r=>{
-        let parsedData=r.data;
-        if(r.JsonData!==undefined){
-          try{ parsedData=typeof r.JsonData==='string'?JSON.parse(r.JsonData):r.JsonData; }
-          catch(e){ parsedData={}; }
-        }
-        return{
-          date:r.date||r.InventoryDate||r.WMS_Backups||'',
-          turno:r.turno||'',
-          turnoLabel:r.turnoLabel||r.Shift||'',
-          data:parsedData||{}
-        };
-      });
+      items=raw.map(normalizeSyncRecord).filter(r=>r.plant===currentPlant);
     }catch(err){
       statusEl.textContent='⚠ Could not fetch history: '+err.message;
       showToast('Could not fetch history.','error');
       return;
     }
   }else{
-    items=loadSyncHistoryLocal();
+    items=loadSyncHistoryLocal().map(normalizeSyncRecord).filter(r=>r.plant===currentPlant);
   }
   if(!items.length){
     statusEl.textContent='No history to export.';
@@ -3549,7 +3835,7 @@ async function exportFullHistory(){
   ws['!cols']=[{wch:12},{wch:22},...orderedCodes.map(()=>({wch:14}))];
   XLSX.utils.book_append_sheet(wb,ws,'Full History');
   const stamp=today().replace(/\//g,'-');
-  XLSX.writeFile(wb,`WMS_NJ_FullHistory_${stamp}.xlsx`);
+  XLSX.writeFile(wb,`WMS_${currentPlant}_FullHistory_${stamp}.xlsx`);
   statusEl.textContent=`✓ Exported ${sorted.length} snapshots · ${orderedCodes.length} item codes.`;
   showToast('Full history exported.','success');
 }
@@ -3723,7 +4009,7 @@ function startChangePin(){
 function openRoModal(id){
   const data=inventory[id];
   const item=data?ITEMS.find(x=>x.code===data.item):null;
-  document.getElementById('ro-loc-label').textContent=locLabel(id);
+  document.getElementById('ro-loc-label').textContent=currentPlant+' · '+locLabel(id);
   if(data&&item){
     document.getElementById('ro-item-code').textContent=data.item;
     document.getElementById('ro-item-name').textContent=item.name;
@@ -3968,17 +4254,15 @@ async function autoLoadIfEmpty(){
     if(!res.ok)return;
     const j=await res.json();
     const raw=Array.isArray(j)?j:(j.value||j.items||[]);
-    if(!raw.length)return;
-    const r=raw[0]; // el flujo ya los devuelve ordenados "Created desc" — el primero es el más reciente
-    let parsedData=r.data;
-    if(r.JsonData!==undefined){
-      try{ parsedData=typeof r.JsonData==='string'?JSON.parse(r.JsonData):r.JsonData; }
-      catch(e){ parsedData=null; }
-    }
+    const plantAtStart=currentPlant;
+    // flow returns "Modified desc" — first record of THIS plant is the latest one
+    const r=raw.map(normalizeSyncRecord).find(x=>x.plant===plantAtStart);
+    if(!r||currentPlant!==plantAtStart||Object.keys(inventory).length>0)return;
+    const parsedData=r.data;
     if(parsedData&&Object.keys(parsedData).length){
       inventory=parsedData;
       saveData();
-      const dateLabel=r.date||r.InventoryDate||r.WMS_Backups||'';
+      const dateLabel=r.date;
       addLog('SYNC IMPORT','Auto-loaded latest SharePoint backup on empty device ('+dateLabel+')');
       refresh();
       showToast('Loaded latest inventory from SharePoint ('+dateLabel+').','success');
@@ -3986,13 +4270,17 @@ async function autoLoadIfEmpty(){
   }catch(e){/* silencioso — si falla, se queda vacío/local, no interrumpe el arranque */}
 }
 
-loadData();
 loadTheme();
-countSession=loadCountSession();
-planData=loadPlanDia();
-refresh();
-updateCountSessionUI();
-autoLoadIfEmpty();
+(function initPlant(){
+  let rem=null; try{rem=localStorage.getItem(PLANT_REMEMBER_KEY);}catch(e){}
+  try{history.replaceState({wmsSelector:true},'');}catch(e){}
+  if(rem&&PLANTS[rem]){
+    applyPlant(rem);
+    try{history.pushState({wmsPlant:rem},'');}catch(e){}
+  }else{
+    showPlantSelector();
+  }
+})();
 </script>
 </body>
 </html>
