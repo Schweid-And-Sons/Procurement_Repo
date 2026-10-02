@@ -118,11 +118,11 @@
       <h2>1 · Batch info</h2>
       <div class="grid">
         <div style="grid-column:span 2;min-width:0"><label>Product / Meat Block</label><select id="f-product" onchange="setField('product',this.value)"></select></div>
-        <div><label>Line</label><select id="f-line" onchange="setField('line',this.value)"></select></div>
+        <div><label>Mixer</label><select id="f-line" onchange="setField('line',this.value)"></select></div>
         <div><label>Batch #</label><input id="f-batchNo" onchange="setField('batchNo',this.value)"></div>
         <div><label>Date</label><input type="date" id="f-date" onchange="setField('date',this.value)"></div>
         <div><label>Start time</label><input type="time" id="f-startTime" onchange="setField('startTime',this.value)"></div>
-        <div><label>Operator</label><input id="f-operator" placeholder="Name" onchange="setField('operator',this.value)"></div>
+        <div><label>Mixer operator</label><select id="f-operator" onchange="pickPerson(this,'operator')"></select></div>
       </div>
     </div>
 
@@ -134,7 +134,7 @@
         <button class="btn" onclick="addManual()">+ Manual</button>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>#</th><th>RM Code</th><th>Lot / Serial</th><th class="hide-sm">Pack date</th><th class="hide-sm">EST #</th><th>Net LBS</th><th class="no-print"></th></tr></thead>
+        <thead><tr><th>#</th><th>RM Code</th><th>Lot / Serial</th><th class="hide-sm">Pack date</th><th class="hide-sm">EST #</th><th class="hide-sm">Supplier</th><th>Net LBS</th><th class="no-print"></th></tr></thead>
         <tbody id="rm-body"></tbody>
       </table></div>
       <div class="tot">Boxes: <span id="tot-count">0</span> &nbsp; Total Net: <span id="tot-lbs">0</span> lbs</div>
@@ -152,7 +152,7 @@
     <div class="card">
       <h2>4 · Sign-off</h2>
       <div class="grid">
-        <div><label>Completed by</label><input id="f-completedBy" placeholder="Name" onchange="setField('completedBy',this.value)"></div>
+        <div><label>Completed by</label><select id="f-completedBy" onchange="pickPerson(this,'completedBy')"></select></div>
         <div><label>Completed at</label><input id="f-completedAt" readonly placeholder="—"></div>
       </div>
       <div class="row-actions no-print">
@@ -175,6 +175,7 @@
       <div><label>Lot / Serial</label><input id="cf-lot"></div>
       <div><label>Pack date</label><input id="cf-pack" placeholder="MM/DD/YYYY"></div>
       <div><label>EST #</label><input id="cf-est"></div>
+      <div style="grid-column:1/-1"><label>Supplier</label><select id="cf-supplier" onchange="if(this.value===ADD_NEW){const v=askNew(SUPPLIER_KEY,supplierList(),'supplier');this.innerHTML=listOptions(supplierList(),v,'— Supplier —','+ Add new supplier…');}"></select></div>
       <div><label>Net LBS</label><input type="number" step="0.01" id="cf-lbs"></div>
     </div>
     <label style="display:flex;gap:6px;align-items:center;margin-top:10px;font-size:10px;text-transform:none;letter-spacing:0" id="cf-remember-wrap"><input type="checkbox" id="cf-remember" style="width:auto" checked> Remember this product barcode → RM code (next scans fill it automatically)</label>
@@ -200,9 +201,41 @@
 <script>
 const RM_CODES=[{"code": "NM4165", "name": "Natural trim 65% Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4185", "name": "Natural trim 85% Certied Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4050", "name": "Natural trim 50%", "group": "NATURAL", "vendor": ""}, {"code": "NM4180", "name": "Natural 80/20 trim Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4065", "name": "Natural trim 65%", "group": "NATURAL", "vendor": ""}, {"code": "NM4085", "name": "Natural trim 85%", "group": "NATURAL", "vendor": ""}, {"code": "GM3080", "name": "Grass Fed Trim 80%", "group": "GRASS FED", "vendor": ""}, {"code": "PM5100", "name": "USDA Prime Chuck", "group": "PRIME", "vendor": ""}, {"code": "PM5150", "name": "USDA Prime Chuck Clod", "group": "PRIME", "vendor": ""}, {"code": "CM2500", "name": "Cab Prime Chuck", "group": "CAB PRIME", "vendor": ""}, {"code": "CM2200", "name": "Cab Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "BM0200", "name": "Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "CM2065", "name": "Cab Trim 65%", "group": "CAB", "vendor": ""}, {"code": "CM2085", "name": "Cab Trim 85%", "group": "CAB", "vendor": ""}, {"code": "CM2050", "name": "Cab Trim 50%", "group": "CAB", "vendor": ""}, {"code": "CM2075", "name": "Cab Trim 75%", "group": "CAB", "vendor": ""}, {"code": "CM2180", "name": "Cab Chuck Trim 80%", "group": "CAB", "vendor": ""}, {"code": "CM2160", "name": "Cab Short Plate Rib", "group": "CAB", "vendor": ""}, {"code": "CM2800", "name": "Cab Loin Wing", "group": "CAB", "vendor": ""}, {"code": "AM1065", "name": "Angus trim 65%", "group": "ANGUS", "vendor": ""}, {"code": "AM1085", "name": "Angus Trim 85%", "group": "ANGUS", "vendor": ""}, {"code": "AM1180", "name": "Angus Chuck Trim 80%", "group": "ANGUS", "vendor": ""}, {"code": "AM1175", "name": "Angus Trim 75%", "group": "ANGUS", "vendor": ""}, {"code": "AM1050", "name": "Angus Trim 50%", "group": "ANGUS", "vendor": ""}, {"code": "SM010", "name": "Cab Peeled Tri Tips", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1011", "name": "Coulottes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM8780", "name": "Halal trim 80%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1010", "name": "Rib Eyes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6455", "name": "Wagyu Trim 65%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6450", "name": "Wagyu Trim 50%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6475", "name": "Wagyu Trim 75%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6460", "name": "Wagyu Round Trim", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "TM0065", "name": "Trim 65%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0085", "name": "Trim 85%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0090", "name": "Trim 90%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0073", "name": "Trim 73%", "group": "TRIMMINGS", "vendor": ""}, {"code": "LM2800", "name": "Loin Wing", "group": "TRIMMINGS", "vendor": ""}, {"code": "FZ9995", "name": "Frozen Bull Meat AU/NZ 95%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9966", "name": "Frozen Bull Meat AU/NZ 65%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9900", "name": "BLBT", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9920", "name": "Cab Block FTB", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9070", "name": "Frozen 70%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9075", "name": "Frozen Angus 75/25 Halal", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9680", "name": "Wagyu Frozen Block", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9085", "name": "Frozen 85%", "group": "FROZEN BLOCKS", "vendor": ""}];
 const MEAT_BLOCKS=[{"mb": "10", "name": "Fresh 90/10"}, {"mb": "", "name": "Halal 75/25"}, {"mb": "5", "name": "Wagyu"}, {"mb": "7", "name": "Natural Angus Ground Beef - CH 80/20"}, {"mb": "8", "name": "Natural Angus Ground Beef 75/25"}, {"mb": "12", "name": "CAB Prime Chuck"}, {"mb": "13", "name": "Prime Chuck"}, {"mb": "15", "name": "CAB Chuck"}, {"mb": "17", "name": "CAB Chuck Brisket Sirloin"}, {"mb": "18", "name": "CAB Chuck Brisket"}, {"mb": "19", "name": "CAB Chuck Brisket Short Rib"}, {"mb": "23", "name": "CAB Ground Beef 75/25"}, {"mb": "26", "name": "Angus Chuck"}, {"mb": "30", "name": "Angus Ground Beef 75/25"}, {"mb": "", "name": "Angus Ground Beef 80/20"}, {"mb": "35", "name": "Chuck Brisket"}, {"mb": "37", "name": "Chuck Brisket Short Rib"}, {"mb": "38", "name": "Chuck Brisket Steaktail"}, {"mb": "39", "name": "Chuck Rib Eye"}, {"mb": "40", "name": "Fuddruckers"}, {"mb": "", "name": "Fresh 73/27"}, {"mb": "42", "name": "Fresh 5 Guys"}, {"mb": "45", "name": "Fresh 85/15"}, {"mb": "50", "name": "Fresh 80/20"}, {"mb": "51", "name": "Fresh 80/20 USF"}, {"mb": "55", "name": "Ranchers 80/20"}, {"mb": "60", "name": "Fresh 75/25"}, {"mb": "62", "name": "Ranchers 75/25"}, {"mb": "75", "name": "Tower Isle Patties 50051"}, {"mb": "90", "name": "RT The Steakhouse Blend"}, {"mb": "91", "name": "RT The Korean Blend"}, {"mb": "92", "name": "RT The Taco Blend"}];
-const PROD_LINES=["Line 2", "Line 3", "Line 4", "Line 6-7", "Line 22 - Retail", "Line 23 - Retail", "TI"];
+const PROD_LINES=["Mixer 1","Mixer 2","Mixer 3"];
 
 const PLANT_COLORS={NJ:'#1d4ed8',GA:'#15803d'};
+const DEFAULT_OPERATORS=['Jesus Flores','Carlos Monrroy','Percy Cardenas','Tomas Izquierdo','Arnulfo Flores'];
+const PEOPLE_KEY='batch_people', SUPPLIER_KEY='batch_suppliers';
+const ADD_NEW='__add_new__';
+function loadList(key,defaults){let l=[];try{l=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}if(!Array.isArray(l))l=defaults.slice();return l;}
+function saveList(key,l){try{localStorage.setItem(key,JSON.stringify(l));}catch(e){}}
+function peopleList(){return loadList(PEOPLE_KEY,DEFAULT_OPERATORS);}
+function supplierList(){const base=[...new Set(RM_CODES.map(r=>r.vendor).filter(Boolean))];return loadList(SUPPLIER_KEY,base);}
+function listOptions(list,sel,placeholder,addLabel){
+  let h=`<option value="">${placeholder}</option>`;
+  const all=sel&&!list.includes(sel)?[...list,sel]:list;
+  all.forEach(n=>h+=`<option value="${esc(n)}"${n===sel?' selected':''}>${esc(n)}</option>`);
+  return h+`<option value="${ADD_NEW}">${addLabel}</option>`;
+}
+function askNew(key,list,what){
+  const v=(prompt('New '+what+' (full name):')||'').trim().replace(/\s+/g,' ');
+  if(!v)return '';
+  const found=list.find(x=>x.toLowerCase()===v.toLowerCase());
+  if(found)return found;
+  list.push(v);list.sort((a,b)=>a.localeCompare(b));saveList(key,list);
+  return v;
+}
+function pickPerson(sel,field){
+  let v=sel.value;
+  if(v===ADD_NEW){v=askNew(PEOPLE_KEY,peopleList(),'person');}
+  setField(field,v);
+  fillPeople();
+}
+function fillPeople(){
+  const l=peopleList();
+  document.getElementById('f-operator').innerHTML=listOptions(l,cur.operator,'— Select operator —','+ Add new…');
+  document.getElementById('f-completedBy').innerHTML=listOptions(l,cur.completedBy,'— Select name —','+ Add new…');
+}
 const PLANT_NAMES={NJ:'NEW JERSEY',GA:'GEORGIA'};
 const MAP_KEY='batch_barcode_map';           // barcode product key -> {rm, est}
 let plant='NJ', batches=[], cur=null;
@@ -220,7 +253,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;',
 function isoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function nowTime(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 function rmByCode(c){return RM_CODES.find(r=>r.code===c);}
-function lineShort(l){return l==='TI'?'TI':'L'+String(l).replace(/[^0-9-]/g,'').replace(/-$/,'');}
+function lineShort(l){const m=String(l).match(/mixer\s*(\d+)/i);return m?'M'+m[1]:(l==='TI'?'TI':'L'+String(l).replace(/[^0-9-]/g,'').replace(/-$/,''));}
 function fmtLbs(n){return (Math.round((+n||0)*100)/100).toLocaleString();}
 
 /* ---------- GS1-128 parser ----------
@@ -330,7 +363,8 @@ function openBatch(id){
   const ps=document.getElementById('f-product');
   ps.innerHTML='<option value="">— Select product —</option>'+MEAT_BLOCKS.map(m=>{const v=(m.mb?m.mb+' · ':'')+m.name;return `<option value="${esc(v)}">${esc(v)}</option>`;}).join('');
   document.getElementById('f-line').innerHTML=PROD_LINES.map(l=>`<option>${esc(l)}</option>`).join('');
-  ['product','line','batchNo','date','startTime','operator','fatTest','grindTemp','notes','completedBy'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=cur[k]||'';});
+  ['product','line','batchNo','date','startTime','fatTest','grindTemp','notes'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=cur[k]||'';});
+  fillPeople();
   renderEditor();
   window.scrollTo(0,0);
 }
@@ -362,8 +396,14 @@ function renderEditor(light){
     <td><input value="${esc(x.lot)}" onchange="setItem(${i},'lot',this.value)" style="min-width:90px"></td>
     <td class="hide-sm"><input value="${esc(x.packDate)}" onchange="setItem(${i},'packDate',this.value)" style="min-width:90px"></td>
     <td class="hide-sm"><input value="${esc(x.est)}" onchange="setItem(${i},'est',this.value)" style="min-width:60px"></td>
+    <td class="hide-sm"><select onchange="pickItemSupplier(${i},this)" style="min-width:110px">${listOptions(supplierList(),x.supplier||'','—','+ Add new…')}</select></td>
     <td><input type="number" step="0.01" value="${esc(x.netLbs)}" onchange="setItem(${i},'netLbs',this.value)" style="min-width:70px"></td>
-    <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="7" class="empty">Scan the first box label or add it manually.</td></tr>';
+    <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="8" class="empty">Scan the first box label or add it manually.</td></tr>';
+}
+function pickItemSupplier(i,sel){
+  let v=sel.value;
+  if(v===ADD_NEW)v=askNew(SUPPLIER_KEY,supplierList(),'supplier');
+  cur.items[i].supplier=v;saveBatches();renderEditor();
 }
 function setItem(i,k,v){cur.items[i][k]=v;saveBatches();renderEditor(k!=='rm');}
 function removeItem(i){if(!confirm('Remove box #'+(i+1)+'?'))return;cur.items.splice(i,1);saveBatches();renderEditor();}
@@ -372,7 +412,7 @@ function toggleComplete(){
     if(!cur.product){toast('Select the product first.',true);return;}
     if(!cur.items.length){toast('Add at least one raw material.',true);return;}
     if(cur.items.some(x=>!x.rm)){toast('Every box needs an RM code.',true);return;}
-    if(!cur.completedBy){toast('Enter who completed the batch.',true);document.getElementById('f-completedBy').focus();return;}
+    if(!cur.completedBy){toast('Select who completed the batch.',true);document.getElementById('f-completedBy').focus();return;}
     cur.completedAt=new Date().toISOString();
   }else{
     if(!confirm('Reopen this batch for editing?'))return;
@@ -394,18 +434,19 @@ function handleScan(text){
   const p=parseBarcode(text);
   const map=loadMap();const known=map[p.key];
   if(p.isGS1&&p.serial&&cur.items.some(x=>x.serial===p.serial&&x.key===p.key)){toast('This box (serial '+p.serial+') is already on the batch.',true);return;}
-  pending={key:p.key,raw:p.raw,gtin:p.gtin||'',serial:p.serial||'',lot:p.lot||p.serial||'',packDate:p.packDate||'',est:p.est||(known&&known.est)||'',netLbs:p.netLbs!=null?p.netLbs:'',rm:(known&&known.rm)||''};
+  pending={key:p.key,raw:p.raw,gtin:p.gtin||'',serial:p.serial||'',lot:p.lot||p.serial||'',packDate:p.packDate||'',est:p.est||(known&&known.est)||'',supplier:(known&&known.supplier)||'',netLbs:p.netLbs!=null?p.netLbs:'',rm:(known&&known.rm)||''};
   // Known product + weight read from the label → add straight away (fastest path)
   if(known&&known.rm&&pending.netLbs!==''){addPending();toast('✓ '+pending.rm+' · '+fmtLbs(pending.netLbs)+' lbs added');pending=null;return;}
   openConfirm(p);
 }
-function addManual(){pending={key:'',raw:'',gtin:'',serial:'',lot:'',packDate:'',est:'',netLbs:'',rm:''};openConfirm(null);}
+function addManual(){pending={key:'',raw:'',gtin:'',serial:'',lot:'',packDate:'',est:'',supplier:'',netLbs:'',rm:''};openConfirm(null);}
 function openConfirm(p){
   document.getElementById('cf-raw').textContent=p?('Scanned: '+p.raw.replace(/\x1d/g,'␝')+(p.isGS1?'  ·  GS1 label read':'  ·  plain code')):'Manual entry';
   document.getElementById('cf-rm').innerHTML=rmOptions(pending.rm);
   document.getElementById('cf-lot').value=pending.lot;
   document.getElementById('cf-pack').value=pending.packDate;
   document.getElementById('cf-est').value=pending.est;
+  document.getElementById('cf-supplier').innerHTML=listOptions(supplierList(),pending.supplier,'— Supplier —','+ Add new supplier…');
   document.getElementById('cf-lbs').value=pending.netLbs;
   document.getElementById('cf-remember-wrap').style.display=pending.key?'':'none';
   document.getElementById('confirm-ov').classList.remove('hidden');
@@ -417,14 +458,16 @@ function confirmAdd(){
   pending.lot=document.getElementById('cf-lot').value.trim();
   pending.packDate=document.getElementById('cf-pack').value.trim();
   pending.est=document.getElementById('cf-est').value.trim();
+  pending.supplier=document.getElementById('cf-supplier').value===ADD_NEW?'':document.getElementById('cf-supplier').value;
+  if(!pending.supplier){const r=rmByCode(pending.rm);if(r&&r.vendor)pending.supplier=r.vendor;}
   pending.netLbs=document.getElementById('cf-lbs').value;
   if(!pending.rm){toast('Select the RM code.',true);return;}
   if(!(+pending.netLbs>0)){toast('Enter the net weight (lbs).',true);return;}
-  if(pending.key&&document.getElementById('cf-remember').checked){const m=loadMap();m[pending.key]={rm:pending.rm,est:pending.est};saveMap(m);}
+  if(pending.key&&document.getElementById('cf-remember').checked){const m=loadMap();m[pending.key]={rm:pending.rm,est:pending.est,supplier:pending.supplier};saveMap(m);}
   addPending();closeConfirm();toast('✓ Added');
 }
 function addPending(){
-  cur.items.push({rm:pending.rm,lot:pending.lot,serial:pending.serial,packDate:pending.packDate,est:pending.est,netLbs:pending.netLbs,key:pending.key,gtin:pending.gtin,raw:pending.raw,at:new Date().toISOString()});
+  cur.items.push({rm:pending.rm,lot:pending.lot,serial:pending.serial,packDate:pending.packDate,est:pending.est,supplier:pending.supplier||'',netLbs:pending.netLbs,key:pending.key,gtin:pending.gtin,raw:pending.raw,at:new Date().toISOString()});
   saveBatches();renderEditor();
 }
 
@@ -470,16 +513,16 @@ function closeCamera(){
 /* ---------- Excel ---------- */
 function batchRows(b){
   const rows=[['Schweid & Sons · '+b.plant+' · Batch Sheet'],[],
-    ['Product',b.product],['Line',b.line],['Batch #',b.batchNo],['Date',b.date],['Start time',b.startTime],['Operator',b.operator],[],
-    ['#','RM Code','Description','Lot / Serial','Pack date','EST #','Net LBS']];
-  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);rows.push([i+1,x.rm,r?r.name:'',x.lot,x.packDate,x.est,+x.netLbs||0]);});
+    ['Product',b.product],['Mixer',b.line],['Batch #',b.batchNo],['Date',b.date],['Start time',b.startTime],['Mixer operator',b.operator],[],
+    ['#','RM Code','Description','Supplier','Lot / Serial','Pack date','EST #','Net LBS']];
+  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);rows.push([i+1,x.rm,r?r.name:'',x.supplier||'',x.lot,x.packDate,x.est,+x.netLbs||0]);});
   const t=batchTotals(b);
-  rows.push(['','','','','','TOTAL',Math.round(t.lbs*100)/100],[],['Fat test (%)',b.fatTest],['Grind temp (°F)',b.grindTemp],['Notes',b.notes],[],['Completed by',b.completedBy],['Completed at',b.completedAt?new Date(b.completedAt).toLocaleString():'(draft)']);
+  rows.push(['','','','','','','TOTAL',Math.round(t.lbs*100)/100],[],['Fat test (%)',b.fatTest],['Grind temp (°F)',b.grindTemp],['Notes',b.notes],[],['Completed by',b.completedBy],['Completed at',b.completedAt?new Date(b.completedAt).toLocaleString():'(draft)']);
   return rows;
 }
 function exportBatch(){
   const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(batchRows(cur));
-  ws['!cols']=[{wch:16},{wch:12},{wch:34},{wch:18},{wch:12},{wch:10},{wch:10}];
+  ws['!cols']=[{wch:16},{wch:12},{wch:34},{wch:18},{wch:18},{wch:12},{wch:10},{wch:10}];
   XLSX.utils.book_append_sheet(wb,ws,'Batch');
   XLSX.writeFile(wb,'Batch_'+plant+'_'+cur.batchNo+'.xlsx');
 }
@@ -488,7 +531,7 @@ function exportDay(){
   const rows=batches.filter(b=>b.date===d);
   if(!rows.length){toast('No batches for this day.',true);return;}
   const wb=XLSX.utils.book_new();
-  const sum=[['Batch #','Product','Line','Boxes','Net LBS','Fat %','Grind °F','Operator','Completed by','Status']];
+  const sum=[['Batch #','Product','Mixer','Boxes','Net LBS','Fat %','Grind °F','Mixer operator','Completed by','Status']];
   rows.forEach(b=>{const t=batchTotals(b);sum.push([b.batchNo,b.product,b.line,t.n,Math.round(t.lbs*100)/100,b.fatTest,b.grindTemp,b.operator,b.completedBy,b.completedAt?'Complete':'Draft']);});
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),'Summary');
   rows.forEach(b=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(batchRows(b)),String(b.batchNo).replace(/[\\\/\?\*\[\]:]/g,'-').slice(0,31)));
