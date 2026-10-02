@@ -628,8 +628,10 @@ try{
     <button class="plant-btn" data-plant="GA" style="--pc:#15803d" onclick="choosePlant('GA')">
       <span class="pb-code">GA</span><span class="pb-name">GEORGIA</span><span class="pb-sum" id="plant-sum-GA"></span>
     </button>
+    <button class="plant-btn" style="--pc:#b91c1c" onclick="location.href='batch.html'">
+      <span class="pb-code">BATCH</span><span class="pb-name">🥩 BATCH SHEETS</span><span class="pb-sum" id="plant-sum-BATCH"></span>
+    </button>
     <label class="plant-rem"><input type="checkbox" id="plant-remember"> Remember this plant on this device</label>
-    <a class="plant-batch" href="batch.html">🥩 BATCH SHEETS <span>Production · NJ / GA</span></a>
   </div>
 </div>
 <div class="app">
@@ -2333,6 +2335,13 @@ function plantSummary(p){
 function showPlantSelector(){
   document.querySelectorAll('.modal-overlay').forEach(o=>o.classList.add('hidden'));
   ['NJ','GA'].forEach(p=>{const el=document.getElementById('plant-sum-'+p);if(el)el.innerHTML=plantSummary(p);});
+  const bs=document.getElementById('plant-sum-BATCH');
+  if(bs){
+    const d=new Date(),iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const cnt=k=>{try{return (JSON.parse(localStorage.getItem(k)||'[]')||[]).filter(b=>b.date===iso).length;}catch(e){return 0;}};
+    const nj=cnt('batch_sheets_nj'),ga=cnt('batch_sheets_ga');
+    bs.innerHTML='Production · Today: '+(nj+ga)+' batch'+(nj+ga===1?'':'es')+' (NJ '+nj+' · GA '+ga+')';
+  }
   let rem=null; try{rem=localStorage.getItem(PLANT_REMEMBER_KEY);}catch(e){}
   const cb=document.getElementById('plant-remember'); if(cb)cb.checked=!!rem;
   document.querySelectorAll('.plant-btn').forEach(b=>b.classList.toggle('current',b.dataset.plant===currentPlant));
@@ -3633,7 +3642,7 @@ async function syncExport(){
     try{
       const res=await fetch(getFlowUrl(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({action:'export'},payload))});
       if(!res.ok)throw new Error('HTTP '+res.status);
-      statusEl.textContent='✓ Copy sent to SharePoint ('+turnoLabel+', '+d+').';
+      statusEl.textContent='✓ Copy sent to SharePoint ('+currentPlant+' · '+SYNC_TURNO_LABELS[turnoSel]+', '+d+').';
       showToast('Synced with SharePoint.','success');
     }catch(err){
       const hist=loadSyncHistoryLocal();
@@ -3648,7 +3657,7 @@ async function syncExport(){
     const idx=hist.findIndex(h=>h.date===d&&h.turno===turnoSel);
     if(idx>-1)hist[idx]=payload;else hist.unshift(payload);
     saveSyncHistoryLocal(hist);
-    statusEl.textContent='✓ Copy saved locally ('+turnoLabel+', '+d+').';
+    statusEl.textContent='✓ Copy saved locally ('+currentPlant+' · '+SYNC_TURNO_LABELS[turnoSel]+', '+d+').';
     showToast('Copy saved.','success');
   }
 }
