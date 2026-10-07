@@ -791,6 +791,10 @@
   html.theme-dark .pos-cell.unreviewed,html.theme-dark .floor-cell.unreviewed{opacity:.45;}
   .pos-cell.reviewed,.floor-cell.reviewed{position:relative;}
   .pos-cell.reviewed::after,.floor-cell.reviewed::after{content:'✓';position:absolute;right:-5px;bottom:-5px;width:15px;height:15px;border-radius:50%;background:var(--success);color:#fff;font-size:9px;font-weight:800;line-height:15px;text-align:center;box-shadow:0 0 0 1.5px var(--surface);pointer-events:none;}
+  /* desktop cells are 30px — smaller ✓ there; touch screens keep the 15px one */
+  @media(min-width:901px){
+    .pos-cell.reviewed::after,.floor-cell.reviewed::after{width:11px;height:11px;line-height:11px;font-size:7px;right:-3px;bottom:-3px;box-shadow:0 0 0 1px var(--surface);}
+  }
   .count-session-banner{padding:10px 14px!important;}
   .csb-row{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px;font-weight:600;}
   .csb-num{font-variant-numeric:tabular-nums;}
