@@ -786,6 +786,16 @@
   .plant-rem{font-size:13px!important;}
 
   .app{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}
+  /* — Count Mode session: pending = faded + dashed amber, reviewed = full color + ✓ — */
+  .pos-cell.unreviewed,.floor-cell.unreviewed{animation:none!important;opacity:.4;filter:saturate(.2);outline:2px dashed color-mix(in srgb,var(--warn) 85%,transparent);outline-offset:1px;}
+  html.theme-dark .pos-cell.unreviewed,html.theme-dark .floor-cell.unreviewed{opacity:.45;}
+  .pos-cell.reviewed,.floor-cell.reviewed{position:relative;}
+  .pos-cell.reviewed::after,.floor-cell.reviewed::after{content:'✓';position:absolute;right:-5px;bottom:-5px;width:15px;height:15px;border-radius:50%;background:var(--success);color:#fff;font-size:9px;font-weight:800;line-height:15px;text-align:center;box-shadow:0 0 0 1.5px var(--surface);pointer-events:none;}
+  .count-session-banner{padding:10px 14px!important;}
+  .csb-row{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px;font-weight:600;}
+  .csb-num{font-variant-numeric:tabular-nums;}
+  .csb-track{height:6px;border-radius:3px;background:color-mix(in srgb,var(--warn) 20%,transparent);margin-top:8px;overflow:hidden;}
+  .csb-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--warn),var(--success));transition:width .3s var(--ease);}
   /* — scrollbars — */
   *::-webkit-scrollbar{width:8px;height:8px;}
   *::-webkit-scrollbar-thumb{background:rgba(120,120,128,.35);border-radius:8px;}
@@ -1690,10 +1700,12 @@ function renderMap(){
     <div class="leg"><div class="leg-dot" style="background:var(--accent2);border-color:var(--accent2)"></div>Selected item</div>
     <div class="leg"><div class="leg-dot" style="background:transparent;border:2px solid #ff8c00;box-shadow:0 0 5px rgba(255,140,0,.8)"></div>Last touched<span id="last-touched-lbl">${lastTouchedLoc?' · '+locShort(lastTouchedLoc)+' <span style="cursor:pointer;color:var(--text3)" onclick="clearLastTouched()" title="Clear marker">✕</span>':''}</span></div>
   </div>`;
+  if(countSession&&countSession.active)
+    html=html.replace(/<\/div>$/,'')+`<div class="leg"><div class="leg-dot" style="background:var(--surface2);border:2px dashed var(--warn);opacity:.7"></div>Pending review</div><div class="leg"><div class="leg-dot" style="background:var(--success);border-color:var(--success);border-radius:50%!important"></div>Reviewed ✓</div></div>`;
   if(currentMode==='count')
     html+=`<div class="count-banner">COUNT MODE${selectedItem?` · Assigning: <strong>${selectedItem}</strong>`:'  · Tap any position to assign an item'}</div>`;
   if(countSession&&countSession.active)
-    html+=`<div class="count-session-banner">🟡 COUNT MODE ACTIVE — ${countSession.unreviewed.size} of ${countSession.total} positions not reviewed</div>`;
+    html+=`<div class="count-session-banner" id="count-session-banner">${countBannerHtml()}</div>`;
 
   for(const[aName,aDef]of Object.entries(AREAS)){
     if(aName==='BOX ROOM'&&aDef.type==='rack'){
@@ -1718,7 +1730,7 @@ function renderMap(){
             const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
             const tip=isOcc?occTip(occ):`${aName} S${sec} T${t} P${pos} — Empty`;
             const nMix=occExtraCount(occ);
-            html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
+            html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':(countSession&&countSession.active?' reviewed':'')}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
           });
           html+=`</div>`;
         }
@@ -1736,7 +1748,7 @@ function renderMap(){
         const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
         const tip=isOcc?occTip(occ):`${aName} Slot ${i} — Empty`;
         const nMix=occExtraCount(occ);
-        html+=`<div class="floor-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?'●':i}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
+        html+=`<div class="floor-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':(countSession&&countSession.active?' reviewed':'')}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?'●':i}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
       }
       html+=`</div>`;
     }
@@ -1762,7 +1774,7 @@ function renderRackAreaBlock(aName,aDef,titleOverride,sectionKeys){
         const isUnrev=!!(countSession&&countSession.active&&countSession.unreviewed.has(id));
         const tip=isOcc?occTip(occ):`${aName} S${sec} T${t} P${pos} — Empty`;
         const nMix=occExtraCount(occ);
-            html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':''}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
+            html+=`<div class="pos-cell ${isOcc?'occupied':'empty'}${isHL?' highlighted':''}${isUnrev?' unreviewed':(countSession&&countSession.active?' reviewed':'')}${nMix?' mixed':''}${id===lastTouchedLoc?' last-touched':''}" data-loc="${id}" onclick="openModal('${id}')" title="${tip}">${isOcc?occ.item.substring(0,3):pos}${nMix?`<span class="mix-badge">+${nMix}</span>`:''}</div>`;
       });
       html+=`</div>`;
     }
@@ -2265,11 +2277,18 @@ function finishCountSession(){
   render();
   alert(msg);
 }
+function countBannerHtml(){
+  const total=countSession.total||0, left=countSession.unreviewed.size, done=total-left;
+  const pct=total?Math.round(done/total*100):0;
+  return `<div class="csb-row"><span>🟡 Count in progress</span><span class="csb-num">${done} of ${total} reviewed · ${pct}%</span></div><div class="csb-track"><div class="csb-fill" style="width:${pct}%"></div></div>`;
+}
 function markLocReviewed(id){
   if(countSession&&countSession.active&&countSession.unreviewed.has(id)){
     countSession.unreviewed.delete(id);
     saveCountSessionState();
     updateCountSessionUI();
+    document.querySelectorAll('[data-loc="'+id+'"]').forEach(el=>{el.classList.remove('unreviewed');el.classList.add('reviewed');});
+    const b=document.getElementById('count-session-banner'); if(b)b.innerHTML=countBannerHtml();
   }
 }
 function updateCountSessionUI(){
