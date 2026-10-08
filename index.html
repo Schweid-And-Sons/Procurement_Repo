@@ -444,6 +444,8 @@
 
   
   .log-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .log-export-btn{padding:6px 14px;background:transparent;color:var(--accent,#0a84ff);border:1px solid currentColor;border-radius:5px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-right:6px;}
+  .log-export-btn:disabled{opacity:.4;cursor:default;}
   .log-clear-btn{padding:6px 14px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:5px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;transition:all .15s;}
   .log-clear-btn:hover{background:var(--danger);color:#fff;}
   .log-count{font-size:10px;color:var(--text3);margin-left:auto;}
@@ -702,7 +704,7 @@
   html.theme-dark .count-session-banner{color:#ffd60a!important;}
 
   /* — buttons — */
-  .import-btn,.sync-btn,.clear-all-btn,.count-session-btn,.add-item-btn,.log-clear-btn,.btn-clear,.btn-cancel,.sync-import-btn,.sync-view-btn,.iloc-map-btn,.sec-row-map,.mx-add-btn,.log-undo-btn,.theme-toggle-btn,.hamburger{
+  .import-btn,.sync-btn,.clear-all-btn,.count-session-btn,.add-item-btn,.log-clear-btn,.log-export-btn,.btn-clear,.btn-cancel,.sync-import-btn,.sync-view-btn,.iloc-map-btn,.sec-row-map,.mx-add-btn,.log-undo-btn,.theme-toggle-btn,.hamburger{
     border-color:transparent!important;background:color-mix(in srgb,currentColor 11%,transparent)!important;
     border-radius:12px!important;text-transform:none!important;letter-spacing:0!important;font-weight:600!important;transition:transform .1s var(--ease),background .15s!important;}
   .btn-cancel,.theme-toggle-btn,.hamburger{color:var(--text)!important;background:var(--fill)!important;}
@@ -2767,6 +2769,7 @@ function clearLog(){
 function renderLogView(){
   const log = loadLog();
   let html = `<div class="log-toolbar">
+    <button class="log-export-btn" onclick="exportLogExcel()"${log.length?'':' disabled'}>⬇ Export Excel</button>
     <button class="log-clear-btn" onclick="confirmClearLog()">🗑 Clear Log</button>
     <span class="log-count">${log.length} event(s) recorded</span>
   </div>`;
@@ -2796,6 +2799,25 @@ function renderLogView(){
     html += `</tbody></table></div>`;
   }
   document.getElementById('main-content').innerHTML = html;
+}
+
+function exportLogExcel(){
+  const log=loadLog();
+  if(!log.length){showToast('Log is empty.','error');return;}
+  const plain=s=>{const d=document.createElement('div');d.innerHTML=String(s==null?'':s);return d.textContent.trim();};
+  const rows=[['Schweid & Sons · '+currentPlant+' · Activity Log'],[],['Date','Time','Action','Detail','Undo available']];
+  // Oldest → newest so it reads as a timeline
+  log.slice().reverse().forEach(e=>{
+    const parts=String(e.ts||'').split(' · ');
+    rows.push([parts[0]||'',parts[1]||'',e.action||'',plain(e.detail),e.undo?'Yes':'']);
+  });
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:10},{wch:16},{wch:80},{wch:14}];
+  ws['!autofilter']={ref:'A3:E'+rows.length};
+  XLSX.utils.book_append_sheet(wb,ws,'Activity Log');
+  XLSX.writeFile(wb,`WMS_${currentPlant}_ActivityLog_${today().replace(/\//g,'-')}.xlsx`);
+  showToast('Log exported ('+log.length+' events)','success');
 }
 
 function undoLogEntry(id){
