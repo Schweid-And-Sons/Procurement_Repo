@@ -800,6 +800,23 @@
   .csb-num{font-variant-numeric:tabular-nums;}
   .csb-track{height:6px;border-radius:3px;background:color-mix(in srgb,var(--warn) 20%,transparent);margin-top:8px;overflow:hidden;}
   .csb-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--warn),var(--success));transition:width .3s var(--ease);}
+  @media(max-width:900px){.sidebar{background:var(--glass-strong)!important;-webkit-backdrop-filter:blur(50px) saturate(180%)!important;backdrop-filter:blur(50px) saturate(180%)!important;box-shadow:var(--shadow-lg);}}
+  /* — collapsible sidebar actions — */
+  .sidebar-footer{max-height:62%;overflow-y:auto;gap:8px!important;}
+  .sf-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;padding:11px 14px;border:none;border-radius:12px;background:var(--fill);color:var(--text);font-weight:600;font-size:14px;cursor:pointer;}
+  .sf-chev{transition:transform .25s var(--ease);color:var(--text3);}
+  .sidebar-footer.open .sf-chev{transform:rotate(180deg);}
+  .sf-body{display:none;flex-direction:column;gap:8px;}
+  .sidebar-footer.open .sf-body{display:flex;animation:sfIn .25s var(--ease);}
+  @keyframes sfIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+  .sf-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .sf-grid>button{font-size:12px!important;padding:10px 6px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sf-grid>button[style*="display: none"]{display:none!important;}
+  /* — keyboard open (iPad/iPhone): dialog sits right above the keyboard, Save always visible — */
+  body.kb-open .modal-overlay:not(.hidden){top:var(--vvt,0px)!important;bottom:auto!important;height:var(--vvh,100%)!important;align-items:flex-end!important;padding:8px 0!important;}
+  body.kb-open .modal-overlay:not(.hidden)>.modal{max-height:calc(var(--vvh,100vh) - 16px)!important;overflow-y:auto!important;border-radius:22px!important;padding-bottom:0!important;}
+  body.kb-open #modal-item-list{max-height:120px!important;}
+  .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:linear-gradient(to bottom,transparent,var(--glass-strong) 30%);padding:12px 0 14px;margin-top:6px;}
   /* — scrollbars — */
   *::-webkit-scrollbar{width:8px;height:8px;}
   *::-webkit-scrollbar-thumb{background:rgba(120,120,128,.35);border-radius:8px;}
@@ -864,22 +881,27 @@ try{
       <input class="search-box" id="sidebar-search" placeholder="Search item or code..." oninput="renderSidebar()">
       <div id="sidebar-list"></div>
     </div>
-    <div class="sidebar-footer sidebar-footer-always">
-      <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()">🌙 Night Mode</button>
+    <div class="sidebar-footer sidebar-footer-always" id="sidebar-footer">
       <button class="count-session-btn" id="count-session-btn" onclick="toggleCountSession()">🟡 Start Count Mode</button>
-      <select id="count-type-sel" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;">
-        <option value="pre9">Pre 9am Count</option>
-        <option value="post9">Post 9am Count</option>
-        <option value="eom">EOM Count</option>
-      </select>
-      <button class="export-btn" onclick="exportExcel()">⬇ Export to Excel</button>
-      <button class="import-btn" onclick="triggerImport()">⬆ Import from Excel</button>
-      <button class="sync-btn" onclick="openSyncModal()">☁ Sync with SharePoint</button>
-      <button class="import-btn nj-only" onclick="openBoxRoomMap()">📦 Box Room Map</button>
-      <input type="file" id="import-file-input" accept=".xlsx" style="display:none" onchange="importExcel(this)">
-      <button class="clear-all-btn" onclick="triggerClearAll()">🗑 Clear All Inventory</button>
-      <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal()">🗑 Clear Section</button>
-      <button class="add-item-btn" onclick="openAddItemModal()">＋ Add Custom Item</button>
+      <button class="sf-toggle" onclick="toggleActions()"><span>⚙️ Actions</span><span class="sf-chev">▾</span></button>
+      <div class="sf-body">
+        <select id="count-type-sel" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;">
+          <option value="pre9">Pre 9am Count</option>
+          <option value="post9">Post 9am Count</option>
+          <option value="eom">EOM Count</option>
+        </select>
+        <div class="sf-grid">
+          <button class="export-btn" onclick="exportExcel()">⬇ Export Excel</button>
+          <button class="import-btn" onclick="triggerImport()">⬆ Import Excel</button>
+          <button class="sync-btn" onclick="openSyncModal()">☁ Sync</button>
+          <button class="import-btn nj-only" onclick="openBoxRoomMap()">📦 Box Room</button>
+          <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()">🌙 Night Mode</button>
+          <button class="add-item-btn" onclick="openAddItemModal()">＋ Custom Item</button>
+          <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal()">🗑 Clear Section</button>
+          <button class="clear-all-btn" onclick="triggerClearAll()">🗑 Clear All</button>
+        </div>
+        <input type="file" id="import-file-input" accept=".xlsx" style="display:none" onchange="importExcel(this)">
+      </div>
     </div>
   </div>
 
@@ -980,7 +1002,7 @@ try{
     <input type="hidden" id="modal-item" value="">
     <div id="modal-item-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;background:var(--surface2);"></div>
     <label>Qty <span style="color:var(--text3);font-size:9px">(cases / units / rolls — what you count)</span></label>
-    <input type="number" id="modal-qty" min="1" placeholder="e.g. 1000">
+    <input type="text" id="modal-qty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="e.g. 1000">
     <div class="mx-wrap">
       <div class="mx-title">Mixed pallet — additional items <span id="mx-count"></span></div>
       <div id="modal-extras"></div>
@@ -1965,7 +1987,7 @@ function clearLastTouched(){
 }
 function openModal(id){
   setLastTouched(id);
-  markLocReviewed(id);
+  // Count Mode: a position is marked reviewed only on Save / Clear Location, not on tap.
   if(currentMode==='browse'){
     openRoModal(id);
     return;
@@ -2033,7 +2055,7 @@ function renderModalExtras(){
   wrap.innerHTML=_modalExtras.map(function(e,i){
     var it=ITEMS.find(function(x){return x.code===e.item;});
     return '<div class="mx-row"><span class="mx-code">'+e.item+'</span><span class="mx-name">'+(it?it.name:'')+'</span>'
-      +'<input type="number" min="1" class="mx-qty" id="mx-qty-'+i+'" placeholder="Qty" value="'+(e.qty===''||e.qty==null?'':e.qty)+'" oninput="_modalExtras['+i+'].qty=this.value">'
+      +'<input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="mx-qty" id="mx-qty-'+i+'" placeholder="Qty" value="'+(e.qty===''||e.qty==null?'':e.qty)+'" oninput="_modalExtras['+i+'].qty=this.value">'
       +'<button type="button" class="mx-del" title="Remove from pallet" onclick="removeExtra('+i+')">✕</button></div>';
   }).join('');
   var n=1+_modalExtras.length;
@@ -2162,12 +2184,21 @@ function saveLocation(){
   if(merged.length)detail+=' + mixed: '+merged.map(x=>x.item+' · '+x.qty).join(', ');
   else if(prev&&occExtraCount(prev))detail+=' (mixed items removed)';
   addLog('SAVE', detail, _saveBefore);
+  markLocReviewed(modalLoc);
   document.getElementById('modal-overlay').classList.add('hidden');
   modalLoc=null;refresh();
 }
 function clearLocation(){
   if(!modalLoc)return;
   const occ=inventory[modalLoc];
+  if(!occ){
+    // Empty position: Clear Location = "confirmed empty" (no dialog needed).
+    markLocReviewed(modalLoc);
+    document.getElementById('modal-overlay').classList.add('hidden');
+    modalLoc=null;refresh();
+    showToast('Confirmed empty ✓','success');
+    return;
+  }
   const label=occ?(occExtraCount(occ)?`Clear this MIXED pallet? This will remove ${1+occExtraCount(occ)} items: ${occTip(occ)}.`:`Clear ${occ.item} (Qty: ${occ.qty})?`):'Clear this location?';
   if(!confirm(label+' This cannot be undone.'))return;
   const _clLabel=locLabel(modalLoc);
@@ -2177,6 +2208,7 @@ function clearLocation(){
   delete inventory[modalLoc];
   saveData();
   addLog('CLEAR', _clLabel+' — '+_clItem+' · Qty: '+_clQty+' removed', _clBefore);
+  markLocReviewed(modalLoc);
   document.getElementById('modal-overlay').classList.add('hidden');
   modalLoc=null;refresh();
 }
@@ -3552,7 +3584,7 @@ function renderPlanView(){
       <td style="font-weight:700;color:var(--accent2)">${it.code}</td>
       <td style="color:var(--text2);font-size:11px">${it.desc}</td>
       <td>${it.needed.toLocaleString()}</td>
-      <td><input type="number" min="0" class="plan-delivered-input" value="${it.delivered}" onfocus="this.select()" onchange="updatePlanDelivered('${it.code}',this.value)"></td>
+      <td><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="plan-delivered-input" value="${it.delivered}" onfocus="this.select()" onchange="updatePlanDelivered('${it.code}',this.value)"></td>
       <td class="${remCls}">${remaining.toLocaleString()}</td>
       <td>${stockQty.toLocaleString()}${equivNote}</td>
       <td class="${stockAfterCls}">${stockAfter.toLocaleString()}</td>
@@ -4496,7 +4528,26 @@ async function autoLoadIfEmpty(){
   }catch(e){/* silencioso — si falla, se queda vacío/local, no interrumpe el arranque */}
 }
 
+/* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
+(function(){
+  const vv=window.visualViewport; if(!vv)return;
+  const fit=()=>{
+    const kb=window.innerHeight-vv.height>120;
+    document.body.classList.toggle('kb-open',kb);
+    document.documentElement.style.setProperty('--vvh',vv.height+'px');
+    document.documentElement.style.setProperty('--vvt',vv.offsetTop+'px');
+    if(kb){const a=document.activeElement;if(a&&a.closest&&a.closest('.modal'))setTimeout(()=>a.scrollIntoView({block:'center',behavior:'smooth'}),60);}
+  };
+  vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);
+})();
+function toggleActions(force){
+  const f=document.getElementById('sidebar-footer'); if(!f)return;
+  const open=typeof force==='boolean'?force:!f.classList.contains('open');
+  f.classList.toggle('open',open);
+  try{localStorage.setItem('wms_actions_open',open?'1':'0');}catch(e){}
+}
 loadTheme();
+try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
 (function initPlant(){
   let rem=null; try{rem=localStorage.getItem(PLANT_REMEMBER_KEY);}catch(e){}
   try{history.replaceState({wmsSelector:true},'');}catch(e){}

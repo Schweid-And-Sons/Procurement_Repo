@@ -135,6 +135,9 @@
     .modal::before{content:'';display:block;width:38px;height:5px;border-radius:3px;background:var(--text3);opacity:.35;margin:-8px auto 12px;}
     .strip{margin:8px 10px 0;}
   }
+  body.kb-open .ov:not(.hidden){top:var(--vvt,0px);bottom:auto;height:var(--vvh,100%);align-items:flex-end;padding:8px;}
+  body.kb-open .ov:not(.hidden) .modal{max-height:calc(var(--vvh,100vh) - 16px);overflow-y:auto;border-radius:22px;}
+  .modal .row-actions{position:sticky;bottom:0;background:linear-gradient(to bottom,transparent,var(--glass-strong) 30%);padding:12px 0 6px;}
   @media print{.card{box-shadow:none;border:1px solid #999;border-radius:8px;}}
 </style>
 </head>
@@ -197,8 +200,8 @@
     <div class="card">
       <h2>3 · Quality</h2>
       <div class="grid">
-        <div><label>Fat test (%)</label><input type="number" step="0.1" id="f-fatTest" onchange="setField('fatTest',this.value)"></div>
-        <div><label>Grind temp (°F)</label><input type="number" step="0.1" id="f-grindTemp" onchange="setField('grindTemp',this.value)"></div>
+        <div><label>Fat test (%)</label><input type="text" inputmode="decimal" autocomplete="off" id="f-fatTest" onchange="setField('fatTest',this.value)"></div>
+        <div><label>Grind temp (°F)</label><input type="text" inputmode="decimal" autocomplete="off" id="f-grindTemp" onchange="setField('grindTemp',this.value)"></div>
         <div style="grid-column:1/-1"><label>Notes</label><textarea id="f-notes" onchange="setField('notes',this.value)"></textarea></div>
       </div>
     </div>
@@ -230,7 +233,7 @@
       <div><label>Pack date</label><input id="cf-pack" placeholder="MM/DD/YYYY"></div>
       <div><label>EST #</label><input id="cf-est"></div>
       <div style="grid-column:1/-1"><label>Supplier</label><select id="cf-supplier" onchange="if(this.value===ADD_NEW){const v=askNew(SUPPLIER_KEY,supplierList(),'supplier');this.innerHTML=listOptions(supplierList(),v,'— Supplier —','+ Add new supplier…');}"></select></div>
-      <div><label>Net LBS</label><input type="number" step="0.01" id="cf-lbs"></div>
+      <div><label>Net LBS</label><input type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" id="cf-lbs"></div>
     </div>
     <label style="display:flex;gap:6px;align-items:center;margin-top:10px;font-size:10px;text-transform:none;letter-spacing:0" id="cf-remember-wrap"><input type="checkbox" id="cf-remember" style="width:auto" checked> Remember this product barcode → RM code (next scans fill it automatically)</label>
     <div class="row-actions">
@@ -451,7 +454,7 @@ function renderEditor(light){
     <td class="hide-sm"><input value="${esc(x.packDate)}" onchange="setItem(${i},'packDate',this.value)" style="min-width:90px"></td>
     <td class="hide-sm"><input value="${esc(x.est)}" onchange="setItem(${i},'est',this.value)" style="min-width:60px"></td>
     <td class="hide-sm"><select onchange="pickItemSupplier(${i},this)" style="min-width:110px">${listOptions(supplierList(),x.supplier||'','—','+ Add new…')}</select></td>
-    <td><input type="number" step="0.01" value="${esc(x.netLbs)}" onchange="setItem(${i},'netLbs',this.value)" style="min-width:70px"></td>
+    <td><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.netLbs)}" onchange="setItem(${i},'netLbs',this.value)" style="min-width:70px"></td>
     <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="8" class="empty">Scan the first box label or add it manually.</td></tr>';
 }
 function pickItemSupplier(i,sel){
@@ -592,6 +595,8 @@ function exportDay(){
   XLSX.writeFile(wb,'Batches_'+plant+'_'+d+'.xlsx');
 }
 
+/* keep dialogs above the on-screen keyboard */
+(function(){const vv=window.visualViewport;if(!vv)return;const fit=()=>{const kb=window.innerHeight-vv.height>120;document.body.classList.toggle('kb-open',kb);document.documentElement.style.setProperty('--vvh',vv.height+'px');document.documentElement.style.setProperty('--vvt',vv.offsetTop+'px');if(kb){const a=document.activeElement;if(a&&a.closest&&a.closest('.modal'))setTimeout(()=>a.scrollIntoView({block:'center',behavior:'smooth'}),60);}};vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);})();
 /* ---------- start ---------- */
 (function(){
   try{if(localStorage.getItem('wms_theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch(e){}
