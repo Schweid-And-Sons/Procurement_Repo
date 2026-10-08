@@ -667,6 +667,7 @@
   .nav-btn{border:none!important;background:var(--fill)!important;border-radius:10px!important;color:var(--text2)!important;text-transform:none!important;letter-spacing:0!important;font-size:12px!important;font-weight:600;padding:7px 2px!important;}
   .nav-btn.active{background:var(--accent)!important;color:#fff!important;box-shadow:0 3px 10px color-mix(in srgb,var(--accent) 35%,transparent);}
   .mode-tabs,.stats-subtabs{background:var(--fill);border-radius:10px;padding:2px;gap:2px!important;display:inline-flex!important;}
+  .mode-tabs.mode-tabs-off{display:none!important;}
   .mode-tab,.stats-subtab{border:none!important;border-radius:8px!important;background:transparent!important;color:var(--text)!important;text-transform:none!important;letter-spacing:0!important;font-size:13px!important;font-weight:500;}
   .mode-tab.active,.stats-subtab.active{background:var(--surface)!important;color:var(--text)!important;font-weight:600;box-shadow:0 3px 8px rgba(0,0,0,.12),0 1px 1px rgba(0,0,0,.04);}
   html.theme-dark .mode-tab.active,html.theme-dark .stats-subtab.active{background:#636366!important;}
@@ -2222,7 +2223,7 @@ function setView(v){
   closeSidebar();
   document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['map','items','stats','plan','log'][i]===v));
   document.getElementById('view-title').textContent={map:'Warehouse Map',items:'Item Inventory',locations:'Location Detail',stats:'Statistics',plan:'Daily Plan',log:'Activity Log'}[v];
-  document.getElementById('mode-tabs').style.display=v==='map'?'':'none';
+  document.getElementById('mode-tabs').classList.toggle('mode-tabs-off',v!=='map');
   
   ['map','items','stats','plan','log'].forEach(tab=>{
     const b=document.getElementById('bnav-'+tab);
