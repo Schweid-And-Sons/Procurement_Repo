@@ -825,7 +825,9 @@
   /* — keyboard open (iPad/iPhone): dialog sits right above the keyboard, Save always visible — */
   body.kb-open .modal-overlay:not(.hidden){top:var(--vvt,0px)!important;bottom:auto!important;height:var(--vvh,100%)!important;align-items:flex-end!important;padding:8px 0!important;}
   body.kb-open .modal-overlay:not(.hidden)>.modal{max-height:calc(var(--vvh,100vh) - 16px)!important;overflow-y:auto!important;border-radius:22px!important;padding-bottom:0!important;}
-  body.kb-open #modal-item-list{max-height:120px!important;}
+  body.kb-open #modal-item-list{max-height:200px!important;}
+  .modal-item-card{flex-direction:row!important;flex-wrap:wrap;align-items:baseline;column-gap:8px;padding:10px 12px!important;}
+  .modal-item-card .mic-phys{flex-basis:100%;}
   .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:linear-gradient(to bottom,transparent,var(--glass-strong) 30%);padding:12px 0 14px;margin-top:6px;}
   /* — scrollbars — */
   *::-webkit-scrollbar{width:8px;height:8px;}
@@ -1010,7 +1012,7 @@ try{
         oninput="filterModalItems(this.value)">
     </div>
     <input type="hidden" id="modal-item" value="">
-    <div id="modal-item-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;background:var(--surface2);"></div>
+    <div id="modal-item-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;background:var(--surface2);"></div>
     <label>Qty <span style="color:var(--text3);font-size:9px">(cases / units / rolls — what you count)</span></label>
     <input type="text" id="modal-qty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="e.g. 1000">
     <div class="mx-wrap">
@@ -1101,7 +1103,7 @@ try{
     </div>
     <div id="cs-pin-wrap">
       <label>PIN to confirm</label>
-      <input type="password" id="cs-pin-input" maxlength="8" placeholder="Enter PIN" 
+      <input type="password" id="cs-pin-input" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" placeholder="Enter PIN" 
         style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:14px;letter-spacing:.3em;margin-bottom:12px;"
         onkeydown="if(event.key==='Enter')submitClearSection()">
     </div>
@@ -4558,44 +4560,98 @@ async function autoLoadIfEmpty(){
   }catch(e){/* silencioso — si falla, se queda vacío/local, no interrumpe el arranque */}
 }
 
-/* iPad numeric keypad: iPadOS has no numbers-only keyboard (inputmode=numeric shows the full
-   number/symbol layout), so on iPad the quantity fields use this in-app keypad instead. */
+/* iPad numeric keypad + basic calculator. iPadOS has no numbers-only keyboard (inputmode=numeric
+   shows the full number/symbol layout), so on iPad numeric fields use this in-app keypad instead.
+   Operators let you type e.g. 24×40 and the field receives 960 (on =, Enter, ⌄ or leaving the field). */
 (function(){
   const ua=navigator.userAgent;
   const isIPad=(/iPad/.test(ua)||/Macintosh/.test(ua))&&navigator.maxTouchPoints>1;
   if(!isIPad)return;
   const css=`
-  .numpad{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:1000;width:min(440px,calc(100vw - 20px));
-    padding:10px;border-radius:24px;background:rgba(242,242,247,.92);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
-    box-shadow:0 12px 40px rgba(0,0,0,.28);display:grid;grid-template-columns:repeat(4,1fr);gap:8px;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
+  .numpad{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:1000;width:min(520px,calc(100vw - 20px));
+    padding:8px 10px 10px;border-radius:24px;background:rgba(242,242,247,.94);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+    box-shadow:0 12px 40px rgba(0,0,0,.28);display:grid;grid-template-columns:repeat(3,1fr) 1fr 1fr;gap:8px;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
   .numpad.hidden{display:none;}
-  .numpad button{height:58px;border:none;border-radius:14px;background:#fff;color:#000;font:600 24px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;box-shadow:0 1px 0 rgba(0,0,0,.18);cursor:pointer;}
+  .numpad .np-disp{grid-column:1/-1;min-height:24px;padding:0 6px;text-align:right;font:500 17px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .numpad .np-disp b{color:#000;font-weight:700;}
+  .numpad .np-disp.err b{color:#ff3b30;}
+  .numpad button{height:52px;border:none;border-radius:14px;background:#fff;color:#000;font:600 24px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;box-shadow:0 1px 0 rgba(0,0,0,.18);cursor:pointer;}
   .numpad button:active{background:#d1d1d6;}
   .numpad .np-fn{background:#d1d5db;font-size:18px;}
-  .numpad .np-enter{grid-row:span 2;height:auto;background:#007aff;color:#fff;font-size:19px;}
+  .numpad .np-op{background:#e5e7eb;color:#ff9500;font-size:26px;}
+  .numpad .np-op:active{background:#ff9500;color:#fff;}
+  .numpad .np-eq{background:#ff9500;color:#fff;font-size:26px;}
+  .numpad .np-enter{background:#007aff;color:#fff;font-size:18px;}
   .numpad .np-enter:active{background:#0062cc;}
-  .numpad button:disabled{opacity:0;pointer-events:none;}
-  body.np-open .content,body.np-open{padding-bottom:340px!important;}
-  body.np-open .modal-overlay:not(.hidden),body.np-open .ov:not(.hidden){top:0!important;height:100%!important;padding-bottom:var(--nph,320px)!important;}
-  body.np-open .modal-overlay:not(.hidden)>.modal,body.np-open .ov:not(.hidden) .modal{max-height:calc(100% - 16px)!important;}
-  html.theme-dark .numpad{background:rgba(28,28,30,.92);}
+  .numpad button:disabled{opacity:.25;pointer-events:none;}
+  .numpad button.np-gone{visibility:hidden;}
+  body.np-open .content,body.np-open{padding-bottom:380px!important;}
+  body.np-open .modal-overlay:not(.hidden),body.np-open .ov:not(.hidden){top:0!important;height:100%!important;padding-bottom:var(--nph,360px)!important;}
+  body.np-open .modal-overlay:not(.hidden)>.modal,body.np-open .ov:not(.hidden) .modal{max-height:calc(var(--npavail,60vh) - 16px)!important;overflow-y:auto!important;}
+  html.theme-dark .numpad{background:rgba(28,28,30,.94);}
   html.theme-dark .numpad button{background:#3a3a3c;color:#fff;box-shadow:none;}
   html.theme-dark .numpad .np-fn{background:#2c2c2e;}
-  html.theme-dark .numpad .np-enter{background:#0a84ff;}`;
+  html.theme-dark .numpad .np-op{background:#2c2c2e;color:#ff9f0a;}
+  html.theme-dark .numpad .np-eq{background:#ff9f0a;color:#fff;}
+  html.theme-dark .numpad .np-enter{background:#0a84ff;}
+  html.theme-dark .numpad .np-disp b{color:#fff;}`;
   const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 
   const pad=document.createElement('div');pad.className='numpad hidden';pad.id='numpad';
-  const keys=[['7'],['8'],['9'],['⌫','back','np-fn'],['4'],['5'],['6'],['C','clear','np-fn'],['1'],['2'],['3'],['Enter','enter','np-enter'],['⌄','hide','np-fn'],['0'],['.','dot']];
-  pad.innerHTML=keys.map(k=>`<button type="button" data-k="${k[1]||k[0]}" class="${k[2]||''}" aria-label="${k[1]||k[0]}">${k[0]}</button>`).join('');
+  const keys=[
+    ['7'],['8'],['9'],['÷','div','np-op'],['⌫','back','np-fn'],
+    ['4'],['5'],['6'],['×','mul','np-op'],['C','clear','np-fn'],
+    ['1'],['2'],['3'],['−','sub','np-op'],['=','eq','np-eq'],
+    ['⌄','hide','np-fn'],['0'],['.','dot'],['+','add','np-op'],['Enter','enter','np-enter']];
+  pad.innerHTML='<div class="np-disp" id="np-disp"></div>'+keys.map(k=>`<button type="button" data-k="${k[1]||k[0]}" class="${k[2]||''}" aria-label="${k[1]||k[0]}">${k[0]}</button>`).join('');
   document.body.appendChild(pad);
+  const disp=pad.querySelector('#np-disp');
+  const OPS={add:'+',sub:'−',mul:'×',div:'÷'};
+  const OPCH='+−×÷';
   let target=null,startVal='';
 
   // Mark numeric fields: remember their mode and silence the system keyboard.
-  const mark=root=>{(root.querySelectorAll?root:document).querySelectorAll('input[inputmode="numeric"],input[inputmode="decimal"]').forEach(el=>{
+  const SEL='input[inputmode="numeric"],input[inputmode="decimal"]';
+  const mark=root=>{(root.querySelectorAll?root:document).querySelectorAll(SEL).forEach(el=>{
     el.dataset.np=el.getAttribute('inputmode');el.setAttribute('inputmode','none');});};
   mark(document);
-  new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1){if(n.matches&&n.matches('input[inputmode="numeric"],input[inputmode="decimal"]'))mark(n.parentNode||document);else mark(n);}})
+  new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1){if(n.matches&&n.matches(SEL))mark(n.parentNode||document);else mark(n);}})
     .observe(document.body,{childList:true,subtree:true});
+
+  // --- calculator ---
+  const hasOp=v=>/[+−×÷]/.test(v.replace(/^−/,''));
+  const calc=v=>{ // returns number, or null if invalid
+    const toks=v.match(/\d*\.?\d+|\d+\.|[+−×÷]/g);
+    if(!toks||toks.join('')!==v.replace(/\s/g,''))return null;
+    if(OPCH.includes(toks[toks.length-1]))toks.pop();          // ignore a trailing operator
+    if(!toks.length||OPCH.includes(toks[0]))return null;
+    const nums=[parseFloat(toks[0])],ops=[];
+    for(let i=1;i<toks.length;i+=2){
+      const op=toks[i],n=parseFloat(toks[i+1]);
+      if(isNaN(n))return null;
+      if(op==='×')nums[nums.length-1]*=n;
+      else if(op==='÷'){if(n===0)return null;nums[nums.length-1]/=n;}
+      else{ops.push(op);nums.push(n);}
+    }
+    let r=nums[0];ops.forEach((op,i)=>{r=op==='+'?r+nums[i+1]:r-nums[i+1];});
+    return isFinite(r)?r:null;
+  };
+  const fmt=(r,el)=>{
+    if(el.dataset.np!=='decimal')return String(Math.round(r));
+    return String(Math.round(r*100)/100);
+  };
+  const showDisp=()=>{
+    if(!target||!hasOp(target.value)){disp.textContent='';disp.classList.remove('err');return;}
+    const r=calc(target.value);
+    disp.classList.toggle('err',r===null);
+    disp.innerHTML=target.value.replace(/[+−×÷]/g,m=>' '+m+' ')+' = <b>'+(r===null?'Error':fmt(r,target))+'</b>';
+  };
+  const resolve=el=>{ // replace an expression in the field by its result
+    if(!el||!hasOp(el.value))return true;
+    const r=calc(el.value);
+    if(r===null){showDisp();return false;}
+    el.value=fmt(r,el);fire(el,'input');showDisp();return true;
+  };
 
   const fit=()=>{
     const h=pad.getBoundingClientRect().height+20;
@@ -4603,6 +4659,8 @@ async function autoLoadIfEmpty(){
     document.documentElement.style.setProperty('--vvh',(window.innerHeight-h)+'px');
     document.documentElement.style.setProperty('--vvt','0px');
     document.documentElement.style.setProperty('--nph',(h+8)+'px');
+    const vh=(window.visualViewport?window.visualViewport.height:window.innerHeight);
+    document.documentElement.style.setProperty('--npavail',Math.max(240,vh-h-8)+'px');
     if(target&&target.closest&&target.closest('.modal,.plan-table,table')){
       const r=target.getBoundingClientRect();
       if(r.bottom>window.innerHeight-h-10)setTimeout(()=>target.scrollIntoView({block:'center',behavior:'smooth'}),40);
@@ -4610,26 +4668,33 @@ async function autoLoadIfEmpty(){
   };
   const open=el=>{
     target=el;startVal=el.value;pad.classList.remove('hidden');
-    pad.querySelector('[data-k="dot"]').disabled=el.dataset.np!=='decimal';
-    fit();
+    const pw=el.type==='password';
+    pad.querySelector('[data-k="dot"]').classList.toggle('np-gone',el.dataset.np!=='decimal');
+    pad.querySelectorAll('.np-op,.np-eq').forEach(b=>b.disabled=pw);
+    showDisp();fit();
   };
   const close=()=>{
-    target=null;pad.classList.add('hidden');
+    target=null;pad.classList.add('hidden');disp.textContent='';
     document.body.classList.remove('np-open','kb-open');
   };
+  const fire=(el,type)=>el.dispatchEvent(new Event(type,{bubbles:true}));
+  const commit=el=>{
+    if(el&&hasOp(el.value)&&!resolve(el))el.value=startVal;   // invalid expression → keep previous value
+    if(el&&el.value!==startVal){startVal=el.value;fire(el,'change');}
+  };
   document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);else if(target)close();});
-  const commit=el=>{if(el&&el.value!==startVal){startVal=el.value;fire(el,'change');}};
   document.addEventListener('focusout',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},0);});
   window.addEventListener('resize',()=>{if(target)fit();});
 
-  const fire=(el,type)=>el.dispatchEvent(new Event(type,{bubbles:true}));
   pad.addEventListener('pointerdown',e=>e.preventDefault()); // keep focus in the field
   pad.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b||!target)return;
     const k=b.dataset.k,el=target;
     let s=el.selectionStart??el.value.length,en=el.selectionEnd??el.value.length;
     if(k==='hide'){commit(el);el.blur();close();return;}
+    if(k==='eq'){resolve(el);el.setSelectionRange&&el.setSelectionRange(el.value.length,el.value.length);showDisp();return;}
     if(k==='enter'){
+      if(!resolve(el))return;                                   // fix the expression first
       commit(el);
       const ev={key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true};
       el.dispatchEvent(new KeyboardEvent('keydown',ev));el.dispatchEvent(new KeyboardEvent('keyup',ev));
@@ -4640,12 +4705,20 @@ async function autoLoadIfEmpty(){
     else if(k==='back'){
       if(s===en&&s>0)s--;
       el.setRangeText('',s,en,'end');
+    } else if(OPS[k]){
+      const op=OPS[k];
+      if(s!==en){el.setRangeText('',s,en,'end');s=en=el.selectionStart;}
+      const prev=el.value.slice(0,s).slice(-1);
+      if(!prev)return;                                          // no operator at the start
+      if(OPCH.includes(prev))el.setRangeText(op,s-1,s,'end');   // swap operator
+      else el.setRangeText(op,s,en,'end');
     } else {
       const ch=k==='dot'?'.':k;
-      if(ch==='.'&&el.value.includes('.')&&!el.value.slice(s,en).includes('.'))return;
+      if(el.maxLength>0&&s===en&&el.value.length>=el.maxLength&&!hasOp(el.value))return;
+      if(ch==='.'){const seg=el.value.slice(0,s).split(/[+−×÷]/).pop();if(seg.includes('.'))return;}
       el.setRangeText(ch,s,en,'end');
     }
-    fire(el,'input');
+    fire(el,'input');showDisp();
   });
 })();
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
