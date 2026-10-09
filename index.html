@@ -828,7 +828,17 @@
   body.kb-open #modal-item-list{max-height:200px!important;}
   .modal-item-card{flex-direction:row!important;flex-wrap:wrap;align-items:baseline;column-gap:8px;padding:10px 12px!important;}
   .modal-item-card .mic-phys{flex-basis:100%;}
-  .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:linear-gradient(to bottom,transparent,var(--glass-strong) 30%);padding:12px 0 14px;margin-top:6px;}
+  /* — dialogs: one solid "grouped" sheet with white cards (iOS Settings look) so nothing shows a colour seam — */
+  :root{--sheet:#f2f2f7;--card:#ffffff;}
+  html.theme-dark,body.theme-dark{--sheet:#1c1c1e;--card:#2c2c2e;}
+  .modal,.ro-modal,.pin-modal,.custom-item-modal,.iloc-box,.sec-panel{background:var(--sheet)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;}
+  .modal input[type=text],.modal input[type=password],.modal input[type=number],.modal select,.modal .search-box{background:var(--card)!important;box-shadow:none;}
+  .modal input:focus,.modal select:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)!important;}
+  #modal-item-list{background:var(--card)!important;border:none!important;}
+  #modal-item-list>div:not(.modal-item-card){background:transparent!important;border:none!important;padding:10px 12px 2px!important;font-size:10px!important;font-weight:600;letter-spacing:.06em!important;}
+  .modal-item-card{border-bottom:.5px solid var(--border)!important;}
+  .modal .mx-wrap{background:var(--card)!important;box-shadow:none!important;}
+  .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:var(--sheet);padding:12px 0 14px;margin-top:6px;box-shadow:0 -10px 12px -8px var(--sheet);}
   /* — scrollbars — */
   *::-webkit-scrollbar{width:8px;height:8px;}
   *::-webkit-scrollbar-thumb{background:rgba(120,120,128,.35);border-radius:8px;}
