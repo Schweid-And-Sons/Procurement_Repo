@@ -622,7 +622,7 @@ function exportDay(){
   .numpad button:disabled{opacity:.25;pointer-events:none;}
   .numpad button.np-gone{visibility:hidden;}
   body.np-open .content,body.np-open{padding-bottom:380px!important;}
-  body.np-open .modal-overlay:not(.hidden),body.np-open .ov:not(.hidden){top:0!important;height:100%!important;padding-bottom:var(--nph,360px)!important;}
+  body.np-open .modal-overlay:not(.hidden),body.np-open .ov:not(.hidden){top:0!important;bottom:0!important;left:0!important;right:0!important;height:auto!important;box-sizing:border-box!important;padding:8px 0 var(--nph,360px)!important;align-items:flex-end!important;}
   body.np-open .modal-overlay:not(.hidden)>.modal,body.np-open .ov:not(.hidden) .modal{max-height:calc(var(--npavail,60vh) - 16px)!important;overflow-y:auto!important;}
   html.theme-dark .numpad{background:rgba(28,28,30,.94);}
   html.theme-dark .numpad button{background:#3a3a3c;color:#fff;box-shadow:none;}
@@ -690,13 +690,16 @@ function exportDay(){
   };
 
   const fit=()=>{
-    const h=pad.getBoundingClientRect().height+20;
+    // Space really taken from the bottom (includes the home-indicator safe area) + a visible gap.
+    const GAP=18;
+    const h=Math.max(0,window.innerHeight-pad.getBoundingClientRect().top)+GAP;
     document.body.classList.add('np-open','kb-open');
     document.documentElement.style.setProperty('--vvh',(window.innerHeight-h)+'px');
     document.documentElement.style.setProperty('--vvt','0px');
-    document.documentElement.style.setProperty('--nph',(h+8)+'px');
-    const vh=(window.visualViewport?window.visualViewport.height:window.innerHeight);
-    document.documentElement.style.setProperty('--npavail',Math.max(240,vh-h-8)+'px');
+    const padTop=pad.getBoundingClientRect().top;
+    document.documentElement.style.setProperty('--nph',(window.innerHeight-padTop+GAP)+'px');
+    document.documentElement.style.setProperty('--npov',Math.max(260,padTop-GAP)+'px');
+    document.documentElement.style.setProperty('--npavail',Math.max(240,padTop-GAP-16)+'px');
     if(target&&target.closest&&target.closest('.modal,.plan-table,table')){
       const r=target.getBoundingClientRect();
       if(r.bottom>window.innerHeight-h-10)setTimeout(()=>target.scrollIntoView({block:'center',behavior:'smooth'}),40);
