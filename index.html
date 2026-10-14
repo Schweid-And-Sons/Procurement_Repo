@@ -838,6 +838,7 @@
   #modal-item-list>div:not(.modal-item-card){background:transparent!important;border:none!important;padding:10px 12px 2px!important;font-size:10px!important;font-weight:600;letter-spacing:.06em!important;}
   .modal-item-card{border-bottom:.5px solid var(--border)!important;}
   .modal .mx-wrap{background:var(--card)!important;box-shadow:none!important;}
+  body .modal input.np-fresh,body input.np-fresh{font-weight:600;color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 20%,var(--card,#fff))!important;}
   .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:var(--sheet);padding:12px 0 14px;margin-top:6px;box-shadow:0 -10px 12px -8px var(--sheet);}
   /* — scrollbars — */
   *::-webkit-scrollbar{width:8px;height:8px;}
@@ -4582,6 +4583,7 @@ async function autoLoadIfEmpty(){
     padding:8px 10px 10px;border-radius:24px;background:rgba(242,242,247,.94);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
     box-shadow:0 12px 40px rgba(0,0,0,.28);display:grid;grid-template-columns:repeat(3,1fr) 1fr 1fr;gap:8px;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
   .numpad.hidden{display:none;}
+  body .modal input.np-fresh,body input.np-fresh{font-weight:600;color:var(--accent,#007aff)!important;background:color-mix(in srgb,var(--accent,#007aff) 20%,var(--card,#fff))!important;}
   .numpad .np-disp{grid-column:1/-1;min-height:24px;padding:0 6px;text-align:right;font:500 17px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .numpad .np-disp b{color:#000;font-weight:700;}
   .numpad .np-disp.err b{color:#ff3b30;}
@@ -4618,7 +4620,8 @@ async function autoLoadIfEmpty(){
   const disp=pad.querySelector('#np-disp');
   const OPS={add:'+',sub:'−',mul:'×',div:'÷'};
   const OPCH='+−×÷';
-  let target=null,startVal='';
+  let target=null,startVal='',fresh=false;
+  const setFresh=(el,v)=>{fresh=v;if(el)el.classList.toggle('np-fresh',v);};
 
   // Mark numeric fields: remember their mode and silence the system keyboard.
   const SEL='input[inputmode="numeric"],input[inputmode="decimal"]';
@@ -4681,12 +4684,14 @@ async function autoLoadIfEmpty(){
   };
   const open=el=>{
     target=el;startVal=el.value;pad.classList.remove('hidden');
+    setFresh(el,el.value!==''&&el.type!=='password');
     const pw=el.type==='password';
     pad.querySelector('[data-k="dot"]').classList.toggle('np-gone',el.dataset.np!=='decimal');
     pad.querySelectorAll('.np-op,.np-eq').forEach(b=>b.disabled=pw);
     showDisp();fit();
   };
   const close=()=>{
+    if(target)target.classList.remove('np-fresh');fresh=false;
     target=null;pad.classList.add('hidden');disp.textContent='';
     document.body.classList.remove('np-open','kb-open');
   };
@@ -4714,6 +4719,11 @@ async function autoLoadIfEmpty(){
       if(document.activeElement===el){el.blur();}
       close();return;
     }
+    if(fresh){                                   // value highlighted: digits replace it, operators continue it
+      setFresh(el,false);
+      if(k==='back'||(!OPS[k])){el.value='';s=en=0;if(k==='back'){fire(el,'input');showDisp();return;}}
+      else{s=en=el.value.length;el.setSelectionRange&&el.setSelectionRange(s,s);}
+    }
     if(k==='clear'){el.value='';}
     else if(k==='back'){
       if(s===en&&s>0)s--;
@@ -4733,6 +4743,18 @@ async function autoLoadIfEmpty(){
     }
     fire(el,'input');showDisp();
   });
+})();
+/* Qty fields: on focus the current value is highlighted, so typing replaces it and Enter keeps it. */
+(function(){
+  const SEL='#modal-qty,.mx-qty,.plan-delivered-input';
+  document.addEventListener('focusin',e=>{
+    const el=e.target;if(!(el&&el.matches&&el.matches(SEL))||el.value==='')return;
+    if(el.getAttribute('inputmode')==='none')return;            // iPad keypad handles it
+    el.classList.add('np-fresh');
+    setTimeout(()=>{try{el.setSelectionRange(0,el.value.length);}catch(_){el.select();}},0);
+  });
+  const off=e=>{const el=e.target;if(el&&el.classList&&el.getAttribute('inputmode')!=='none')el.classList.remove('np-fresh');};
+  document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

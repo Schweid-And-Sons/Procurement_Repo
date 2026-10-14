@@ -608,6 +608,7 @@ function exportDay(){
     padding:8px 10px 10px;border-radius:24px;background:rgba(242,242,247,.94);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
     box-shadow:0 12px 40px rgba(0,0,0,.28);display:grid;grid-template-columns:repeat(3,1fr) 1fr 1fr;gap:8px;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
   .numpad.hidden{display:none;}
+  body .modal input.np-fresh,body input.np-fresh{font-weight:600;color:var(--accent,#007aff)!important;background:color-mix(in srgb,var(--accent,#007aff) 20%,var(--card,#fff))!important;}
   .numpad .np-disp{grid-column:1/-1;min-height:24px;padding:0 6px;text-align:right;font:500 17px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .numpad .np-disp b{color:#000;font-weight:700;}
   .numpad .np-disp.err b{color:#ff3b30;}
@@ -644,7 +645,8 @@ function exportDay(){
   const disp=pad.querySelector('#np-disp');
   const OPS={add:'+',sub:'−',mul:'×',div:'÷'};
   const OPCH='+−×÷';
-  let target=null,startVal='';
+  let target=null,startVal='',fresh=false;
+  const setFresh=(el,v)=>{fresh=v;if(el)el.classList.toggle('np-fresh',v);};
 
   // Mark numeric fields: remember their mode and silence the system keyboard.
   const SEL='input[inputmode="numeric"],input[inputmode="decimal"]';
@@ -707,12 +709,14 @@ function exportDay(){
   };
   const open=el=>{
     target=el;startVal=el.value;pad.classList.remove('hidden');
+    setFresh(el,el.value!==''&&el.type!=='password');
     const pw=el.type==='password';
     pad.querySelector('[data-k="dot"]').classList.toggle('np-gone',el.dataset.np!=='decimal');
     pad.querySelectorAll('.np-op,.np-eq').forEach(b=>b.disabled=pw);
     showDisp();fit();
   };
   const close=()=>{
+    if(target)target.classList.remove('np-fresh');fresh=false;
     target=null;pad.classList.add('hidden');disp.textContent='';
     document.body.classList.remove('np-open','kb-open');
   };
@@ -739,6 +743,11 @@ function exportDay(){
       el.dispatchEvent(new KeyboardEvent('keydown',ev));el.dispatchEvent(new KeyboardEvent('keyup',ev));
       if(document.activeElement===el){el.blur();}
       close();return;
+    }
+    if(fresh){                                   // value highlighted: digits replace it, operators continue it
+      setFresh(el,false);
+      if(k==='back'||(!OPS[k])){el.value='';s=en=0;if(k==='back'){fire(el,'input');showDisp();return;}}
+      else{s=en=el.value.length;el.setSelectionRange&&el.setSelectionRange(s,s);}
     }
     if(k==='clear'){el.value='';}
     else if(k==='back'){
