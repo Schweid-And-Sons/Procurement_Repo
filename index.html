@@ -839,6 +839,7 @@
   .modal-item-card{border-bottom:.5px solid var(--border)!important;}
   .modal .mx-wrap{background:var(--card)!important;box-shadow:none!important;}
   body .modal input.np-fresh,body input.np-fresh{font-weight:600;color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 20%,var(--card,#fff))!important;}
+  .mx-qty.mx-missing{box-shadow:0 0 0 2px #ff3b30!important;}
   .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:var(--sheet);padding:12px 0 14px;margin-top:6px;box-shadow:0 -10px 12px -8px var(--sheet);}
   /* — scrollbars — */
   *::-webkit-scrollbar{width:8px;height:8px;}
@@ -2078,7 +2079,7 @@ function renderModalExtras(){
   wrap.innerHTML=_modalExtras.map(function(e,i){
     var it=ITEMS.find(function(x){return x.code===e.item;});
     return '<div class="mx-row"><span class="mx-code">'+e.item+'</span><span class="mx-name">'+(it?it.name:'')+'</span>'
-      +'<input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="mx-qty" id="mx-qty-'+i+'" placeholder="Qty" value="'+(e.qty===''||e.qty==null?'':e.qty)+'" oninput="_modalExtras['+i+'].qty=this.value">'
+      +'<input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="mx-qty" id="mx-qty-'+i+'" placeholder="Qty" value="'+(e.qty===''||e.qty==null?'':e.qty)+'" oninput="_modalExtras['+i+'].qty=this.value;this.classList.remove(\'mx-missing\')">'
       +'<button type="button" class="mx-del" title="Remove from pallet" onclick="removeExtra('+i+')">✕</button></div>';
   }).join('');
   var n=1+_modalExtras.length;
@@ -2089,8 +2090,14 @@ function renderModalExtras(){
   var hint=document.getElementById('mx-hint');
   if(hint)hint.style.display=_pickTarget==='extra'?'':'none';
 }
+function focusMissingExtra(i){
+  var q=document.getElementById('mx-qty-'+i);
+  if(q){q.classList.add('mx-missing');q.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(function(){q.focus();},60);}
+}
 function startAddExtra(){
   if(!document.getElementById('modal-item').value){showToast('Select the main (anchor) item first.','error');return;}
+  var pend=_modalExtras.findIndex(function(e){return !(parseInt(e.qty)>0);});
+  if(pend>=0){showToast('Enter the qty for '+_modalExtras[pend].item+' first.','error');focusMissingExtra(pend);return;}
   if(1+_modalExtras.length>=MAX_ITEMS_PER_POS){showToast('Max '+MAX_ITEMS_PER_POS+' items per position.','error');return;}
   _pickTarget='extra';
   var se=document.getElementById('modal-item-search');
@@ -2182,7 +2189,7 @@ function saveLocation(){
   const merged=[];
   for(const e of _modalExtras){
     const eq=parseInt(e.qty);
-    if(!eq||eq<1){showToast('Enter a qty for '+e.item+' (or remove it).','error');return;}
+    if(!eq||eq<1){showToast('Enter a qty for '+e.item+' (or remove it).','error');focusMissingExtra(_modalExtras.indexOf(e));return;}
     if(e.item===item){mainQty+=eq;continue;}
     const m=merged.find(x=>x.item===e.item);
     if(m)m.qty+=eq;else merged.push({item:e.item,qty:eq});
@@ -4700,8 +4707,8 @@ async function autoLoadIfEmpty(){
     if(el&&hasOp(el.value)&&!resolve(el))el.value=startVal;   // invalid expression → keep previous value
     if(el&&el.value!==startVal){startVal=el.value;fire(el,'change');}
   };
-  document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);else if(target)close();});
-  document.addEventListener('focusout',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},0);});
+  document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);});  // closing is left to focusout (delayed)
+  document.addEventListener('focusout',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},350);});
   window.addEventListener('resize',()=>{if(target)fit();});
 
   pad.addEventListener('pointerdown',e=>e.preventDefault()); // keep focus in the field

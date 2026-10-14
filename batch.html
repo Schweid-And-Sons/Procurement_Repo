@@ -725,8 +725,8 @@ function exportDay(){
     if(el&&hasOp(el.value)&&!resolve(el))el.value=startVal;   // invalid expression → keep previous value
     if(el&&el.value!==startVal){startVal=el.value;fire(el,'change');}
   };
-  document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);else if(target)close();});
-  document.addEventListener('focusout',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},0);});
+  document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);});  // closing is left to focusout (delayed)
+  document.addEventListener('focusout',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},350);});
   window.addEventListener('resize',()=>{if(target)fit();});
 
   pad.addEventListener('pointerdown',e=>e.preventDefault()); // keep focus in the field
