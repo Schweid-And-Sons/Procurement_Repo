@@ -839,6 +839,9 @@
   .modal-item-card{border-bottom:.5px solid var(--border)!important;}
   .modal .mx-wrap{background:var(--card)!important;box-shadow:none!important;}
   body .modal input.np-fresh,body input.np-fresh{font-weight:600;color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 20%,var(--card,#fff))!important;}
+  .app-ver{font-size:10px;color:var(--text3);opacity:.7;margin-top:3px;letter-spacing:.02em;}
+  .plant-box .app-ver{text-align:center;margin-top:14px;}
+  #modal-qty.qty-missing{box-shadow:0 0 0 2px #ff3b30!important;}
   .mx-qty.mx-missing{box-shadow:0 0 0 2px #ff3b30!important;}
   .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:var(--sheet);padding:12px 0 14px;margin-top:6px;box-shadow:0 -10px 12px -8px var(--sheet);}
   /* — scrollbars — */
@@ -877,6 +880,7 @@ try{
       <span class="pb-code">BATCH</span><span class="pb-name">🥩 BATCH SHEETS</span><span class="pb-sum" id="plant-sum-BATCH"></span>
     </button>
     <label class="plant-rem"><input type="checkbox" id="plant-remember"> Remember this plant on this device</label>
+    <div class="app-ver">v <span class="app-ver-num"></span></div>
   </div>
 </div>
 <div class="app">
@@ -887,6 +891,7 @@ try{
       <h1>Schweid &amp; Sons · WMS</h1>
       <div class="sub">NJ · Direct Materials Inventory</div>
       <div class="credit">Julian Dominguez · Inventory Control Specialist</div>
+      <div class="app-ver">v <span class="app-ver-num"></span></div>
     </div>
     <div class="nav">
       <button class="nav-btn active" onclick="setView('map')">Map</button>
@@ -1026,7 +1031,7 @@ try{
     <input type="hidden" id="modal-item" value="">
     <div id="modal-item-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;background:var(--surface2);"></div>
     <label>Qty <span style="color:var(--text3);font-size:9px">(cases / units / rolls — what you count)</span></label>
-    <input type="text" id="modal-qty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="e.g. 1000">
+    <input type="text" id="modal-qty" oninput="this.classList.remove('qty-missing')" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="e.g. 1000">
     <div class="mx-wrap">
       <div class="mx-title">Mixed pallet — additional items <span id="mx-count"></span></div>
       <div id="modal-extras"></div>
@@ -2037,7 +2042,7 @@ function openModal(id){
     var lbl=document.getElementById('modal-selected-label');
     var listEl=document.getElementById('modal-item-list');
     if(searchEl)searchEl.value='';
-    if(qtyEl)qtyEl.value='';
+    if(qtyEl){qtyEl.value='';qtyEl.classList.remove('qty-missing');}
     if(itemEl)itemEl.value='';
     if(lbl)lbl.textContent='';
     if(listEl)listEl.innerHTML='';
@@ -2182,8 +2187,17 @@ function closeModal(e){
 }
 function saveLocation(){
   const item=document.getElementById('modal-item').value;
-  const qty=parseInt(document.getElementById('modal-qty').value)||1;
+  const qtyEl=document.getElementById('modal-qty');
   if(!item){showToast('Tap an item from the list to select it.','error');return;}
+  let qty=parseInt(qtyEl.value);
+  if(!(qty>0)){
+    if(/^NON-DM/.test(item)&&qtyEl.value.trim()===''){qty=1;}          // non-tracked "occupied" marker: qty optional
+    else{
+      showToast(qtyEl.value.trim()===''?'Enter the qty for '+item+'.':'Qty must be greater than 0 (use Clear Location to empty it).','error');
+      qtyEl.classList.add('qty-missing');qtyEl.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(function(){qtyEl.focus();},60);
+      return;
+    }
+  }
   // Validate + merge extras: same code twice never creates two lines; same code as the anchor adds to the anchor.
   let mainQty=qty;
   const merged=[];
@@ -4763,6 +4777,9 @@ async function autoLoadIfEmpty(){
   const off=e=>{const el=e.target;if(el&&el.classList&&el.getAttribute('inputmode')!=='none')el.classList.remove('np-fresh');};
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
+/* App version — change on every delivery so the device shows which build it loaded. */
+const APP_VERSION='2026.10.15';
+document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
   const vv=window.visualViewport; if(!vv)return;
