@@ -843,6 +843,62 @@
   .plant-box .app-ver{text-align:center;margin-top:14px;}
   #modal-qty.qty-missing{box-shadow:0 0 0 2px #ff3b30!important;}
   #cs-preview{border:none!important;background:var(--card)!important;border-radius:12px!important;}
+  .mic-badge{flex:none!important;width:auto!important;max-width:max-content;margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.06em;padding:3px 7px;border-radius:7px;align-self:center;}
+  .mic-badge.main{background:rgba(255,255,255,.25);color:#fff;}
+  .mic-badge.on{background:#ff9500;color:#fff;}
+  .modal-item-card.on-pallet{background:color-mix(in srgb,#ff9500 14%,var(--card,#fff))!important;}
+  .modal-item-card.on-pallet .mic-code{color:#c2410c!important;}
+  #modal-item-list.picking-extra{box-shadow:0 0 0 2.5px #ff9500!important;}
+  #modal-item-list.picking-extra .modal-item-card.selected{background:color-mix(in srgb,var(--accent) 12%,var(--card,#fff))!important;color:inherit!important;}
+  #modal-item-list.picking-extra .modal-item-card.selected .mic-code{color:var(--accent)!important;}
+  #modal-item-list.picking-extra .modal-item-card.selected .mic-name{color:var(--text2)!important;}
+  #modal-item-list.picking-extra .mic-badge.main{background:var(--accent);color:#fff;}
+  #modal-item-list>div.pick-banner:not(.modal-item-card){position:sticky;top:0;z-index:3;background:#ff9500!important;color:#fff!important;font-size:12px!important;font-weight:700;letter-spacing:0!important;padding:8px 12px!important;}
+  .modal-item-card.just-picked{animation:pickFlash 1.2s ease;}
+  @keyframes pickFlash{0%,40%{background:#ff9500;color:#fff}100%{}}
+  .mx-row.mx-flash{animation:rowFlash 1.6s ease;border-radius:10px;}
+  @keyframes rowFlash{0%,35%{background:color-mix(in srgb,#ff9500 35%,transparent)}100%{background:transparent}}
+  /* — Sync History calendar (month view, big tap targets) — */
+  .cal2{background:var(--card,var(--surface));border-radius:18px;padding:12px 10px 10px;box-shadow:var(--shadow);}
+  .cal2-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .cal2-title{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.01em;}
+  .cal2-title span{color:var(--accent);font-weight:700;}
+  .cal2-nav{width:44px;height:44px;border-radius:50%;border:none;background:var(--fill);color:var(--accent);font-size:26px;line-height:1;cursor:pointer;}
+  .cal2-nav:active{transform:scale(.94);}
+  .cal2-chips{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;margin-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+  .cal2-chips::-webkit-scrollbar{display:none;}
+  .cal2-chip,.cal2-ychip{flex:none;border:none;border-radius:16px;padding:7px 11px;font:600 13px var(--font,inherit);background:var(--fill);color:var(--text2);cursor:pointer;position:relative;}
+  .cal2-ychip{background:transparent;color:var(--accent);}
+  .cal2-ychip:disabled{opacity:.3;}
+  .cal2-chip.has{color:var(--text);}
+  .cal2-chip.on{background:var(--accent);color:#fff;}
+  .cal2-chip i{font-style:normal;font-size:10px;font-weight:800;margin-left:5px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);border-radius:8px;padding:1px 5px;}
+  .cal2-chip.on i{background:rgba(255,255,255,.28);color:#fff;}
+  .cal2-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;touch-action:pan-y;}
+  .cal2-wd{font-size:11px;font-weight:700;color:var(--text3);text-align:center;padding:2px 0 4px;text-transform:uppercase;letter-spacing:.03em;}
+  .cal2-day{min-height:50px;border-radius:12px;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;font:inherit;color:var(--text3);}
+  .cal2-day b{font-size:16px;font-weight:500;}
+  .cal2-day.data{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--text);cursor:pointer;}
+  .cal2-day.data b{font-weight:800;}
+  .cal2-day.data:active{transform:scale(.94);}
+  .cal2-day em{display:flex;gap:3px;height:6px;}
+  .cal2-day em span{width:6px;height:6px;border-radius:50%;}
+  .cal2-day.today b{color:#ff3b30;font-weight:800;}
+  .cal2-day.sel{background:var(--accent)!important;color:#fff!important;box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 40%,transparent);}
+  .cal2-day.sel b{color:#fff!important;}
+  .cal2-day.sel em span{background:#fff!important;}
+  .cal2-legend{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:10px;font-size:11px;color:var(--text2);}
+  .cal2-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;}
+  .cal2-latest{margin-left:auto;border:none;background:transparent;color:var(--accent);font:600 13px var(--font,inherit);cursor:pointer;padding:6px 4px;}
+  .cal-day-panel .cal-day-title{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;}
+  .cal-day-panel .cal-day-title span{font-size:12px;color:var(--text3);font-weight:600;}
+  .cal-hint{color:var(--text3);font-size:12px;text-align:center;}
+  .cal-entry{display:flex;align-items:center;gap:8px;padding:10px 2px;border-bottom:.5px solid var(--border);}
+  .cal-entry:last-child{border-bottom:none;}
+  .cal-entry-dot{width:10px;height:10px;border-radius:50%;flex:none;}
+  .cal-entry-lbl{flex:1;font-size:14px;font-weight:600;color:var(--text);}
+  .cal-entry-btn{border:none;border-radius:10px;padding:9px 12px;font:600 13px var(--font,inherit);background:var(--fill);color:var(--accent);cursor:pointer;}
+  .cal-entry-btn.load{background:var(--accent);color:#fff;}
   .mx-qty.mx-missing{box-shadow:0 0 0 2px #ff3b30!important;}
   .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:var(--sheet);padding:12px 0 14px;margin-top:6px;box-shadow:0 -10px 12px -8px var(--sheet);}
   /* — scrollbars — */
@@ -2113,6 +2169,7 @@ function startAddExtra(){
 function removeExtra(i){
   _modalExtras.splice(i,1);
   renderModalExtras();
+  filterModalItems(document.getElementById('modal-item-search').value);
 }
 
 function filterModalItems(q){
@@ -2135,16 +2192,20 @@ function filterModalItems(q){
         var item=ITEMS.find(function(i){return i.code===o.value;});
         var phys=item&&PHYS_CODES[item.code]?PHYS_CODES[item.code].join(' · '):'';
         var isSel=o.value===currentVal;
-        html+='<div class="modal-item-card'+(isSel?' selected':'')+'" onclick="selectModalItem(&apos;'+o.value+'&apos;)">'
+        var exIdx=_modalExtras.findIndex(function(e){return e.item===o.value;});
+        var badge=isSel&&_modalExtras.length?'<span class="mic-badge main">MAIN</span>':(exIdx>=0?'<span class="mic-badge on">ON PALLET'+(_modalExtras[exIdx].qty?' · '+_modalExtras[exIdx].qty:'')+'</span>':'');
+        html+='<div class="modal-item-card'+(isSel?' selected':'')+(exIdx>=0?' on-pallet':'')+'" data-code="'+o.value+'" onclick="selectModalItem(&apos;'+o.value+'&apos;)">'
           +'<span class="mic-code">'+o.value+'</span>'
-          +'<span class="mic-name">'+(item?item.name:'')+'</span>'
+          +'<span class="mic-name">'+(item?item.name:'')+'</span>'+badge
           +(phys?'<span class="mic-phys">'+phys+'</span>':'')
           +'</div>';
         count++;
       });
     });
     if(!count)html='<div style="color:var(--text3);font-size:11px;text-align:center;padding:16px">No results found</div>';
+    if(_pickTarget==='extra'&&count)html='<div class="pick-banner">➕ Pick the ADDITIONAL item for this pallet</div>'+html;
     list.innerHTML=html;
+    list.classList.toggle('picking-extra',_pickTarget==='extra');
     // Scroll selected item into view
     if(currentVal){
       var selCard=list.querySelector('.modal-item-card.selected');
@@ -2169,6 +2230,12 @@ function selectModalItem(code){
     if(ex<0){_modalExtras.push({item:code,qty:''});ex=_modalExtras.length-1;}
     else showToast(code+' is already on this pallet — update its qty.','error');
     renderModalExtras();
+    filterModalItems(document.getElementById('modal-item-search').value);
+    var card=document.querySelector('#modal-item-list .modal-item-card[data-code="'+code+'"]');
+    if(card){card.classList.add('just-picked');card.scrollIntoView({block:'nearest'});}
+    var row=document.querySelectorAll('#modal-extras .mx-row')[ex];
+    if(row){row.classList.add('mx-flash');setTimeout(function(){row.classList.remove('mx-flash');},1600);}
+    if(typeof showToast==='function')showToast('Added to pallet: '+code+' — enter its qty','success');
     setTimeout(function(){var q=document.getElementById('mx-qty-'+ex);if(q){q.focus();q.select();}},80);
     return;
   }
@@ -2600,7 +2667,7 @@ function applyPlant(p){
   countSession=loadCountSession();
   planData=loadPlanDia();
   try{lastTouchedLoc=localStorage.getItem(LAST_LOC_KEY)||null;}catch(e){lastTouchedLoc=null;}
-  selectedItem=null; modalLoc=null; _syncHistoryCache=[]; _calSelKey=null; _calYear=null;
+  selectedItem=null; modalLoc=null; _syncHistoryCache=[]; _calSelKey=null; _calYear=null; _calMonth=null;
   if(currentMode==='count')currentMode='browse';
   document.querySelectorAll('.modal-overlay').forEach(o=>o.classList.add('hidden'));
   document.documentElement.style.setProperty('--plant',cfg.color);
@@ -4006,10 +4073,12 @@ async function renderSyncHistory(){
   const latest=keys.length?keys[keys.length-1]:null;
   if(!_calYear||!keys.some(k=>+k.slice(0,4)===_calYear))_calYear=latest?+latest.slice(0,4):new Date().getFullYear();
   if(!_calSelKey||!_syncByDay[_calSelKey])_calSelKey=latest;
-  renderSyncCalendar('month');
+  if(!_calMonth)_calMonth=_calSelKey?+_calSelKey.slice(5,7):new Date().getMonth()+1;
+  if(_calSelKey)_calYear=+_calSelKey.slice(0,4);
+  renderSyncCalendar();
 }
 const CAL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-let _syncByDay={},_syncUndated=[],_calYear=null,_calSelKey=null;
+let _syncByDay={},_syncUndated=[],_calYear=null,_calMonth=null,_calSelKey=null;
 function syncDateParts(str){
   const t=String(str||'').trim();
   let m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
@@ -4020,62 +4089,89 @@ function syncDateParts(str){
 }
 function syncDayKey(p){return p.y+'-'+String(p.m).padStart(2,'0')+'-'+String(p.d).padStart(2,'0');}
 function syncShiftRank(it){const l=(it.turnoLabel||it.turno||'').toLowerCase();return l.includes('before')||l.includes('pre')?0:l.includes('after')||l.includes('post')?1:2;}
+const CAL_SHIFT=[{c:'#007aff',l:'Morning'},{c:'#ff9500',l:'Afternoon'},{c:'#af52de',l:'EOM / other'}];
+function calSetYear(delta){_calYear+=delta;renderSyncCalendar();}
+function calGoMonth(m){_calMonth=m;renderSyncCalendar();}
+function calStep(delta){
+  let m=_calMonth+delta,y=_calYear;
+  if(m<1){m=12;y--;}else if(m>12){m=1;y++;}
+  _calMonth=m;_calYear=y;renderSyncCalendar();
+}
+function calGoLatest(){
+  const keys=Object.keys(_syncByDay).sort();const k=keys[keys.length-1];
+  if(!k)return;_calYear=+k.slice(0,4);_calMonth=+k.slice(5,7);_calSelKey=k;renderSyncCalendar('panel');
+}
+function calSelectDay(k){_calSelKey=k;renderSyncCalendar('panel');}
 function syncEntryRow(i){
   const it=_syncHistoryCache[i];
   const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno||'';
-  return `<div class="sync-hist-row">
-    <div><span style="color:var(--accent2);font-weight:700">${label||'—'}</span></div>
-    <div style="display:flex;gap:6px">
-      <button class="sync-view-btn" onclick="syncViewEntry(${i})">👁 View</button>
-      <button class="sync-import-btn" onclick="syncImportEntry(${i})">⬇ Load</button>
-    </div>
+  const sh=CAL_SHIFT[syncShiftRank(it)];
+  return `<div class="cal-entry">
+    <span class="cal-entry-dot" style="background:${sh.c}"></span>
+    <span class="cal-entry-lbl">${label||'—'}</span>
+    <button class="cal-entry-btn" onclick="syncViewEntry(${i})">👁 View</button>
+    <button class="cal-entry-btn load" onclick="syncImportEntry(${i})">⬇ Load</button>
   </div>`;
 }
-function calSetYear(delta){_calYear+=delta;renderSyncCalendar();}
-function calSelectDay(k){_calSelKey=k;renderSyncCalendar('panel');}
 function renderSyncCalendar(scrollTo){
   const wrap=document.getElementById('sync-history-list');
   if(!wrap)return;
-  const years=Object.keys(_syncByDay).map(k=>+k.slice(0,4));
-  const minY=years.length?Math.min(...years):_calYear, maxY=years.length?Math.max(...years):_calYear;
   const now=new Date();
   const todayKey=syncDayKey({y:now.getFullYear(),m:now.getMonth()+1,d:now.getDate()});
-  let html=`<div class="cal-nav">
-    <button onclick="calSetYear(-1)" ${_calYear<=minY?'disabled':''}>◀</button>
-    <span class="cal-year-lbl">${_calYear}</span>
-    <button onclick="calSetYear(1)" ${_calYear>=maxY?'disabled':''}>▶</button>
-  </div><div class="cal-year">`;
-  for(let m=1;m<=12;m++){
-    const first=new Date(_calYear,m-1,1).getDay();
-    const days=new Date(_calYear,m,0).getDate();
-    let cells='',hasAny=false;
-    ['S','M','T','W','T','F','S'].forEach(w=>cells+=`<div class="cal-wd">${w}</div>`);
-    for(let b=0;b<first;b++)cells+='<div></div>';
-    for(let d=1;d<=days;d++){
-      const k=syncDayKey({y:_calYear,m,d});
-      const n=_syncByDay[k]?_syncByDay[k].length:0;
-      if(n)hasAny=true;
-      const cls='cal-d'+(n?' data':'')+(n>1?' multi':'')+(k===_calSelKey?' sel':'')+(k===todayKey?' today':'');
-      cells+=n?`<div class="${cls}" title="${n} cop${n>1?'ies':'y'}" onclick="calSelectDay('${k}')">${d}</div>`:`<div class="${cls}">${d}</div>`;
-    }
-    const selMonth=_calSelKey&&+_calSelKey.slice(0,4)===_calYear&&+_calSelKey.slice(5,7)===m;
-    html+=`<div class="cal-month${hasAny?' has':''}"${selMonth?' id="cal-sel-month"':''}><div class="cal-mname">${CAL_MONTHS[m-1]}</div><div class="cal-grid">${cells}</div></div>`;
+  const y=_calYear,mo=_calMonth||now.getMonth()+1;
+  // copies per month of the shown year (for the month chips)
+  const perMonth=new Array(13).fill(0);
+  Object.keys(_syncByDay).forEach(k=>{if(+k.slice(0,4)===y)perMonth[+k.slice(5,7)]+=_syncByDay[k].length;});
+  const yearsWith=[...new Set(Object.keys(_syncByDay).map(k=>+k.slice(0,4)))];
+  const minY=Math.min(y,...yearsWith),maxY=Math.max(y,...yearsWith);
+  let html=`<div class="cal2">
+    <div class="cal2-head">
+      <button class="cal2-nav" onclick="calStep(-1)" aria-label="Previous month">‹</button>
+      <div class="cal2-title">${CAL_MONTHS[mo-1]} <span>${y}</span></div>
+      <button class="cal2-nav" onclick="calStep(1)" aria-label="Next month">›</button>
+    </div>
+    <div class="cal2-chips">
+      <button class="cal2-ychip" onclick="calSetYear(-1)" ${y<=minY?'disabled':''}>‹ ${y-1}</button>
+      ${CAL_MONTHS.map((n,i)=>`<button class="cal2-chip${i+1===mo?' on':''}${perMonth[i+1]?' has':''}" onclick="calGoMonth(${i+1})">${n.slice(0,3)}${perMonth[i+1]?`<i>${perMonth[i+1]}</i>`:''}</button>`).join('')}
+      <button class="cal2-ychip" onclick="calSetYear(1)" ${y>=maxY?'disabled':''}>${y+1} ›</button>
+    </div>
+    <div class="cal2-grid" id="cal2-grid">
+      ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(w=>`<div class="cal2-wd">${w}</div>`).join('')}`;
+  const first=new Date(y,mo-1,1).getDay(),days=new Date(y,mo,0).getDate();
+  for(let b=0;b<first;b++)html+='<div class="cal2-day empty"></div>';
+  for(let d=1;d<=days;d++){
+    const k=syncDayKey({y,m:mo,d});
+    const idxs=_syncByDay[k]||[];
+    const ranks=[...new Set(idxs.map(i=>syncShiftRank(_syncHistoryCache[i])))].sort();
+    const cls='cal2-day'+(idxs.length?' data':'')+(k===_calSelKey?' sel':'')+(k===todayKey?' today':'');
+    const dots=ranks.map(r=>`<span style="background:${CAL_SHIFT[r].c}"></span>`).join('');
+    html+=idxs.length
+      ?`<button class="${cls}" onclick="calSelectDay('${k}')"><b>${d}</b><em>${dots}</em></button>`
+      :`<div class="${cls}"><b>${d}</b></div>`;
   }
-  html+=`</div>`;
+  html+=`</div>
+    <div class="cal2-legend">${CAL_SHIFT.map(s=>`<span><i style="background:${s.c}"></i>${s.l}</span>`).join('')}<button class="cal2-latest" onclick="calGoLatest()">Latest copy</button></div>
+  </div>`;
   if(_calSelKey&&_syncByDay[_calSelKey]){
-    const [y,mo,d]=_calSelKey.split('-').map(Number);
+    const [sy,sm,sd]=_calSelKey.split('-').map(Number);
     const idxs=_syncByDay[_calSelKey].slice().sort((a,b)=>syncShiftRank(_syncHistoryCache[a])-syncShiftRank(_syncHistoryCache[b]));
-    const dow=new Date(y,mo-1,d).toLocaleDateString('en-US',{weekday:'long'});
-    html+=`<div class="cal-day-panel" id="cal-day-panel"><div class="cal-day-title">📅 ${dow}, ${CAL_MONTHS[mo-1]} ${d}, ${y} · ${idxs.length} cop${idxs.length>1?'ies':'y'}</div>${idxs.map(syncEntryRow).join('')}</div>`;
+    const dow=new Date(sy,sm-1,sd).toLocaleDateString('en-US',{weekday:'long'});
+    html+=`<div class="cal-day-panel" id="cal-day-panel"><div class="cal-day-title">${dow}, ${CAL_MONTHS[sm-1]} ${sd}, ${sy}<span>${idxs.length} cop${idxs.length>1?'ies':'y'}</span></div>${idxs.map(syncEntryRow).join('')}</div>`;
   }else{
-    html+=`<div class="cal-day-panel" style="color:var(--text3);font-size:11px;text-align:center">Tap a highlighted day to see its saved inventories.</div>`;
+    html+=`<div class="cal-day-panel cal-hint">Tap a day with dots to see its saved inventories.</div>`;
   }
   if(_syncUndated.length){
     html+=`<div class="cal-day-panel"><div class="cal-day-title" style="color:var(--text3)">Copies without a readable date</div>${_syncUndated.map(syncEntryRow).join('')}</div>`;
   }
   wrap.innerHTML=html;
-  const target=scrollTo==='panel'?document.getElementById('cal-day-panel'):scrollTo==='month'?document.getElementById('cal-sel-month'):null;
-  if(target)setTimeout(()=>target.scrollIntoView({behavior:'smooth',block:'center'}),60);
+  // swipe left/right on the month to change month
+  const g=document.getElementById('cal2-grid');
+  if(g){let sx=null,sy0=null;
+    g.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy0=e.touches[0].clientY;},{passive:true});
+    g.addEventListener('touchend',e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy0;sx=null;
+      if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5)calStep(dx<0?1:-1);},{passive:true});}
+  const chip=wrap.querySelector('.cal2-chip.on');if(chip)chip.scrollIntoView({block:'nearest',inline:'center'});
+  if(scrollTo==='panel'){const t=document.getElementById('cal-day-panel');if(t)setTimeout(()=>t.scrollIntoView({behavior:'smooth',block:'nearest'}),60);}
 }
 function syncImportEntry(i){
   const it=_syncHistoryCache[i];
@@ -4779,7 +4875,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.15c';
+const APP_VERSION='2026.10.16';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
