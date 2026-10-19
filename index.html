@@ -495,6 +495,20 @@
   .mx-del{background:none;border:1px solid var(--border);color:var(--danger);border-radius:5px;width:26px;height:26px;cursor:pointer;font-weight:700;flex-shrink:0;}
   .mx-add-btn{width:100%;margin-top:6px;padding:7px;border:1px solid var(--accent2);background:transparent;color:var(--accent2);border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;}
   .mx-hint{font-size:11px;color:var(--warn);font-weight:700;margin-top:6px;}
+  /* Pallet view: one list with every item on the position; the search list only opens to add / change one */
+  #mp-picker.mp-hide,#mp-single.mp-hide,#mp-item-label.mp-hide{display:none;}
+  .mx-wrap.mp-on{border-style:solid;}
+  .mp-num{width:22px;height:22px;border-radius:50%;background:var(--fill,#eee);color:var(--text2);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;}
+  .mx-row.mp-main .mp-num{background:var(--accent);color:#fff;}
+  .mp-item{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:none;border:none;padding:4px 0;font-family:inherit;text-align:left;cursor:pointer;color:inherit;}
+  .mp-item .mx-code{min-width:0;flex:none;}
+  .mp-item .mp-chg{flex:none;color:var(--text3);font-size:12px;}
+  .mx-wrap.mp-on .mx-qty{background:var(--fill,#f2f2f7)!important;border-radius:9px!important;text-align:right;}
+  .mx-row.mp-editing{background:color-mix(in srgb,#ff9500 14%,transparent);border-radius:10px;}
+  .mx-row.mp-editing .mp-num{background:#ff9500;color:#fff;}
+  .mx-row.mp-new .mx-code{color:#ff9500;}
+  .mp-cancel{margin-left:auto;background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:8px;padding:3px 10px;font:inherit;font-weight:700;cursor:pointer;}
+  .pick-banner{display:flex!important;align-items:center;gap:8px;}
   .ro-mix{margin-top:8px;border:1px dashed var(--border);border-radius:8px;padding:8px 10px;}
   .ro-mix-title{font-size:10px;font-weight:800;color:var(--warn);margin-bottom:6px;}
   .ro-mix-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;}
@@ -825,6 +839,9 @@
   /* — keyboard open (iPad/iPhone): dialog sits right above the keyboard, Save always visible — */
   body.kb-open .modal-overlay:not(.hidden){top:var(--vvt,0px)!important;bottom:auto!important;height:var(--vvh,100%)!important;align-items:flex-end!important;padding:8px 0!important;}
   body.kb-open .modal-overlay:not(.hidden)>.modal{max-height:calc(var(--vvh,100vh) - 16px)!important;overflow-y:auto!important;border-radius:22px!important;padding-bottom:0!important;}
+  /* the item list shrinks on short screens so title, qty, "+ Add item" and the buttons all fit without scrolling */
+  #modal-item-list{max-height:clamp(150px,calc(100dvh - 490px),280px)!important;}
+  #mp-picker.mx-picking #modal-item-list{max-height:clamp(150px,calc(100dvh - 430px),280px)!important;}
   body.kb-open #modal-item-list{max-height:200px!important;}
   .modal-item-card{flex-direction:row!important;flex-wrap:wrap;align-items:baseline;column-gap:8px;padding:10px 12px!important;}
   .modal-item-card .mic-phys{flex-basis:100%;}
@@ -1079,7 +1096,8 @@ try{
   <div class="modal" onclick="event.stopPropagation()">
     <h3>Assign Item</h3>
     <div class="modal-loc" id="modal-loc-label"></div>
-    <label>Item <span id="modal-selected-label" style="color:var(--accent2);font-size:10px;margin-left:6px"></span></label>
+    <label id="mp-item-label">Item <span id="modal-selected-label" style="color:var(--accent2);font-size:10px;margin-left:6px"></span></label>
+    <div id="mp-picker">
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
       <input type="text" id="modal-item-search" placeholder="Search by name or code..." autocomplete="off"
         style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;"
@@ -1087,13 +1105,16 @@ try{
     </div>
     <input type="hidden" id="modal-item" value="">
     <div id="modal-item-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;background:var(--surface2);"></div>
+    </div>
+    <div id="mp-single">
     <label>Qty <span style="color:var(--text3);font-size:9px">(cases / units / rolls — what you count)</span></label>
     <input type="text" id="modal-qty" oninput="this.classList.remove('qty-missing')" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="e.g. 1000">
-    <div class="mx-wrap">
-      <div class="mx-title">Mixed pallet — additional items <span id="mx-count"></span></div>
+    </div>
+    <div class="mx-wrap" id="mx-wrap">
+      <div class="mx-title" id="mx-title">On this pallet <span id="mx-count"></span></div>
       <div id="modal-extras"></div>
       <button type="button" class="mx-add-btn" id="mx-add-btn" onclick="startAddExtra()">+ Add item to this pallet</button>
-      <div id="mx-hint" class="mx-hint" style="display:none">👆 Tap the additional item in the list above</div>
+      <div id="mx-hint" class="mx-hint" style="display:none"></div>
     </div>
     <div class="modal-actions">
       <button class="btn-primary" onclick="saveLocation()">Save</button>
@@ -2086,6 +2107,7 @@ function openModal(id){
   }
   try{
     modalLoc=id;
+    _pickTarget='primary';_modalExtras=[];
     document.getElementById('modal-loc-label').textContent=currentPlant+' · '+locLabel(id);
     
     _allModalOptions=[];
@@ -2125,7 +2147,7 @@ function openModal(id){
     renderModalExtras();
     setTimeout(function(){
       var s=document.getElementById('modal-item-search');
-      if(s)s.focus();
+      if(s&&!palletView())s.focus();
     },150);
   }catch(err){
     console.error('openModal error:',err);
@@ -2141,25 +2163,62 @@ function normalizeSearch(s){
 let _allModalOptions = [];
 let _modalExtras = [];
 let _pickTarget = 'primary';
+function palletView(){return _modalExtras.length>0||_pickTarget!=='primary'&&!!document.getElementById('modal-item').value;}
+function mpRow(i,code,qty,isMain){
+  var it=ITEMS.find(function(x){return x.code===code;});
+  var editing=(_pickTarget==='chg:'+(isMain?'main':i));
+  var qid=isMain?'mx-qty-main':'mx-qty-'+i;
+  var onq=isMain?"document.getElementById('modal-qty').value=this.value;this.classList.remove('mx-missing')":"_modalExtras["+i+"].qty=this.value;this.classList.remove('mx-missing')";
+  return '<div class="mx-row'+(isMain?' mp-main':'')+(editing?' mp-editing':'')+'">'
+    +'<span class="mp-num">'+(isMain?1:i+2)+'</span>'
+    +'<button type="button" class="mp-item" title="Change this item" onclick="startChangeItem('+(isMain?"'main'":i)+')"><span class="mx-code">'+code+'</span><span class="mx-name">'+(it?it.name:'')+'</span><span class="mp-chg">⇄</span></button>'
+    +'<input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="mx-qty" id="'+qid+'" placeholder="Qty" value="'+(qty===''||qty==null?'':qty)+'" oninput="'+onq+'">'
+    +'<button type="button" class="mx-del" title="Remove from pallet" onclick="removeExtra('+(isMain?"'main'":i)+')">✕</button></div>';
+}
 function renderModalExtras(){
   var wrap=document.getElementById('modal-extras');
   if(!wrap)return;
-  wrap.innerHTML=_modalExtras.map(function(e,i){
-    var it=ITEMS.find(function(x){return x.code===e.item;});
-    return '<div class="mx-row"><span class="mx-code">'+e.item+'</span><span class="mx-name">'+(it?it.name:'')+'</span>'
-      +'<input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="mx-qty" id="mx-qty-'+i+'" placeholder="Qty" value="'+(e.qty===''||e.qty==null?'':e.qty)+'" oninput="_modalExtras['+i+'].qty=this.value;this.classList.remove(\'mx-missing\')">'
-      +'<button type="button" class="mx-del" title="Remove from pallet" onclick="removeExtra('+i+')">✕</button></div>';
-  }).join('');
-  var n=1+_modalExtras.length;
+  var main=document.getElementById('modal-item').value;
+  var pv=palletView();
+  var picking=_pickTarget!=='primary';
+  var n=(main?1:0)+_modalExtras.length;
+  var html='';
+  if(pv){
+    html=mpRow(0,main,document.getElementById('modal-qty').value,true)
+      +_modalExtras.map(function(e,i){return mpRow(i,e.item,e.qty,false);}).join('');
+    if(_pickTarget==='extra')html+='<div class="mx-row mp-editing mp-new"><span class="mp-num">'+(n+1)+'</span><span class="mx-name" style="font-weight:700;color:#ff9500">Pick the item in the list ↑</span></div>';
+  }
+  wrap.innerHTML=html;
+  document.getElementById('mx-wrap').classList.toggle('mp-on',pv);
+  document.getElementById('mp-single').classList.toggle('mp-hide',pv);
+  document.getElementById('mp-item-label').classList.toggle('mp-hide',pv);
+  document.getElementById('mp-picker').classList.toggle('mp-hide',pv&&!picking);
+  var ttl=document.getElementById('mx-title');
+  if(ttl)ttl.style.display=pv?'':'none';
   var cnt=document.getElementById('mx-count');
-  if(cnt)cnt.textContent=_modalExtras.length?('· '+n+' items in this position'):'';
+  if(cnt)cnt.textContent=pv?('· '+n+' item'+(n===1?'':'s')):'';
   var btn=document.getElementById('mx-add-btn');
-  if(btn)btn.style.display=n>=MAX_ITEMS_PER_POS?'none':'';
+  if(btn){btn.style.display=(n>=MAX_ITEMS_PER_POS||picking)?'none':'';btn.textContent=pv?'+ Add another item':'+ Add item to this pallet (mixed)';}
   var hint=document.getElementById('mx-hint');
-  if(hint)hint.style.display=_pickTarget==='extra'?'':'none';
+  if(hint)hint.style.display='none';
+}
+function startChangeItem(which){
+  if(_pickTarget!=='primary'){cancelPick();}
+  _pickTarget='chg:'+which;
+  var se=document.getElementById('modal-item-search');
+  renderModalExtras();
+  if(se){se.value='';filterModalItems('');se.focus();}
+  var cur=which==='main'?document.getElementById('modal-item').value:_modalExtras[which].item;
+  var card=document.querySelector('#modal-item-list .modal-item-card[data-code="'+cur+'"]');
+  if(card)card.scrollIntoView({block:'nearest'});
+}
+function cancelPick(){
+  _pickTarget='primary';
+  var se=document.getElementById('modal-item-search');if(se)se.value='';
+  renderModalExtras();filterModalItems('');
 }
 function focusMissingExtra(i){
-  var q=document.getElementById('mx-qty-'+i);
+  var q=document.getElementById(i==='main'?'mx-qty-main':'mx-qty-'+i);
   if(q){q.classList.add('mx-missing');q.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(function(){q.focus();},60);}
 }
 function startAddExtra(){
@@ -2167,13 +2226,27 @@ function startAddExtra(){
   var pend=_modalExtras.findIndex(function(e){return !(parseInt(e.qty)>0);});
   if(pend>=0){showToast('Enter the qty for '+_modalExtras[pend].item+' first.','error');focusMissingExtra(pend);return;}
   if(1+_modalExtras.length>=MAX_ITEMS_PER_POS){showToast('Max '+MAX_ITEMS_PER_POS+' items per position.','error');return;}
+  var mq=document.getElementById('modal-qty');
+  if(!(parseInt(mq.value)>0)&&!/^NON-DM/.test(document.getElementById('modal-item').value)){
+    showToast('Enter the qty for '+document.getElementById('modal-item').value+' first.','error');
+    if(_modalExtras.length)focusMissingExtra('main');else{mq.classList.add('qty-missing');mq.focus();}
+    return;
+  }
   _pickTarget='extra';
   var se=document.getElementById('modal-item-search');
-  if(se){se.value='';filterModalItems('');se.focus();}
   renderModalExtras();
+  if(se){se.value='';filterModalItems('');se.focus();}
 }
 function removeExtra(i){
-  _modalExtras.splice(i,1);
+  _pickTarget='primary';
+  if(i==='main'){                       // removing item #1 → the next one becomes the main item
+    if(!_modalExtras.length)return;
+    var e=_modalExtras.shift();
+    document.getElementById('modal-item').value=e.item;
+    document.getElementById('modal-qty').value=e.qty;
+    var it=ITEMS.find(function(x){return x.code===e.item;});
+    var lbl=document.getElementById('modal-selected-label');if(lbl)lbl.textContent=it?'✓ '+it.name:'';
+  } else _modalExtras.splice(i,1);
   renderModalExtras();
   filterModalItems(document.getElementById('modal-item-search').value);
 }
@@ -2199,7 +2272,7 @@ function filterModalItems(q){
         var phys=item&&PHYS_CODES[item.code]?PHYS_CODES[item.code].join(' · '):'';
         var isSel=o.value===currentVal;
         var exIdx=_modalExtras.findIndex(function(e){return e.item===o.value;});
-        var badge=isSel&&_modalExtras.length?'<span class="mic-badge main">MAIN</span>':(exIdx>=0?'<span class="mic-badge on">ON PALLET'+(_modalExtras[exIdx].qty?' · '+_modalExtras[exIdx].qty:'')+'</span>':'');
+        var badge=isSel&&(_modalExtras.length||_pickTarget!=='primary')?'<span class="mic-badge main">#1 ON PALLET</span>':(exIdx>=0?'<span class="mic-badge on">#'+(exIdx+2)+' ON PALLET'+(_modalExtras[exIdx].qty?' · '+_modalExtras[exIdx].qty:'')+'</span>':'');
         html+='<div class="modal-item-card'+(isSel?' selected':'')+(exIdx>=0?' on-pallet':'')+'" data-code="'+o.value+'" onclick="selectModalItem(&apos;'+o.value+'&apos;)">'
           +'<span class="mic-code">'+o.value+'</span>'
           +'<span class="mic-name">'+(item?item.name:'')+'</span>'+badge
@@ -2209,9 +2282,12 @@ function filterModalItems(q){
       });
     });
     if(!count)html='<div style="color:var(--text3);font-size:11px;text-align:center;padding:16px">No results found</div>';
-    if(_pickTarget==='extra'&&count)html='<div class="pick-banner">➕ Pick the ADDITIONAL item for this pallet</div>'+html;
+    if(_pickTarget!=='primary'){
+      var bt=_pickTarget==='extra'?'➕ Pick item #'+(2+_modalExtras.length)+' for this pallet':'⇄ Pick the replacement for item #'+(_pickTarget==='chg:main'?1:(+_pickTarget.slice(4)+2));
+      html='<div class="pick-banner"><span>'+bt+'</span><button type="button" class="mp-cancel" onclick="cancelPick()">Cancel</button></div>'+html;
+    }
     list.innerHTML=html;
-    list.classList.toggle('picking-extra',_pickTarget==='extra');
+    list.classList.toggle('picking-extra',_pickTarget!=='primary');
     // Scroll selected item into view
     if(currentVal){
       var selCard=list.querySelector('.modal-item-card.selected');
@@ -2221,6 +2297,24 @@ function filterModalItems(q){
 }
 
 function selectModalItem(code){
+  if(_pickTarget.indexOf('chg:')===0){
+    var which=_pickTarget.slice(4),primary0=document.getElementById('modal-item').value;
+    var idx=which==='main'?-1:+which;
+    var cur=idx<0?primary0:_modalExtras[idx].item;
+    if(code!==cur&&(code===primary0||_modalExtras.some(function(e){return e.item===code;}))){showToast(code+' is already on this pallet.','error');return;}
+    if(idx<0){
+      document.getElementById('modal-item').value=code;
+      var it0=ITEMS.find(function(i){return i.code===code;});
+      var lb0=document.getElementById('modal-selected-label');if(lb0)lb0.textContent=it0?'✓ '+it0.name:'';
+    } else _modalExtras[idx].item=code;
+    _pickTarget='primary';
+    var se0=document.getElementById('modal-item-search');if(se0)se0.value='';
+    renderModalExtras();filterModalItems('');
+    var rows=document.querySelectorAll('#modal-extras .mx-row');var r0=rows[idx<0?0:idx+1];
+    if(r0){r0.classList.add('mx-flash');setTimeout(function(){r0.classList.remove('mx-flash');},1600);}
+    setTimeout(function(){var q=document.getElementById(idx<0?'mx-qty-main':'mx-qty-'+idx);if(q){q.focus();q.select&&q.select();}},80);
+    return;
+  }
   if(_pickTarget==='extra'){
     _pickTarget='primary';
     var primary=document.getElementById('modal-item').value;
@@ -2228,8 +2322,8 @@ function selectModalItem(code){
     if(se){se.value='';filterModalItems('');}
     if(code===primary){
       renderModalExtras();
-      showToast('That is already the main item — just update its qty.','error');
-      setTimeout(function(){var q=document.getElementById('modal-qty');if(q)q.focus();},80);
+      showToast('That is already item #1 — just update its qty.','error');
+      setTimeout(function(){var q=document.getElementById('mx-qty-main')||document.getElementById('modal-qty');if(q)q.focus();},80);
       return;
     }
     var ex=_modalExtras.findIndex(function(e){return e.item===code;});
@@ -2239,7 +2333,7 @@ function selectModalItem(code){
     filterModalItems(document.getElementById('modal-item-search').value);
     var card=document.querySelector('#modal-item-list .modal-item-card[data-code="'+code+'"]');
     if(card){card.classList.add('just-picked');card.scrollIntoView({block:'nearest'});}
-    var row=document.querySelectorAll('#modal-extras .mx-row')[ex];
+    var row=document.querySelectorAll('#modal-extras .mx-row')[ex+1];
     if(row){row.classList.add('mx-flash');setTimeout(function(){row.classList.remove('mx-flash');},1600);}
     if(typeof showToast==='function')showToast('Added to pallet: '+code+' — enter its qty','success');
     setTimeout(function(){var q=document.getElementById('mx-qty-'+ex);if(q){q.focus();q.select();}},80);
@@ -2268,6 +2362,7 @@ function saveLocation(){
     if(/^NON-DM/.test(item)&&qtyEl.value.trim()===''){qty=1;}          // non-tracked "occupied" marker: qty optional
     else{
       showToast(qtyEl.value.trim()===''?'Enter the qty for '+item+'.':'Qty must be greater than 0 (use Clear Location to empty it).','error');
+      if(_modalExtras.length){focusMissingExtra('main');return;}
       qtyEl.classList.add('qty-missing');qtyEl.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(function(){qtyEl.focus();},60);
       return;
     }
@@ -4475,7 +4570,10 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     closeModal();closeRoModal();
   }
-  if(e.key==='Enter'&&!document.getElementById('modal-overlay').classList.contains('hidden'))saveLocation();
+  if(e.key==='Enter'&&!document.getElementById('modal-overlay').classList.contains('hidden')){
+    if(_pickTarget!=='primary'){e.preventDefault();return;}          // picking an item for the pallet: Enter does not save
+    saveLocation();
+  }
 });
 
 function openPinModal(mode){
@@ -5043,7 +5141,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.19i';
+const APP_VERSION='2026.10.19k';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
