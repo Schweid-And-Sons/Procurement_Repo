@@ -1598,8 +1598,8 @@ const AREA_ABBR={
   'BOX ROOM':'BR','BOX ROOM FLOOR':'BRF',
   'RETAIL COOLER SLEEVES RACK':'RCS','RETAIL COOLER FLOOR':'RCF',
   'FROZEN COOLER FLOOR':'FCF',
-  'DM ROOM':'DM','DM ROOM EXTRA':'DMX','DM ROOM FLOOR INVENTORY':'DMF','DN ROOM FLOOR INVENTORY':'DNF',
-  'LABEL RACKS':'LBR','FRONT DOCK FLOOR':'FDF','BACK DOCK FLOOR':'BDF','DOCK DOORS':'DD','SAMPLES':'SMP'
+  'DM ROOM':'DM','DM ROOM FLOOR':'DMF','LABEL RACKS':'LBR','TRAILER':'TRL',
+  'BACK DOCK RACK':'BDR','BACK DOCK FLOOR':'BDF','FRONT DOCK RACK':'FDR','FRONT DOCK FLOOR':'FDF','TO RELOCATE':'REL'
 };
 function locAbbrev(id){
   const p=parseLocId(id);
@@ -1675,6 +1675,11 @@ function getRackFloorBreakdown(){
               if(inventory[locId(an,+s,+t,pos)])rackAreas[key].occ++;
             });
         }
+      }else if(ad.sides){
+        ad.sides.forEach(sd=>{
+          const rk=rackAreas[sd.title]={occ:0,total:0};
+          sd.secs.forEach(s=>{const tiers=ad.sections[s]||{};for(const[t,positions]of Object.entries(tiers))positions.forEach(pos=>{rk.total++;if(inventory[locId(an,+s,+t,pos)])rk.occ++;});});
+        });
       }else{
         if(!rackAreas[an])rackAreas[an]={occ:0,total:0};
         for(const[s,tiers]of Object.entries(ad.sections))
@@ -1737,7 +1742,7 @@ function occItems(occ){
 function occHas(occ,code){return !!code&&occItems(occ).some(x=>x.item===code);}
 function occTotalQty(occ){return occItems(occ).reduce((a,x)=>a+x.qty,0);}
 function occExtraCount(occ){return occ&&Array.isArray(occ.extras)?occ.extras.length:0;}
-function occTip(occ){return occItems(occ).map(x=>x.item+' · '+x.qty.toLocaleString()).join('  +  ');}
+function occTip(occ){return occItems(occ).map(x=>x.item+' · '+x.qty.toLocaleString()).join('  +  ')+(occ&&occ.from?'  (was: '+occ.from+')':'');}
 function getItemSummary(){
   const s={};
   for(const[id,data]of Object.entries(inventory)){
@@ -1825,6 +1830,7 @@ function renderMap(){
       html+=renderRackAreaBlock(aName,aDef,'BOX ROOM — RIGHT SIDE',['7','6','5']);
       continue;
     }
+    if(aDef.type==='rack'&&aDef.sides){aDef.sides.forEach(sd=>html+=renderRackAreaBlock(aName,aDef,sd.title,sd.secs));continue;}
     html+=`<div class="map-area"><div class="map-area-title">${aName} <span></span></div>`;
     if(aDef.type==='rack'){
       html+=`<div class="sections-row">`;
@@ -2365,7 +2371,7 @@ function render(){
   else if(currentView==='plan')renderPlanView();
   else if(currentView==='log')renderLogView();
 }
-function refresh(){calcStats();renderSidebar();render();}
+function refresh(){migrateGaLayout();calcStats();renderSidebar();render();}
 
 let COUNT_SESSION_KEY = 'wms_count_session';
 function getAllLocationIds(){
@@ -2621,17 +2627,57 @@ const GA_AREAS = {
     16:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]},
     17:{1:[1,2,3,4],2:[1,2,3,4],3:[1,2,3,4]}
   }},
-  'DM ROOM EXTRA':{type:'floor',slots:16},
-  'DM ROOM FLOOR INVENTORY':{type:'floor',slots:4},
-  'DN ROOM FLOOR INVENTORY':{type:'floor',slots:39},
+  'DM ROOM FLOOR':{type:'floor',slots:20},
   'LABEL RACKS':{type:'floor',slots:15},
-  'FRONT DOCK FLOOR':{type:'floor',slots:14},
-  'BACK DOCK FLOOR':{type:'floor',slots:51},
-  'DOCK DOORS':{type:'floor',slots:19},
-  'SAMPLES':{type:'floor',slots:16},
+  'TRAILER':{type:'floor',slots:20},                                           // trailer parked at the dock door, used as storage
+  'BACK DOCK RACK':{type:'rack',sections:{1:{2:[1,2,3]},2:{2:[1,2,3]},3:{2:[1,2,3]},4:{2:[1,2,3]}}},   // single level, on a 2nd floor → Tier 2 only
+  'BACK DOCK FLOOR':{type:'floor',slots:10},
+  'FRONT DOCK RACK':{type:'rack',sections:{1:{2:[1,2,3],3:[1,2,3]},2:{2:[1,2,3],3:[1,2,3]},3:{2:[1,2,3],3:[1,2,3]},4:{2:[1,2,3],3:[1,2,3]}}},   // no Tier 1
+  'FRONT DOCK FLOOR':{type:'floor',slots:10},
 };
-// '' = blank spacer row (row 365 in Jonathan's GA sheet) so the export pastes row-aligned.
-const GA_EXPORT_ORDER = ['DM ROOM','DM ROOM EXTRA','DM ROOM FLOOR INVENTORY','DN ROOM FLOOR INVENTORY','LABEL RACKS','FRONT DOCK FLOOR','BACK DOCK FLOOR','DOCK DOORS','','SAMPLES'];
+GA_AREAS['DM ROOM'].sides=[{title:'DM ROOM — RIGHT SIDE',secs:['1','2','3','4','5','6','7','8','9']},{title:'DM ROOM — LEFT SIDE',secs:['10','11','12','13','14','15','16','17']}];
+const GA_EXPORT_ORDER = ['DM ROOM','DM ROOM FLOOR','LABEL RACKS','TRAILER','BACK DOCK RACK','BACK DOCK FLOOR','FRONT DOCK RACK','FRONT DOCK FLOOR','TO RELOCATE'];
+/* GA layout v3 (Oct-19). Saved data / SharePoint copies from earlier layouts are converted automatically;
+   anything with no place in the new layout goes to "TO RELOCATE" (shown only while it has items) — nothing is lost.
+   v1 = Jonathan's original sheet · v2 = first rework (19g) · v3 = current names. */
+function migrateGaLayout(){
+  if(currentPlant!=='GA')return;
+  const keys=Object.keys(inventory);
+  const has=re=>keys.some(k=>re.test(k));
+  const v1=has(/^(DN ROOM FLOOR INVENTORY|DM ROOM EXTRA|DOCK DOORS)\|/)||keys.some(k=>/^BACK DOCK FLOOR\|\d+$/.test(k)&&+k.split('|')[1]>10);
+  let lv=null;try{lv=localStorage.getItem('wms_ga_layout');}catch(e){}
+  // before v3, "FRONT DOCK FLOOR" was the trailer door → on a device that never ran v3, treat it as old data
+  const v2=!v1&&(has(/^(DM ROOM FLOOR INVENTORY|DOCK DOOR RACK|DOCK DOOR FLOOR)\|/)||(lv!=='3'&&has(/^FRONT DOCK FLOOR\|/)));
+  const old=v1||v2||has(/^(SAMPLES|DOCK DOOR)\|/);
+  if(old){
+    const next={},reloc=[],moved=[];
+    const put=(k,nk,v)=>{if(next[nk]){reloc.push([k,v]);return;}next[nk]=v;if(nk!==k)moved.push(k+' → '+nk.replace(/\|/g,' '));};
+    const fits=(nk)=>{const [a,...r]=nk.split('|');const d=GA_AREAS[a];if(!d)return false;
+      if(d.type==='floor')return +r[0]>=1&&+r[0]<=d.slots;
+      return ((d.sections[r[0]]||{})[r[1]]||[]).includes(+r[2]);};
+    keys.forEach(k=>{
+      const v=inventory[k];const [area,...rest]=k.split('|');const tail=rest.join('|');let nk=null;
+      if(area==='DOCK DOOR'&&!v1&&!v2){const nk='TRAILER|'+tail;if(fits(nk)){put(k,nk,v);return;}}
+      if(area==='SAMPLES'||area==='DM ROOM EXTRA'||area==='DOCK DOORS'||area==='TO RELOCATE'){reloc.push([k,v]);return;}
+      if(v1){
+        if(area==='DN ROOM FLOOR INVENTORY')nk='DM ROOM FLOOR|'+tail;
+        else if(area==='DM ROOM FLOOR INVENTORY'){reloc.push([k,v]);return;}     // old 4-slot area, removed
+        else if(area==='FRONT DOCK FLOOR')nk='TRAILER|'+tail;                  // the trailer door
+        else nk=k;
+      }else if(v2){
+        nk=({'DM ROOM FLOOR INVENTORY':'DM ROOM FLOOR','FRONT DOCK FLOOR':'TRAILER','DOCK DOOR RACK':'FRONT DOCK RACK','DOCK DOOR FLOOR':'FRONT DOCK FLOOR'}[area]||area)+'|'+tail;
+      }else nk=k;
+      if(fits(nk))put(k,nk,v);else reloc.push([k,v]);
+    });
+    let n=Object.keys(next).filter(k=>k.startsWith('TO RELOCATE|')).length;
+    reloc.forEach(([k,v])=>{n++;const o=Object.assign({},v);if(!o.from)o.from=k.replace(/\|/g,' · ');next['TO RELOCATE|'+n]=o;moved.push(k+' → TO RELOCATE '+n);});
+    inventory=next;saveData();
+    if(moved.length)addLog('LAYOUT UPDATE','GA layout v3 applied — '+moved.length+' position(s) moved: '+moved.slice(0,40).join('; ')+(moved.length>40?' …':''));
+  }
+  try{localStorage.setItem('wms_ga_layout','3');}catch(e){}
+  const nReloc=Object.keys(inventory).filter(k=>k.startsWith('TO RELOCATE|')).reduce((m,k)=>Math.max(m,+k.split('|')[1]),0);
+  if(nReloc)GA_AREAS['TO RELOCATE']={type:'floor',slots:nReloc};else delete GA_AREAS['TO RELOCATE'];
+}
 
 /* ══════════════════════════════════════════════════════
    PLANTS — one app, one plant active at a time.
@@ -3352,6 +3398,7 @@ function importExcel(input){
       var rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:''});
       var loaded=0,skipped=0;
       var curArea='',curSec=null,curTier=null;
+      if(currentPlant==='GA'&&!AREAS['TO RELOCATE'])AREAS['TO RELOCATE']={type:'floor',slots:999};   // accept it on import; resized by migrateGaLayout()
       var KNOWN_AREAS=Object.keys(AREAS).map(function(a){return a.toUpperCase();});
       var startRow=0;
       for(var i=0;i<Math.min(rows.length,10);i++){
@@ -3368,7 +3415,9 @@ function importExcel(input){
         var posVal=row[6]!==''?parseInt(row[6]):null;
         var itemVal=String(row[9]||'').trim();
         var qtyVal=parseInt(row[10])||0;
-        if(areaVal&&KNOWN_AREAS.includes(areaVal))curArea=areaVal;
+        if(currentPlant==='GA'&&(areaVal==='DN ROOM FLOOR INVENTORY'||areaVal==='DM ROOM FLOOR INVENTORY'))areaVal='DM ROOM FLOOR';   // older GA names
+        if(areaVal&&KNOWN_AREAS.includes(areaVal)){curArea=areaVal;curSec=null;curTier=null;}
+        else if(areaVal&&!/^\d+$/.test(areaVal)){curArea='';}   // area not in this layout → skip its rows (never write them into the previous area)
         if(secVal!==null&&!isNaN(secVal))curSec=secVal;
         if(tierVal!==null&&!isNaN(tierVal))curTier=tierVal;
         if(!curArea||posVal===null||isNaN(posVal)){skipped++;continue;}
@@ -3380,8 +3429,10 @@ function importExcel(input){
           if(curSec===null||curTier===null){skipped++;continue;}
           id=locId(areaKey,curSec,curTier,posVal);
         }else{
+          if(posVal>areaDef.slots){skipped++;continue;}
           id=locId(areaKey,null,null,posVal);
         }
+        if(areaDef.type==='rack'&&!((areaDef.sections[curSec]||{})[curTier]||[]).includes(posVal)){skipped++;continue;}
         if(!itemVal){delete inventory[id];skipped++;continue;}
         
         var resolvedItem=itemVal;
@@ -4992,7 +5043,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.19f';
+const APP_VERSION='2026.10.19i';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
