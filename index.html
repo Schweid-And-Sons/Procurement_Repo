@@ -899,12 +899,6 @@
   .cal-entry-lbl{flex:1;font-size:14px;font-weight:600;color:var(--text);}
   .cal-entry-btn{border:none;border-radius:10px;padding:9px 12px;font:600 13px var(--font,inherit);background:var(--fill);color:var(--accent);cursor:pointer;}
   .cal-entry-btn.load{background:var(--accent);color:#fff;}
-  .plan-days{display:flex;gap:6px;overflow-x:auto;margin:6px 0 12px;padding-bottom:2px;scrollbar-width:none;}
-  .plan-days::-webkit-scrollbar{display:none;}
-  .plan-day{flex:none;border:none;border-radius:16px;padding:8px 14px;font:600 13px var(--font,inherit);background:var(--fill);color:var(--text2);cursor:pointer;}
-  .plan-day.on{background:var(--accent);color:#fff;}
-  .plan-cat-row td{background:var(--fill)!important;font-weight:800;font-size:13px;color:var(--text)!important;padding:8px 10px!important;}
-  .plan-cat-row td span{font-weight:600;font-size:11px;color:var(--text3);margin-left:6px;}
   .mx-qty.mx-missing{box-shadow:0 0 0 2px #ff3b30!important;}
   .modal>.modal-actions{position:sticky;bottom:0;z-index:2;background:var(--sheet);padding:12px 0 14px;margin-top:6px;box-shadow:0 -10px 12px -8px var(--sheet);}
   /* — scrollbars — */
@@ -2654,6 +2648,10 @@ const PLANTS={
 const GA_CODES=new Set(GA_ITEMS.map(i=>i.code));
 const GA_PHYS={};
 Object.entries(PHYS_CODES).forEach(([k,v])=>{const g=k.replace(/-1$/,'-4');if(GA_CODES.has(g))GA_PHYS[g]=v.slice();});
+// product code → sleeve pairs confirmed in the GA production file (lnput: Code ↔ Sleeve Code)
+[['SL2150-4','10999'],['SL1500-4','14505'],['SL3000-4','14805'],['SL15099-4','15099'],['SL15299-4','15299'],['SL1600-4','15705'],['SL1000-4','15905'],
+ ['SL15906-4','15906'],['SL1508-4','15908'],['SL2250-4','16505'],['SL1050-4','17805'],['SL2100-4','18105'],['SL4100-4','18605'],['SL2200-4','18905']]
+ .forEach(([sl,p])=>{if(!GA_CODES.has(sl))return;const a=GA_PHYS[sl]||(GA_PHYS[sl]=[]);if(!a.includes(p))a.push(p);});
 const GA_EQUIV=VENDOR_EQUIV.map(r=>({a:r.a.replace(/-1$/,'-4'),b:r.b.replace(/-1$/,'-4'),box:r.box})).filter(r=>GA_CODES.has(r.a)&&GA_CODES.has(r.b));
 const PLANT_DATA={
   NJ:{areas:AREAS,items:ITEMS,phys:PHYS_CODES,equiv:VENDOR_EQUIV,exportOrder:AREA_EXPORT_ORDER},
@@ -3440,11 +3438,11 @@ let planData = null;
 function loadPlanDia(){
   try{
     const s=localStorage.getItem(PLAN_DIA_KEY);
-    return s?JSON.parse(s):null;
+    const p=s?JSON.parse(s):null;
+    return p&&p.type==='dm'?null:p;   // plans saved by the short-lived films/bags version are dropped
   }catch(e){return null;}
 }
 function savePlanDia(){
-  syncDmState();
   try{
     if(planData)localStorage.setItem(PLAN_DIA_KEY,JSON.stringify(planData));
     else localStorage.removeItem(PLAN_DIA_KEY);
@@ -3453,10 +3451,10 @@ function savePlanDia(){
 
 function triggerPlanImport(){document.getElementById('plan-import-input').click();}
 
-function parseSleeveLineSheet(rows){
+function parseSleeveLineSheet(rows,retailOnly){
   let headerRow=-1,colCode=-1,colBoxes=-1,colCs=-1;
   for(let r=0;r<rows.length;r++){
-    const idx=rows[r].findIndex(v=>String(v).trim()==='Sum of Open Cs');
+    const idx=rows[r].findIndex(v=>{const t=String(v).trim();return t==='Sum of Open Cs'||t==='Sum of Column2';});
     if(idx>-1){
       headerRow=r;colCs=idx;
       colCode=rows[r].findIndex(v=>String(v).trim()==='Code');
@@ -3469,11 +3467,13 @@ function parseSleeveLineSheet(rows){
   const skipped=new Set();
   for(let r=headerRow+1;r<rows.length;r++){
     const row=rows[r];
+    if(retailOnly&&row.some(v=>String(v).trim()==='Grand Total'))break;   // GA only; NJ parsing unchanged
     const physCode=String(row[colCode]||'').trim();
     if(!physCode)continue;
     const cs=Number(row[colCs])||0;
     if(!cs)continue;
     const boxesTxt=String(row[colBoxes]||'').trim();
+    if(retailOnly&&!/retail/i.test(boxesTxt))continue;   // GA: only retail trays carry sleeves (skips "SS 4/5 LOAF" etc.)
     const mult=/6/.test(boxesTxt)?6:/4/.test(boxesTxt)?4:0;
     if(!mult)continue;
     const sl=PHYS_TO_SL[physCode];
@@ -3490,18 +3490,18 @@ function importPlanFile(input){
   reader.onload=function(e){
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
-      if(wb.SheetNames.includes('Direct Material Planning')){importDmPlan(wb,file.name);input.value='';return;}
-      const sheetName=wb.SheetNames.find(n=>/boxes.*total/i.test(n));
+      const sheetName=wb.SheetNames.find(n=>/boxes.*total/i.test(n))||wb.SheetNames.find(n=>/^box\s*total$/i.test(n.trim()));
       if(!sheetName){
-        showToast('Could not find a "Boxes (Total)" sheet in that file.','error');
-        return;
+        showToast('Could not find a "Boxes (Total)" / "Box Total" sheet in that file.','error');
+        input.value='';return;
       }
       const ws=wb.Sheets[sheetName];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
 
       let headerRow=-1,colDesc=-1,colCode=-1,colTotal=-1;
       for(let r=0;r<rows.length;r++){
-        const idx=rows[r].findIndex(v=>String(v).trim()==='Box Code');
+        // NJ pivot header = "Box Code"; GA pivot header = "Row Labels" (codes in that column)
+        const idx=rows[r].findIndex(v=>{const t=String(v).trim();return t==='Box Code'||t==='Row Labels';});
         if(idx>-1){
           headerRow=r;colCode=idx;
           colDesc=rows[r].findIndex(v=>String(v).trim()==='Boxes');
@@ -3510,8 +3510,8 @@ function importPlanFile(input){
         }
       }
       if(headerRow<0||colTotal<0){
-        showToast('No se pudo ubicar la columna "Box Code" / "Grand Total" en la hoja.','error');
-        return;
+        showToast('Could not find the "Box Code" / "Grand Total" columns in "'+sheetName+'".','error');
+        input.value='';return;
       }
       const meta={};
       for(let r=0;r<headerRow;r++){
@@ -3519,15 +3519,28 @@ function importPlanFile(input){
         if(String(row[colDesc]||'').trim()==='Line Priority'){
           meta.linePriority=String(row[colCode]||'').trim();
         }
+        const lbl=String(row[0]||'').trim();                      // GA: filters sit in columns A/B
+        if(lbl==='Line Priority'&&!meta.linePriority)meta.linePriority=String(row[1]||'').trim();
+        if(lbl==='Day')meta.day=String(row[1]||'').trim();
       }
 
       const byCode={};
       for(let r=headerRow+1;r<rows.length;r++){
         const row=rows[r];
-        const code=String(row[colCode]||'').trim();
-        const desc=String(colDesc>-1?row[colDesc]:'').trim();
+        let code=String(row[colCode]||'').trim();
+        let desc=String(colDesc>-1?row[colDesc]:'').trim();
+        if(!code&&desc&&desc.toLowerCase()!=='grand total'&&Number(row[colTotal])){
+          // pivot row without a Box Code (e.g. "FUDDRUCKERS BOX"): match the box by name, only if it is unambiguous
+          const nrm=t=>String(t).toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/BOX(ES)?$/,'').replace(/S$/,'');
+          const hits=ITEMS.filter(x=>x.cat==='BOXES'&&nrm(x.name)&&nrm(x.name)===nrm(desc));
+          if(hits.length===1){code=hits[0].code;(meta.nameMatched=meta.nameMatched||[]).push(desc+' → '+code);}
+          else{(meta.noCode=meta.noCode||[]).push(desc+' ('+Number(row[colTotal]).toLocaleString()+')');continue;}
+        }
         if(!code)continue;
-        if(desc.toLowerCase()==='grand total')continue;
+        if(desc.toLowerCase()==='grand total'||code.toLowerCase()==='grand total')continue;
+        if(code==='(blank)')continue;
+        if(currentPlant==='GA'&&!/^[A-Z]{1,4}\d+[A-Z]*-\d+$/i.test(code)&&!/^sample box$/i.test(code))continue;
+        if(!desc){const it=ITEMS.find(x=>x.code===code.toUpperCase());desc=it?it.name:'';}
         const total=Number(row[colTotal])||0;
         const key=code.toUpperCase();
         if(!byCode[key])byCode[key]={code:key,desc,needed:0};
@@ -3535,6 +3548,10 @@ function importPlanFile(input){
         if(desc)byCode[key].desc=desc;
       }
 
+      if(!Object.keys(byCode).length){
+        showToast('"'+sheetName+'" has no box rows. In Excel: open "'+sheetName+'", set the Day filter (e.g. Monday), Refresh, save — then import again.','error');
+        input.value='';return;
+      }
       const oldItems={};
       if(planData&&planData.items)planData.items.forEach(it=>oldItems[it.code]=it.delivered||0);
 
@@ -3545,25 +3562,30 @@ function importPlanFile(input){
         delivered:oldItems[it.code]||0
       })).sort((a,b)=>a.code.localeCompare(b.code));
 
-      // Sleeves needed — reads "Line 22 Production" / "Line 23 Production", if present
-      const sleeveTotals={};
-      [22,23].forEach(num=>{
-        const lineSheet=wb.SheetNames.find(n=>new RegExp('line\\s*'+num,'i').test(n));
-        if(!lineSheet)return;
-        const lineRows=XLSX.utils.sheet_to_json(wb.Sheets[lineSheet],{header:1,defval:''});
-        const parsed=parseSleeveLineSheet(lineRows);
+      // Sleeves needed — NJ: "Line 22/23 Production" sheets · GA: every "Lxx_Prod" sheet (cases × 6 or 4 sleeves)
+      const sleeveTotals={},sleeveLines=[],skippedPhys=new Set();
+      const lineSheets=currentPlant==='GA'
+        ?wb.SheetNames.filter(n=>/^L\d+_Prod$/i.test(n.trim())).map(n=>({sheet:n,line:'Line '+n.match(/\d+/)[0]}))
+        :[22,23].map(num=>({sheet:wb.SheetNames.find(n=>new RegExp('line\\s*'+num,'i').test(n)),line:'Line '+num})).filter(x=>x.sheet);
+      lineSheets.forEach(({sheet,line})=>{
+        const lineRows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
+        const parsed=parseSleeveLineSheet(lineRows,currentPlant==='GA');
         if(!parsed)return;
-        Object.entries(parsed.bySl).forEach(([sl,qty])=>{
-          if(!sleeveTotals[sl])sleeveTotals[sl]={line22:0,line23:0};
-          sleeveTotals[sl]['line'+num]=qty;
+        parsed.skipped.forEach(c=>skippedPhys.add(c));
+        const ent=Object.entries(parsed.bySl);if(!ent.length)return;
+        sleeveLines.push(line);
+        ent.forEach(([sl,qty])=>{
+          if(!sleeveTotals[sl])sleeveTotals[sl]={};
+          sleeveTotals[sl][line]=(sleeveTotals[sl][line]||0)+qty;
         });
       });
-      const sleeves=Object.entries(sleeveTotals).map(([sl,v])=>{
+      const sleeves=Object.entries(sleeveTotals).map(([sl,byLine])=>{
         const item=ITEMS.find(i=>i.code===sl);
-        const total=v.line22+v.line23;
-        return {code:sl,desc:item?item.name:sl,line22:v.line22,line23:v.line23,total,boxesNeeded:Math.ceil(total/325)};
+        const total=Object.values(byLine).reduce((a,b)=>a+b,0);
+        return {code:sl,desc:item?item.name:sl,lines:byLine,line22:byLine['Line 22']||0,line23:byLine['Line 23']||0,total,boxesNeeded:Math.ceil(total/325)};
       }).sort((a,b)=>a.code.localeCompare(b.code));
-
+      meta.sleeveLines=currentPlant==='GA'?sleeveLines:['Line 22','Line 23'];   // NJ keeps its two fixed columns
+      if(currentPlant==='GA'&&skippedPhys.size)meta.sleeveSkipped=[...skippedPhys];
       planData={importedAt:new Date().toISOString(),source:file.name,meta,items,sleeves};
       savePlanDia();
       addLog('PLAN IMPORT','Planning imported from "'+file.name+'" ('+sheetName+') — '+items.length+' box codes'+(sleeves.length?', '+sleeves.length+' sleeve codes':''));
@@ -3575,75 +3597,6 @@ function importPlanFile(input){
     input.value='';
   };
   reader.readAsArrayBuffer(file);
-}
-
-/* ── "Direct Material Planning" sheet (GA daily production file): every DM category, per day ── */
-const DM_CATS=[
-  {hdr:'Box Code',cat:'Boxes',icon:'📦'},
-  {hdr:'Sleeve Code',cat:'Sleeves',icon:'🧵'},
-  {hdr:'Forming Film Code',cat:'Forming Film',icon:'🎞'},
-  {hdr:'Non-Forming Film Code',cat:'Non-Forming Film',icon:'🎞'},
-  {hdr:'Patty Paper Code',cat:'Patty Paper',icon:'📄'},
-  {hdr:'Tray Code',cat:'Trays',icon:'🍱'},
-  {hdr:'Plastic Bag Code',cat:'Bags',icon:'🛍'}];
-function dmSerialKey(n){const d=new Date(Date.UTC(1899,11,30)+Math.round(n)*864e5);return d.toISOString().slice(0,10);}
-function dmDayLabel(k){if(k==='all')return 'All days';const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'short'})+' '+m+'/'+d;}
-function fmtQ(n){n=Number(n)||0;return Number.isInteger(n)?n.toLocaleString():n.toLocaleString('en-US',{maximumFractionDigits:2});}
-function importDmPlan(wb,fileName){
-  const rows=XLSX.utils.sheet_to_json(wb.Sheets['Direct Material Planning'],{header:1,defval:''});
-  const out={},daySet=new Set();
-  for(let r=0;r<rows.length;r++){
-    const h=String(rows[r][0]||'').trim();
-    const def=DM_CATS.find(c=>c.hdr===h);
-    if(!def)continue;
-    const dateCols=[];let descCol=-1;
-    for(let c=1;c<rows[r].length;c++){
-      const v=rows[r][c];
-      if(typeof v==='number'&&v>40000&&v<60000){dateCols.push({c,k:dmSerialKey(v)});daySet.add(dmSerialKey(v));}
-      else if(String(v).trim()==='Grand Total')break;
-      else if(c===1&&String(v).trim()&&String(v).trim()!=='(blank)')descCol=1;
-    }
-    for(let i=r+1;i<rows.length;i++){
-      const a=String(rows[i][0]||'').trim();
-      if(a==='Grand Total'||(!a&&!String(rows[i][1]||'').trim()))break;
-      if(!/^[A-Z]{1,4}\d+[A-Z]*-\d+$/i.test(a))continue;            // skips N/A, No, (blank), Sample Box…
-      const code=a.toUpperCase();
-      const it=ITEMS.find(x=>x.code===code);
-      const rec=out[code]||(out[code]={code,cat:def.cat,desc:(descCol>-1&&String(rows[i][descCol]).trim())||(it?it.name:''),byDay:{}});
-      dateCols.forEach(dc=>{const q=Number(rows[i][dc.c])||0;if(q)rec.byDay[dc.k]=(rec.byDay[dc.k]||0)+q;});
-    }
-  }
-  const list=Object.values(out).filter(r=>Object.keys(r.byDay).length);
-  if(!list.length){showToast('No material codes found in "Direct Material Planning".','error');return;}
-  const days=[...daySet].sort();
-  const now=new Date();const todayK=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  const day=days.includes(todayK)?todayK:(days.find(k=>k>todayK)||days[0]);
-  planData={type:'dm',importedAt:new Date().toISOString(),source:fileName,meta:{},days,day,rows:list,state:{},items:[],sleeves:[]};
-  buildDmItems();
-  savePlanDia();
-  const cats=[...new Set(list.map(r=>r.cat))];
-  addLog('PLAN IMPORT','Planning imported from "'+fileName+'" (Direct Material Planning) — '+list.length+' codes: '+cats.join(', '));
-  render();
-  showToast('Daily Plan imported: '+list.length+' codes ('+cats.join(', ')+') · showing '+dmDayLabel(day),'success');
-}
-function buildDmItems(){
-  const st=(planData.state[planData.day])||{};
-  const order=DM_CATS.map(c=>c.cat);
-  planData.items=planData.rows.map(r=>{
-    const needed=planData.day==='all'?Object.values(r.byDay).reduce((a,b)=>a+b,0):(r.byDay[planData.day]||0);
-    const s=st[r.code]||{};
-    return {code:r.code,desc:r.desc,cat:r.cat,needed:Math.round(needed*100)/100,delivered:s.delivered||0,done:!!s.done};
-  }).filter(it=>it.needed>0)
-    .sort((a,b)=>order.indexOf(a.cat)-order.indexOf(b.cat)||a.code.localeCompare(b.code));
-}
-function syncDmState(){
-  if(!planData||planData.type!=='dm')return;
-  const st=planData.state[planData.day]={};
-  planData.items.forEach(it=>{if(it.delivered||it.done)st[it.code]={delivered:it.delivered,done:it.done};});
-}
-function setPlanDay(k){
-  if(!planData||planData.type!=='dm')return;
-  syncDmState();planData.day=k;buildDmItems();savePlanDia();renderPlanView();
 }
 
 function updatePlanDelivered(code,val){
@@ -3766,13 +3719,11 @@ function renderPlanView(){
         <input type="file" id="plan-import-input" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="importPlanFile(this)">
         <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
       </div>
-      <div class="log-empty">No Daily Plan loaded.<br>Upload the production planning file — NJ (with a "Boxes (Total)" sheet) or GA daily file (.xlsb with "Direct Material Planning") — or reload a saved work file.</div>`;
+      <div class="log-empty">No Daily Plan loaded.<br>Upload the production planning file — NJ (with a "Boxes (Total)" sheet) or GA daily file (.xlsb with a "Box Total" sheet) — or reload a saved work file.</div>`;
     return;
   }
   const summary=getItemSummary();
   const items=planData.items;
-  const isDm=planData.type==='dm';
-  let lastCat=null;
   let totalNeeded=0,totalDelivered=0,noStockCount=0,shortCount=0,doneCount=0;
   const rowsHtml=items.map(it=>{
     totalNeeded+=it.needed;totalDelivered+=it.delivered;
@@ -3790,18 +3741,15 @@ function renderPlanView(){
     const stockAfterCls=stockAfter<0?'plan-rem-pending':'plan-rem-ok';
     const equivNote=equivStock?`<div style="font-size:9px;color:var(--warn)">incl. ${equivCode}</div>`:'';
     if(it.done)doneCount++;
-    let catRow='';
-    if(isDm&&it.cat!==lastCat){lastCat=it.cat;const d=DM_CATS.find(c=>c.cat===it.cat);const n=items.filter(x=>x.cat===it.cat).length;
-      catRow=`<tr class="plan-cat-row"><td colspan="9">${d?d.icon:''} ${it.cat} <span>${n} code${n>1?'s':''}</span></td></tr>`;}
-    return catRow+`<tr class="${it.done?'plan-row-done':''}">
+    return `<tr class="${it.done?'plan-row-done':''}">
       <td><button class="plan-check${it.done?' on':''}" onclick="togglePlanDone('b','${it.code}')" title="Mark ready">${it.done?'✓':''}</button></td>
       <td style="font-weight:700;color:var(--accent2)">${it.code}</td>
       <td style="color:var(--text2);font-size:11px">${it.desc}</td>
-      <td>${fmtQ(it.needed)}</td>
-      <td><input type="text" inputmode="${isDm&&it.cat!=='Boxes'?'decimal':'numeric'}" enterkeyhint="done" autocomplete="off" class="plan-delivered-input" value="${it.delivered}" onfocus="this.select()" onchange="updatePlanDelivered('${it.code}',this.value)"></td>
-      <td class="${remCls}">${fmtQ(Math.round(remaining*100)/100)}</td>
-      <td>${fmtQ(stockQty)}${equivNote}</td>
-      <td class="${stockAfterCls}">${fmtQ(Math.round(stockAfter*100)/100)}</td>
+      <td>${it.needed.toLocaleString()}</td>
+      <td><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="plan-delivered-input" value="${it.delivered}" onfocus="this.select()" onchange="updatePlanDelivered('${it.code}',this.value)"></td>
+      <td class="${remCls}">${remaining.toLocaleString()}</td>
+      <td>${stockQty.toLocaleString()}${equivNote}</td>
+      <td class="${stockAfterCls}">${stockAfter.toLocaleString()}</td>
       <td style="font-size:10px;color:var(--text3)">${locTxt}</td>
     </tr>`;
   }).join('');
@@ -3819,51 +3767,50 @@ function renderPlanView(){
       <input type="file" id="plan-import-input" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="importPlanFile(this)">
       <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
     </div>
-    <div class="plan-meta">Source: ${planData.source} · Loaded: ${importedDate}${planData.meta&&planData.meta.linePriority?' · Line Priority: '+planData.meta.linePriority:''}</div>
-    ${isDm?`<div class="plan-days">${planData.days.map(k=>`<button class="plan-day${planData.day===k?' on':''}" onclick="setPlanDay('${k}')">${dmDayLabel(k)}</button>`).join('')}<button class="plan-day${planData.day==='all'?' on':''}" onclick="setPlanDay('all')">All days</button></div>`:''}
+    <div class="plan-meta">Source: ${planData.source} · Loaded: ${importedDate}${planData.meta&&planData.meta.day?' · Day: '+planData.meta.day:''}${planData.meta&&planData.meta.linePriority?' · Line Priority: '+planData.meta.linePriority:''}</div>
+    ${planData.meta&&planData.meta.nameMatched?`<div class="plan-meta" style="color:var(--warn)">Matched by name (no Box Code in the file): ${planData.meta.nameMatched.join(', ')}</div>`:''}
+    ${planData.meta&&planData.meta.noCode?`<div class="plan-meta" style="color:var(--danger)">⚠ Not included — no Box Code in the file: ${planData.meta.noCode.join(', ')}</div>`:''}
     ${alertBanner}
     <div class="stat-grid" style="margin-bottom:14px;grid-template-columns:repeat(auto-fit,minmax(100px,1fr))">
-      <div class="stat"><div class="stat-num">${items.length}</div><div class="stat-lbl">${isDm?'Codes':'Box Codes'}</div></div>
+      <div class="stat"><div class="stat-num">${items.length}</div><div class="stat-lbl">Box Codes</div></div>
       <div class="stat"><div class="stat-num" style="color:var(--success)">${doneCount}/${items.length}</div><div class="stat-lbl">Ready ✓</div></div>
-      ${isDm?(()=>{const bx=items.filter(i=>i.cat==='Boxes');const n=bx.reduce((a,i)=>a+i.needed,0),d=bx.reduce((a,i)=>a+i.delivered,0);
-        return `<div class="stat"><div class="stat-num" style="color:var(--warn)">${fmtQ(n)}</div><div class="stat-lbl">Boxes Needed</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--success)">${fmtQ(d)}</div><div class="stat-lbl">Boxes Delivered</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--danger)">${fmtQ(n-d)}</div><div class="stat-lbl">Boxes Remaining</div></div>`;})()
-      :`<div class="stat"><div class="stat-num" style="color:var(--warn)">${totalNeeded.toLocaleString()}</div><div class="stat-lbl">Needed (Total)</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--warn)">${totalNeeded.toLocaleString()}</div><div class="stat-lbl">Needed (Total)</div></div>
       <div class="stat"><div class="stat-num" style="color:var(--success)">${totalDelivered.toLocaleString()}</div><div class="stat-lbl">Delivered (Total)</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--danger)">${(totalNeeded-totalDelivered).toLocaleString()}</div><div class="stat-lbl">Remaining (Total)</div></div>`}
+      <div class="stat"><div class="stat-num" style="color:var(--danger)">${(totalNeeded-totalDelivered).toLocaleString()}</div><div class="stat-lbl">Remaining (Total)</div></div>
     </div>
     ${items.length?`<div style="overflow-x:auto"><table class="log-table plan-table">
       <thead><tr><th>✓</th><th>Code</th><th>Description</th><th>Needed</th><th>Delivered</th><th>Remaining</th><th>Stock</th><th>Stock After</th><th>Location</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
-    </table></div>`:`<div class="log-empty">${isDm?'Nothing planned for '+dmDayLabel(planData.day)+'.':'No box codes in this plan.'}</div>`}
+    </table></div>`:`<div class="log-empty">No box codes in this plan.</div>`}
     ${renderSleevesNeeded(summary)}`;
 }
 
 function renderSleevesNeeded(summary){
   if(!planData.sleeves||!planData.sleeves.length)return'';
+  const lines=(planData.meta&&planData.meta.sleeveLines&&planData.meta.sleeveLines.length)?planData.meta.sleeveLines:['Line 22','Line 23'];
   const rows=planData.sleeves.map(s=>{
     const stock=summary[s.code];
     const stockQty=stock?stock.qty:0;
     const locTxt=stock?stock.locs.map(l=>locAbbrevMix(l,stock)).join(', '):'<span style="color:var(--danger)">No stock</span>';
     const physDisp=PHYS_CODES[s.code]?`<div class="ic-phys">Physical: ${PHYS_CODES[s.code].join(' · ')}</div>`:'';
+    const byLine=s.lines||{'Line 22':s.line22,'Line 23':s.line23};
     return `<tr class="${s.done?'plan-row-done':''}">
       <td><button class="plan-check${s.done?' on':''}" onclick="togglePlanDone('s','${s.code}')" title="Mark ready">${s.done?'✓':''}</button></td>
       <td style="font-weight:700;color:var(--accent2)">${s.code}</td>
       <td style="color:var(--text2);font-size:11px">${s.desc}${physDisp}</td>
-      <td>${s.line22?s.line22.toLocaleString():'—'}</td>
-      <td>${s.line23?s.line23.toLocaleString():'—'}</td>
+      ${lines.map(l=>`<td>${byLine[l]?byLine[l].toLocaleString():'—'}</td>`).join('')}
       <td style="font-weight:700">${s.total.toLocaleString()}</td>
       <td style="font-weight:700;color:var(--warn)">${s.boxesNeeded.toLocaleString()}</td>
       <td>${stockQty.toLocaleString()}</td>
       <td style="font-size:10px;color:var(--text3)">${locTxt}</td>
     </tr>`;
   }).join('');
-  return `<div class="plan-meta" style="margin-top:20px;font-weight:700;color:var(--text2);font-size:12px">🧵 Sleeves Needed (Line 22 + Line 23 · 325 sleeves/box)</div>
+  const skipped=planData.meta&&planData.meta.sleeveSkipped&&planData.meta.sleeveSkipped.length?`<div class="plan-meta" style="color:var(--warn)">Products on these lines without a sleeve match: ${planData.meta.sleeveSkipped.join(', ')}</div>`:'';
+  return `<div class="plan-meta" style="margin-top:20px;font-weight:700;color:var(--text2);font-size:12px">🧵 Sleeves Needed (${lines.join(' + ')} · 325 sleeves/box)</div>
     <div style="overflow-x:auto"><table class="log-table plan-table">
-      <thead><tr><th>✓</th><th>SL Code</th><th>Description</th><th>Line 22</th><th>Line 23</th><th>Total Sleeves</th><th>Boxes Needed</th><th>Stock</th><th>Location</th></tr></thead>
+      <thead><tr><th>✓</th><th>SL Code</th><th>Description</th>${lines.map(l=>`<th>${l}</th>`).join('')}<th>Total Sleeves</th><th>Boxes Needed</th><th>Stock</th><th>Location</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>`;
+    </table></div>${skipped}`;
 }
 
 const BOXROOM_HIGH=new Set(['BX1850','BX1100','BX7500','BX1000','BX3000','BX7600','BX1400','BX1050']);
@@ -5001,7 +4948,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.19';
+const APP_VERSION='2026.10.19e';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
