@@ -3483,6 +3483,35 @@ function parseSleeveLineSheet(rows,retailOnly){
   return {bySl,skipped};
 }
 
+/* Same numbers as the "Boxes (Total)" / "Box Total" pivot, calculated straight from the schedule data
+   ("Input" in NJ, "lnput" in GA): orders that have a Line Priority = today's production.
+   Verified: NJ Oct-14 file → 19,789 (identical per code to the pivot); GA Oct-19 → Line Priority rows = Day "Monday". */
+function boxesFromSchedule(wb){
+  const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));
+  if(!sheet)return null;
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
+  const hr=rows.findIndex(r=>r.some(v=>String(v).trim()==='Box Code')&&r.some(v=>String(v).trim()==='Line Priority'));
+  if(hr<0)return null;
+  const H=rows[hr].map(v=>String(v).trim());const col=n=>H.indexOf(n);
+  const cCode=col('Box Code'),cDesc=col('Boxes'),cLP=col('Line Priority'),cDay=col('Day');
+  const cQty=col('Open Cs')>-1?col('Open Cs'):col('Column2');
+  if(cQty<0)return null;
+  const byCode={},days=new Set(),noCode={};let total=0;
+  for(let i=hr+1;i<rows.length;i++){
+    const r=rows[i];
+    if(String(r[cLP]).trim()==='')continue;                       // not scheduled today
+    const q=Number(r[cQty])||0;if(!q)continue;
+    let code=String(r[cCode]||'').trim().toUpperCase();
+    const desc=cDesc>-1?String(r[cDesc]||'').trim():'';
+    if(!code){noCode[desc||'?']=(noCode[desc||'?']||0)+q;continue;}
+    if(cDay>-1&&String(r[cDay]).trim())days.add(String(r[cDay]).trim());
+    const it=ITEMS.find(x=>x.code===code);
+    if(!byCode[code])byCode[code]={code,desc:it?it.name:desc,needed:0};
+    byCode[code].needed+=q;total+=q;
+  }
+  return {sheet,byCode,total,days:[...days],noCode};
+}
+
 function importPlanFile(input){
   const file=input.files[0];
   if(!file)return;
@@ -3548,9 +3577,22 @@ function importPlanFile(input){
         if(desc)byCode[key].desc=desc;
       }
 
+      const sched=boxesFromSchedule(wb);
+      const pivotTotal=Object.values(byCode).reduce((a,b)=>a+b.needed,0);
       if(!Object.keys(byCode).length){
-        showToast('"'+sheetName+'" has no box rows. In Excel: open "'+sheetName+'", set the Day filter (e.g. Monday), Refresh, save — then import again.','error');
-        input.value='';return;
+        if(sched&&Object.keys(sched.byCode).length){
+          // pivot not refreshed → use the schedule data (same rule as the pivot), and say so
+          Object.keys(byCode).forEach(k=>delete byCode[k]);
+          Object.values(sched.byCode).forEach(v=>byCode[v.code]={...v});
+          meta.source='schedule';meta.scheduleSheet=sched.sheet;
+          if(sched.days.length)meta.day=sched.days.join(', ');
+          const nc=Object.entries(sched.noCode);if(nc.length)meta.noCode=(meta.noCode||[]).concat(nc.map(([d,q])=>d+' ('+q.toLocaleString()+')'));
+        }else{
+          showToast('"'+sheetName+'" has no box rows and no schedule data was found. In Excel: open "'+sheetName+'", set the Day filter, Refresh, save — then import again.','error');
+          input.value='';return;
+        }
+      }else if(sched&&Math.round(sched.total)!==Math.round(pivotTotal)){
+        meta.crossCheck='"'+sheetName+'" total '+Math.round(pivotTotal).toLocaleString()+' ≠ schedule data ("'+sched.sheet+'") '+Math.round(sched.total).toLocaleString()+' — the pivot may not be refreshed.';
       }
       const oldItems={};
       if(planData&&planData.items)planData.items.forEach(it=>oldItems[it.code]=it.delivered||0);
@@ -3768,6 +3810,8 @@ function renderPlanView(){
       <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
     </div>
     <div class="plan-meta">Source: ${planData.source} · Loaded: ${importedDate}${planData.meta&&planData.meta.day?' · Day: '+planData.meta.day:''}${planData.meta&&planData.meta.linePriority?' · Line Priority: '+planData.meta.linePriority:''}</div>
+    ${planData.meta&&planData.meta.source==='schedule'?`<div class="plan-meta" style="color:var(--accent)">ℹ︎ Box totals calculated from the schedule data ("${planData.meta.scheduleSheet}": orders with a Line Priority) because the Box Total pivot was empty — same rule as the pivot.</div>`:''}
+    ${planData.meta&&planData.meta.crossCheck?`<div class="plan-alert">⚠ ${planData.meta.crossCheck}</div>`:''}
     ${planData.meta&&planData.meta.nameMatched?`<div class="plan-meta" style="color:var(--warn)">Matched by name (no Box Code in the file): ${planData.meta.nameMatched.join(', ')}</div>`:''}
     ${planData.meta&&planData.meta.noCode?`<div class="plan-meta" style="color:var(--danger)">⚠ Not included — no Box Code in the file: ${planData.meta.noCode.join(', ')}</div>`:''}
     ${alertBanner}
@@ -4948,7 +4992,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.19e';
+const APP_VERSION='2026.10.19f';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
