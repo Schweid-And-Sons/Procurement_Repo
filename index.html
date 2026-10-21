@@ -297,11 +297,7 @@
     .boxroom-page{margin:0;width:8.5in;min-height:11in;page-break-after:always;}
     .boxroom-page:last-child{page-break-after:auto!important;}
     @page{size:letter portrait;margin:0;}
-    body.printing-po #po-print,body.printing-po #po-print *{visibility:visible!important;}
-    body.printing-po #po-print{display:block!important;position:absolute;left:0;top:0;width:8.5in;padding:.4in;box-sizing:border-box;}
-    body.printing-po #po-print *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
   }
-  #po-print{display:none;}
 
   
   
@@ -926,65 +922,6 @@
   *::-webkit-scrollbar{width:8px;height:8px;}
   *::-webkit-scrollbar-thumb{background:rgba(120,120,128,.35);border-radius:8px;}
   *::-webkit-scrollbar-track{background:transparent;}
-  /* ---------- Procurement (Yooz POs → receiving check) ---------- */
-  .po-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;}
-  .po-bar .po-src{font-size:11px;color:var(--text3);flex:1 1 220px;}
-  .po-btn{border:none;background:var(--fill,#eee);color:var(--text);border-radius:10px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;}
-  .po-btn.pri{background:var(--accent);color:#fff;}
-  .po-btn.ok{background:color-mix(in srgb,var(--success) 16%,transparent);color:var(--success);}
-  .po-btn.bad{background:color-mix(in srgb,var(--danger,#ff3b30) 12%,transparent);color:var(--danger,#ff3b30);}
-  .po-date{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:12px;padding:4px;box-shadow:var(--shadow);}
-  .po-date button{border:none;background:none;font-size:18px;width:34px;height:34px;border-radius:9px;cursor:pointer;color:var(--accent);}
-  .po-date input{border:none;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--text);padding:4px;}
-  .po-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
-  .po-kpi{background:var(--surface);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);}
-  .po-kpi b{display:block;font-size:22px;}
-  .po-kpi span{font-size:11px;color:var(--text3);}
-  .po-sec{font-size:13px;font-weight:700;color:var(--text2);margin:16px 2px 8px;}
-  .po-card{background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;display:flex;gap:12px;align-items:center;}
-  .po-card:active{transform:scale(.99);}
-  .po-card .po-main{flex:1;min-width:0;}
-  .po-card .po-t{font-weight:700;font-size:14px;}
-  .po-card .po-v{font-size:12px;color:var(--text2);}
-  .po-card .po-l{font-size:11px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .po-st{flex:none;font-size:11px;font-weight:700;border-radius:20px;padding:5px 10px;white-space:nowrap;}
-  .po-st.pend{background:var(--fill,#eee);color:var(--text2);}
-  .po-st.ok{background:color-mix(in srgb,var(--success) 16%,transparent);color:var(--success);}
-  .po-st.diff{background:color-mix(in srgb,#ff9500 18%,transparent);color:#c76a00;}
-  .po-st.miss{background:color-mix(in srgb,var(--danger,#ff3b30) 14%,transparent);color:var(--danger,#ff3b30);}
-  .po-empty{color:var(--text3);font-size:13px;text-align:center;padding:24px 10px;background:var(--surface);border-radius:16px;}
-  #po-overlay .modal{max-width:640px;}
-  .po-lines{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px;}
-  .po-lines th{font-size:10px;color:var(--text3);font-weight:600;text-align:right;padding:4px 4px;}
-  .po-lines th:first-child{text-align:left;}
-  .po-lines td{padding:7px 4px;border-top:1px solid var(--border);text-align:right;vertical-align:middle;}
-  .po-lines td:first-child{text-align:left;}
-  .po-lines .po-code{font-weight:700;color:var(--accent2);}
-  .po-lines .po-nm{display:block;font-size:10px;color:var(--text3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .po-lines input.po-cnt{width:76px!important;margin:0!important;padding:6px 8px!important;text-align:right;font-size:14px!important;background:var(--fill,#f2f2f7)!important;border-radius:9px!important;border:none!important;}
-  .po-lines input.po-cnt.po-missing{box-shadow:0 0 0 2px #ff3b30!important;}
-  .po-eq{border:none;background:color-mix(in srgb,var(--success) 14%,transparent);color:var(--success);border-radius:8px;width:30px;height:30px;font-weight:700;cursor:pointer;margin-left:4px;}
-  .po-d{font-weight:700;min-width:44px;display:inline-block;}
-  .po-d.ok{color:var(--success);} .po-d.diff{color:#c76a00;} .po-d.miss{color:var(--danger,#ff3b30);}
-  .po-quick{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px;}
-  .po-quick .po-btn{flex:1;}
-  .po-note{width:100%;min-height:54px;border-radius:10px;border:none;background:var(--fill,#f2f2f7);color:var(--text);font:inherit;font-size:13px;padding:8px 10px;box-sizing:border-box;}
-  .po-hint{font-size:11px;color:var(--text3);margin:2px 0 8px;}
-  .po-report-wrap{background:#fff;border-radius:12px;overflow-x:auto;box-shadow:0 0 0 1px rgba(0,0,0,.08);}
-  @media(max-width:520px){.po-kpis{grid-template-columns:repeat(2,1fr);}.po-report-wrap .po-report{padding:16px 12px!important;font-size:12px;}}
-  /* phone: each PO line becomes a small card — item + ordered on top, BOL / Counted / result below */
-  @media(max-width:600px){
-    .po-lines thead{display:none;}
-    .po-lines tr{display:grid;grid-template-columns:1fr 1fr auto;grid-template-areas:"item item ord" "bol cnt d";gap:4px 10px;padding:10px 0;border-top:1px solid var(--border);align-items:end;}
-    .po-lines td{border:none!important;padding:0!important;text-align:left!important;}
-    .po-lines td:nth-child(1){grid-area:item;} .po-lines td:nth-child(2){grid-area:ord;text-align:right!important;}
-    .po-lines td:nth-child(3){grid-area:bol;} .po-lines td:nth-child(4){grid-area:cnt;} .po-lines td:nth-child(5){grid-area:d;align-self:center;text-align:right!important;}
-    .po-lines td[data-l]::before{content:attr(data-l);display:block;font-size:10px;color:var(--text3);font-weight:600;margin-bottom:2px;}
-    .po-lines td:nth-child(2)::before{text-align:right;}
-    .po-lines input.po-cnt{width:calc(100% - 38px)!important;}
-    .po-lines td:nth-child(3) input.po-cnt{width:100%!important;}
-    .po-lines .po-nm{max-width:none;}
-  }
 </style>
 <script>
 
@@ -1035,7 +972,6 @@ try{
       <button class="nav-btn" onclick="setView('items')">Items</button>
       <button class="nav-btn" onclick="setView('stats')">Stats</button>
       <button class="nav-btn" onclick="setView('plan')">Daily Plan</button>
-      <button class="nav-btn" onclick="setView('po')">Receiving</button>
       <button class="nav-btn" onclick="setView('log')">Log</button>
     </div>
     <div class="sidebar-body">
@@ -1152,7 +1088,6 @@ try{
     <button class="bnav-btn" id="bnav-items" onclick="setView('items')"><span class="bnav-icon">📦</span>Items</button>
     <button class="bnav-btn" id="bnav-stats" onclick="setView('stats')"><span class="bnav-icon">📊</span>Stats</button>
     <button class="bnav-btn" id="bnav-plan" onclick="setView('plan')"><span class="bnav-icon">📅</span>Plan</button>
-    <button class="bnav-btn" id="bnav-po" onclick="setView('po')"><span class="bnav-icon">🚚</span>Receive</button>
     <button class="bnav-btn" id="bnav-log" onclick="setView('log')"><span class="bnav-icon">📋</span>Log</button>
   </div>
 </nav>
@@ -1189,12 +1124,6 @@ try{
   </div>
 </div>
 
-<div class="modal-overlay hidden" id="po-overlay" onclick="closePoModal(event)">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div id="po-modal-body"></div>
-  </div>
-</div>
-<input type="file" id="po-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importYoozFile(this)">
 <div class="modal-overlay hidden" id="pin-overlay" onclick="closePinModal(event)">
   <div class="pin-modal" onclick="event.stopPropagation()" id="pin-modal-box">
     <h3 id="pin-title">Count Mode</h3>
@@ -2504,11 +2433,11 @@ function setView(v){
   document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===currentMode));
   currentView=v;
   closeSidebar();
-  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['map','items','stats','plan','po','log'][i]===v));
-  document.getElementById('view-title').textContent={map:'Warehouse Map',items:'Item Inventory',locations:'Location Detail',stats:'Statistics',plan:'Daily Plan',po:'Receiving · Yooz POs',log:'Activity Log'}[v];
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['map','items','stats','plan','log'][i]===v));
+  document.getElementById('view-title').textContent={map:'Warehouse Map',items:'Item Inventory',locations:'Location Detail',stats:'Statistics',plan:'Daily Plan',log:'Activity Log'}[v];
   document.getElementById('mode-tabs').classList.toggle('mode-tabs-off',v!=='map');
   
-  ['map','items','stats','plan','po','log'].forEach(tab=>{
+  ['map','items','stats','plan','log'].forEach(tab=>{
     const b=document.getElementById('bnav-'+tab);
     if(b)b.classList.toggle('active',tab===v);
   });
@@ -2535,7 +2464,6 @@ function render(){
   else if(currentView==='locations')renderLocationsView();
   else if(currentView==='stats')renderStatsView();
   else if(currentView==='plan')renderPlanView();
-  else if(currentView==='po')renderPoView();
   else if(currentView==='log')renderLogView();
 }
 function refresh(){migrateGaLayout();calcStats();renderSidebar();render();}
@@ -4292,333 +4220,6 @@ async function shareBoxRoomMap(){
   showToast('PDF downloaded (sharing not available on this device).','success');
 }
 
-/* ===================== RECEIVING — Yooz POs → receiving check =====================
-   Three numbers per line:  ORDERED (Yooz PO) · BOL (what the supplier says it sent, typed from the
-   paperwork on the truck) · COUNTED (what we actually unloaded). The WMS turns any difference into a
-   short report for the Procurement team. Nothing is written back to Yooz.
-   Data today: the Yooz export (xlsx/csv, same columns as Databricks table
-   yooz_direct_materials_master_data). Later the same rows will come from a daily SharePoint file. */
-const YOOZ_LINES_KEY='wms_yooz_lines';              // shared by both plants (plant comes from the code suffix)
-const PLANT_SUFFIX={NJ:'1',GA:'4'};
-let poDate=null;
-const receiptsKey=()=>'wms_receipts_'+String(currentPlant||'NJ').toLowerCase();
-function loadYooz(){try{return JSON.parse(localStorage.getItem(YOOZ_LINES_KEY))||null;}catch(e){return null;}}
-function loadReceipts(){try{return JSON.parse(localStorage.getItem(receiptsKey()))||{};}catch(e){return {};}}
-function saveReceipts(r){try{localStorage.setItem(receiptsKey(),JSON.stringify(r));}catch(e){showToast('Could not save receipt on this device.','error');}}
-const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const fmtDay=s=>{if(!s)return '—';const [y,m,d]=s.split('-');return (+m)+'/'+(+d)+'/'+y.slice(2);};
-const poEsc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function toYmd(v){
-  if(v==null||v==='')return '';
-  if(v instanceof Date&&!isNaN(v))return ymd(new Date(v.getTime()+v.getTimezoneOffset()*60000*(v.getUTCHours()===0&&v.getUTCMinutes()===0?1:0)));
-  if(typeof v==='number'){const d=XLSX.SSF.parse_date_code(v);return d?d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0'):'';}
-  const s=String(v).trim();let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];
-  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(m){const y=m[3].length===2?'20'+m[3]:m[3];return y+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');}
-  return '';
-}
-const numv=v=>{if(v===''||v==null)return null;const n=+String(v).replace(/,/g,'');return isNaN(n)?null:n;};
-/* Yooz code → WMS code: Sonic lines carry a "-S" suffix (BX1003-1-S = BX1003-1); the plant is the -1 / -4 suffix. */
-function yoozToWms(code){
-  const c=String(code||'').trim().toUpperCase().replace(/-S$/,'');
-  const m=c.match(/-(\d)$/);
-  return {code:c,plant:m?(m[1]==='1'?'NJ':m[1]==='4'?'GA':null):null};
-}
-function importYoozFile(input){
-  const f=input.files&&input.files[0];if(!f)return;
-  const rd=new FileReader();
-  rd.onload=e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
-      const name=wb.SheetNames.find(n=>/sample|data|yooz|sheet1/i.test(n)&&!/dictionary/i.test(n))||wb.SheetNames.find(n=>!/dictionary/i.test(n))||wb.SheetNames[0];
-      const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{defval:''});
-      if(!rows.length||!('purchase_order_number' in rows[0])||!('product_code' in rows[0])){showToast('This file does not look like the Yooz export (needs purchase_order_number and product_code).','error');return;}
-      const lines=rows.filter(r=>r.purchase_order_number&&r.product_code).map(r=>{
-        const w=yoozToWms(r.product_code);
-        return {po:String(r.purchase_order_number).trim(),yooz:String(r.yooz_number||''),vendor:String(r.vendor_name||'').trim(),
-          raw:String(r.product_code).trim(),code:w.code,plant:w.plant,desc:String(r.line_description||''),
-          ordered:numv(r.ordered_quantity),due:toYmd(r.delivery_date),recv:toYmd(r.reception_date),unit:String(r.measure_unit||'')};
-      });
-      const data={loaded:new Date().toISOString(),file:f.name,lines};
-      localStorage.setItem(YOOZ_LINES_KEY,JSON.stringify(data));
-      const mine=poLines(data).length;
-      addLog('YOOZ LOAD',`${f.name} — ${lines.length} PO line(s) loaded · ${mine} DM line(s) for ${currentPlant}`);
-      showToast(`Yooz data loaded: ${mine} DM line(s) for ${currentPlant}.`,'success');
-      {const ds=poLines(data).map(l=>l.due).filter(Boolean).sort();const cur=poDate||ymd(new Date());if(ds.length&&!ds.includes(cur)){poDate=ds[ds.length-1];showToast(`Nothing due ${fmtDay(cur)} — showing the latest date in the file (${fmtDay(poDate)}).`,'success');}}
-      if(currentView==='po')renderPoView();else setView('po');
-    }catch(err){showToast('Could not read the file: '+err.message,'error');}
-    finally{input.value='';}
-  };
-  rd.readAsArrayBuffer(f);
-}
-/* Only direct-material lines of this plant: the code must exist in this plant's WMS catalog. */
-function poLines(data){
-  data=data||loadYooz();if(!data)return [];
-  const cat=new Set(ITEMS.map(i=>i.code));
-  return data.lines.filter(l=>l.plant===currentPlant&&cat.has(l.code));
-}
-function poGroups(){
-  const g={};
-  poLines().forEach(l=>{const k=l.po+'|'+l.due;(g[k]=g[k]||{key:k,po:l.po,vendor:l.vendor,due:l.due,lines:[]}).lines.push(l);});
-  return Object.values(g);
-}
-/* ok = counted matches the BOL and the BOL matches the PO · bol = supplier sent a different qty than ordered
-   diff = what we unloaded differs from the BOL · miss = nothing arrived */
-function lineStatus(l){
-  if(l.counted==null)return 'pend';
-  if(l.counted===0&&(l.bol||l.ordered))return 'miss';
-  if(l.bol!=null&&l.counted!==l.bol)return 'diff';
-  if(l.bol!=null&&l.ordered!=null&&l.bol!==l.ordered)return 'bol';
-  return 'ok';
-}
-function receiptStatus(r){
-  if(!r)return 'pend';
-  if(r.notArrived)return 'miss';
-  const st=r.lines.map(lineStatus);
-  return st.includes('diff')||st.includes('miss')?'diff':st.includes('bol')?'bol':'ok';
-}
-const ST_LABEL={pend:'To check',ok:'✓ Received OK',diff:'⚠ Count ≠ BOL',bol:'◐ BOL ≠ PO',miss:'✕ Not arrived'};
-const LINE_TXT={ok:'✓',diff:'Count ≠ BOL',bol:'BOL ≠ PO',miss:'Not received',pend:''};
-function renderPoView(){
-  const data=loadYooz();
-  const el=document.getElementById('main-content');
-  if(!poDate)poDate=ymd(new Date());
-  let h=`<div class="po-bar">
-    <div class="po-date"><button onclick="poShiftDay(-1)" aria-label="Previous day">‹</button><input type="date" value="${poDate}" onchange="poDate=this.value||poDate;renderPoView()"><button onclick="poShiftDay(1)" aria-label="Next day">›</button></div>
-    <button class="po-btn" onclick="poDate=ymd(new Date());renderPoView()">Today</button>
-    <button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>
-    <span class="po-src">${data?`Yooz data: <b>${poEsc(data.file)}</b> · loaded ${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} · ${poLines(data).length} DM line(s) for ${currentPlant}`:'No Yooz data yet — load the daily Yooz export (xlsx / csv).'}</span>
-  </div>`;
-  if(!data){el.innerHTML=h+`<div class="po-empty">Load the Yooz export to see the POs expected each day.<br>Only Direct Materials of ${currentPlant} are shown (codes found in the WMS catalog).</div>`;return;}
-  const rec=loadReceipts();
-  const groups=poGroups();
-  const today=groups.filter(g=>g.due===poDate).sort((a,b)=>a.vendor.localeCompare(b.vendor));
-  const lim=new Date(poDate+'T12:00');lim.setDate(lim.getDate()-14);const limS=ymd(lim);
-  const earlier=groups.filter(g=>g.due<poDate&&g.due>=limS&&!rec[g.key]).sort((a,b)=>b.due.localeCompare(a.due));
-  const st=today.map(g=>receiptStatus(rec[g.key]));
-  h+=`<div class="po-kpis">
-    <div class="po-kpi"><b>${today.length}</b><span>PO(s) expected</span></div>
-    <div class="po-kpi"><b style="color:var(--success)">${st.filter(s=>s==='ok').length}</b><span>Received OK</span></div>
-    <div class="po-kpi"><b style="color:#c76a00">${st.filter(s=>s==='diff'||s==='bol').length}</b><span>With differences</span></div>
-    <div class="po-kpi"><b style="color:var(--text2)">${st.filter(s=>s==='pend').length}</b><span>To check</span></div>
-  </div>`;
-  const card=g=>{const r=rec[g.key],s=receiptStatus(r);
-    return `<div class="po-card" onclick="openPoReceive('${poEsc(g.key)}')"><div class="po-main">
-      <div class="po-t">${poEsc(g.po)} <span style="font-weight:500;color:var(--text3);font-size:11px">· due ${fmtDay(g.due)}</span></div>
-      <div class="po-v">${poEsc(g.vendor)} · ${g.lines.length} line(s)</div>
-      <div class="po-l">${g.lines.map(l=>l.code+' '+(l.ordered!=null?l.ordered.toLocaleString():'')).join(' · ')}</div>
-    </div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;};
-  h+=`<div class="po-sec">Expected ${fmtDay(poDate)}</div>`+(today.length?today.map(card).join(''):`<div class="po-empty">No DM purchase orders due on ${fmtDay(poDate)}.</div>`);
-  if(earlier.length)h+=`<div class="po-sec">Earlier — not checked in the WMS (last 14 days)</div>`+earlier.map(card).join('');
-  const hist=Object.values(rec).sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,20);
-  if(hist.length){
-    h+=`<div class="po-sec">Recent receiving reports</div>`+hist.map(r=>{const s=receiptStatus(r);
-      return `<div class="po-card" onclick="openPoReport('${poEsc(r.key)}')"><div class="po-main"><div class="po-t">${poEsc(r.po)} · ${poEsc(r.vendor)}</div>
-      <div class="po-l">Checked ${new Date(r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${r.by?' by '+poEsc(r.by):''}${s==='diff'||s==='bol'?' · '+r.lines.filter(l=>lineStatus(l)!=='ok').length+' line(s) off':''}</div></div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;}).join('');
-  }
-  el.innerHTML=h;
-}
-function poShiftDay(n){const d=new Date(poDate+'T12:00');d.setDate(d.getDate()+n);poDate=ymd(d);renderPoView();}
-function closePoModal(e){if(!e||e.target===document.getElementById('po-overlay'))document.getElementById('po-overlay').classList.add('hidden');}
-let _poKey=null;
-function openPoReceive(key){
-  const g=poGroups().find(x=>x.key===key);
-  const prev=loadReceipts()[key];
-  if(!g&&prev){openPoReport(key);return;}
-  if(!g){showToast('PO not found in the current Yooz data.','error');return;}
-  if(prev&&!openPoReceive._edit){openPoReport(key);return;}
-  openPoReceive._edit=false;
-  _poKey=key;
-  let by='';try{by=localStorage.getItem('wms_receiver_name')||'';}catch(e){}
-  const pl=prev?Object.fromEntries(prev.lines.map(l=>[l.code,l])):{};
-  const rows=g.lines.map((l,i)=>{const it=ITEMS.find(x=>x.code===l.code);const p0=pl[l.code]||{};
-    const inp=(kind,v,ph)=>`<input type="text" class="po-cnt po-${kind}" id="po-${kind}-${i}" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="${ph}" value="${v!=null?v:''}" oninput="this.classList.remove('po-missing');poUpdDiff(${i})">`;
-    return `<tr><td><span class="po-code">${poEsc(l.code)}</span><span class="po-nm">${poEsc(it?it.name:l.desc)}</span></td>
-      <td data-l="Ordered"><b>${l.ordered!=null?l.ordered.toLocaleString():'—'}</b></td>
-      <td data-l="BOL">${inp('bol',p0.bol,'BOL')}</td>
-      <td data-l="Counted" style="white-space:nowrap">${inp('cnt',p0.counted,'Count')}<button type="button" class="po-eq" title="Counted = BOL" onclick="poSetEq(${i})">=</button></td>
-      <td><span class="po-d" id="po-d-${i}"></span></td></tr>`;}).join('');
-  document.getElementById('po-modal-body').innerHTML=`
-    <h3>Receive · ${poEsc(g.po)}</h3>
-    <div class="modal-loc">${poEsc(g.vendor)} · ${currentPlant} · due ${fmtDay(g.due)}</div>
-    <div class="po-hint"><b>Ordered</b> comes from Yooz. Type the <b>BOL</b> qty (what the supplier says it sent) and what you <b>counted</b>. <b>=</b> copies the BOL into the count.</div>
-    <div class="po-quick"><button type="button" class="po-btn ok" onclick="poAllEq()">✓ BOL = PO and count = BOL</button><button type="button" class="po-btn bad" onclick="poNotArrived()">✕ Truck did not arrive</button></div>
-    <div style="overflow-x:auto"><table class="po-lines"><thead><tr><th>Item</th><th>Ordered</th><th>BOL</th><th>Counted</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <label>Notes (BOL #, damage, short pallets…)</label>
-    <textarea class="po-note" id="po-note">${poEsc(prev?prev.notes:'')}</textarea>
-    <label>Received by</label>
-    <input type="text" id="po-by" value="${poEsc(prev?prev.by:by)}" placeholder="Your name" autocomplete="off">
-    <div class="modal-actions"><button class="btn-primary" onclick="savePoReceipt()">Save &amp; create report</button><button class="btn-cancel" onclick="closePoModal()">Cancel</button></div>`;
-  g.lines.forEach((l,i)=>poUpdDiff(i));
-  document.getElementById('po-overlay').classList.remove('hidden');
-}
-function poGroupNow(){return poGroups().find(x=>x.key===_poKey);}
-const poVal=id=>{const e=document.getElementById(id);const v=e?e.value.trim():'';return v===''?null:parseInt(v,10);};
-function poUpdDiff(i){
-  const g=poGroupNow();if(!g)return;const l=g.lines[i];
-  const d=document.getElementById('po-d-'+i);
-  const x={ordered:l.ordered,bol:poVal('po-bol-'+i),counted:poVal('po-cnt-'+i)};
-  const s=x.counted==null?'pend':lineStatus(x);
-  d.className='po-d '+(s==='bol'?'diff':s);
-  d.textContent=s==='diff'?((x.counted-x.bol>0?'+':'')+(x.counted-x.bol).toLocaleString()+' vs BOL'):s==='bol'?('BOL '+(x.bol-x.ordered>0?'+':'')+(x.bol-x.ordered).toLocaleString()):LINE_TXT[s];
-}
-function poSetEq(i){
-  const g=poGroupNow();const l=g.lines[i];
-  const b=document.getElementById('po-bol-'+i),c=document.getElementById('po-cnt-'+i);
-  if(b.value.trim()===''&&l.ordered!=null)b.value=l.ordered;
-  c.value=b.value;b.classList.remove('po-missing');c.classList.remove('po-missing');poUpdDiff(i);
-}
-function poAllEq(){poGroupNow().lines.forEach((l,i)=>{const b=document.getElementById('po-bol-'+i);if(l.ordered!=null)b.value=l.ordered;poSetEq(i);});}
-function poNotArrived(){
-  if(!confirm('Mark this whole PO as NOT arrived today?'))return;
-  savePoReceipt(true);
-}
-function savePoReceipt(notArrived){
-  const g=poGroupNow();if(!g)return;
-  const by=(document.getElementById('po-by').value||'').trim();
-  const notes=(document.getElementById('po-note').value||'').trim();
-  const lines=[];
-  for(let i=0;i<g.lines.length;i++){
-    const l=g.lines[i];
-    const bi=document.getElementById('po-bol-'+i),ci=document.getElementById('po-cnt-'+i);
-    let bol=poVal('po-bol-'+i),c=notArrived?0:poVal('po-cnt-'+i);
-    if(notArrived)bol=bol==null?0:bol;
-    if(!notArrived&&(bol==null||isNaN(bol)||bol<0)){showToast('Enter the BOL qty for '+l.code+' (0 if it is not on the BOL).','error');bi.classList.add('po-missing');bi.focus();return;}
-    if(!notArrived&&(c==null||isNaN(c)||c<0)){showToast('Enter the counted qty for '+l.code+' (0 if it did not come).','error');ci.classList.add('po-missing');ci.focus();return;}
-    lines.push({code:l.code,raw:l.raw,desc:l.desc,ordered:l.ordered,bol,counted:c});
-  }
-  try{if(by)localStorage.setItem('wms_receiver_name',by);}catch(e){}
-  const all=loadReceipts();
-  const r={key:g.key,po:g.po,vendor:g.vendor,due:g.due,plant:currentPlant,ts:new Date().toISOString(),by,notes,notArrived:!!notArrived,lines};
-  all[g.key]=r;saveReceipts(all);
-  const s=receiptStatus(r);
-  const off=lines.filter(l=>lineStatus(l)!=='ok');
-  addLog('RECEIVE',`PO ${g.po} · ${g.vendor} — ${ST_LABEL[s].replace(/^[^A-Za-z]+/,'')}`+(off.length&&!notArrived?': '+off.map(l=>`${l.code} PO ${l.ordered!=null?l.ordered:'?'} / BOL ${l.bol} / counted ${l.counted}`).join(', '):''));
-  renderPoView();
-  openPoReport(g.key);
-}
-/* ---------- micro-report (what Procurement receives) ---------- */
-function poReportHtml(r){
-  const s=receiptStatus(r);
-  const col={ok:'#1f9d55',diff:'#c76a00',bol:'#c76a00',miss:'#d70015',pend:'#666'}[s];
-  const td='padding:7px 8px;border-top:1px solid #e5e5ea;text-align:right';
-  const sgn=n=>(n>0?'+':'')+n.toLocaleString();
-  const rows=r.lines.map(l=>{const ls=lineStatus(l);const it=ITEMS.find(x=>x.code===l.code);
-    const vsPo=l.bol!=null&&l.ordered!=null&&l.bol!==l.ordered?sgn(l.bol-l.ordered):'—';
-    const vsBol=l.bol!=null&&l.counted!=null&&l.counted!==l.bol?sgn(l.counted-l.bol):'—';
-    const bg=ls==='ok'?'':ls==='miss'?'background:#fff1f0;':'background:#fff7e6;';
-    return `<tr style="${bg}"><td style="${td};text-align:left"><b>${poEsc(l.code)}</b><br><span style="font-size:11px;color:#6e6e73">${poEsc(it?it.name:l.desc)}</span></td>
-      <td style="${td}">${l.ordered!=null?l.ordered.toLocaleString():'—'}</td>
-      <td style="${td}">${l.bol!=null?l.bol.toLocaleString():'—'}</td>
-      <td style="${td}"><b>${l.counted!=null?l.counted.toLocaleString():'—'}</b></td>
-      <td style="${td};color:${vsPo==='—'?'#c7c7cc':'#c76a00'};font-weight:700">${vsPo}</td>
-      <td style="${td};color:${vsBol==='—'?'#c7c7cc':'#d70015'};font-weight:700">${ls==='miss'?'Not rec.':vsBol}</td></tr>`;}).join('');
-  const when=new Date(r.ts).toLocaleString('en-US',{weekday:'short',month:'numeric',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
-  const nDiff=r.lines.filter(l=>['diff','miss'].includes(lineStatus(l))).length,nBol=r.lines.filter(l=>lineStatus(l)==='bol').length;
-  const head=s==='ok'?'Received complete — BOL matches the PO and the count matches the BOL.':r.notArrived?'Truck did not arrive.':
-    [nDiff?`${nDiff} line(s): what we unloaded does not match the BOL.`:'',nBol?`${nBol} line(s): the BOL does not match the PO (supplier sent a different qty than ordered).`:''].filter(Boolean).join(' ');
-  return `<div class="po-report" style="font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1c1c1e;background:#fff;padding:22px 24px;width:100%;box-sizing:border-box;">
-    <div style="font-size:11px;color:#8e8e93;letter-spacing:.04em">SCHWEID &amp; SONS · ${r.plant} · DIRECT MATERIALS</div>
-    <div style="font-size:20px;font-weight:800;margin:4px 0 2px">Receiving Report</div>
-    <div style="font-size:13px;color:#3c3c43">PO <b>${poEsc(r.po)}</b> · ${poEsc(r.vendor)} · due ${fmtDay(r.due)}</div>
-    <div style="font-size:12px;color:#8e8e93;margin-top:2px">Checked ${when}${r.by?' · by '+poEsc(r.by):''}</div>
-    <div style="margin:12px 0;padding:10px 12px;border-radius:10px;font-weight:700;font-size:13px;color:${col};background:${col}14">${head}</div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead><tr style="font-size:11px;color:#8e8e93"><th style="text-align:left;padding:4px 8px">Item</th><th style="text-align:right;padding:4px 8px">Ordered<br>(Yooz)</th><th style="text-align:right;padding:4px 8px">BOL</th><th style="text-align:right;padding:4px 8px">Counted</th><th style="text-align:right;padding:4px 8px">BOL<br>vs PO</th><th style="text-align:right;padding:4px 8px">Count<br>vs BOL</th></tr></thead>
-      <tbody>${rows}</tbody></table>
-    ${r.notes?`<div style="margin-top:12px;font-size:12px"><b>Notes:</b> ${poEsc(r.notes)}</div>`:''}
-    <div style="margin-top:14px;font-size:10px;color:#8e8e93">Ordered from the Yooz PO · BOL and count recorded at the dock in the WMS.</div>
-  </div>`;
-}
-function poReportText(r){
-  const s=receiptStatus(r);
-  const L=[`Receiving Report · ${r.plant} · PO ${r.po} · ${r.vendor}`,`Checked ${new Date(r.ts).toLocaleString('en-US')}${r.by?' by '+r.by:''}`,ST_LABEL[s]];
-  let okN=0;
-  r.lines.forEach(l=>{const ls=lineStatus(l);if(ls==='ok'&&s!=='ok'){okN++;return;}L.push(`• ${l.code}: PO ${l.ordered!=null?l.ordered:'?'} · BOL ${l.bol!=null?l.bol:'?'} · counted ${l.counted}`+(ls==='ok'?'':` → ${LINE_TXT[ls]}`));});
-  if(okN)L.push(`(${okN} other line(s) matched: PO = BOL = counted)`);
-  if(r.notes)L.push('Notes: '+r.notes);
-  return L.join('\n');
-}
-function openPoReport(key){
-  const r=loadReceipts()[key];if(!r)return;
-  _poKey=key;
-  document.getElementById('po-modal-body').innerHTML=`
-    <div class="po-report-wrap">${poReportHtml(r)}</div>
-    <label style="margin-top:12px">Send to <span style="color:var(--text3);font-size:10px">(email of the Procurement team · separate several with commas)</span></label>
-    <input type="email" id="po-sendto" value="${poEsc(poSendTo())}" placeholder="name@schweidandsons.com" autocomplete="email" onchange="poSaveSendTo(this.value)">
-    <div class="po-quick" style="margin-top:8px"><button class="po-btn pri" onclick="emailPoReport()">✉ Email</button><button class="po-btn pri" style="background:#5059c9" onclick="teamsPoReport()">💬 Teams</button><button class="po-btn" onclick="downloadPoReport()">⬇ Save PDF</button><button class="po-btn" onclick="printPoReport()">🖨 Print</button></div>
-    <div class="modal-actions"><button class="btn-clear" onclick="openPoReceive._edit=true;openPoReceive('${poEsc(key)}')">✎ Edit count</button><button class="btn-cancel" onclick="closePoModal()">Close</button></div>`;
-  document.getElementById('po-overlay').classList.remove('hidden');
-}
-async function buildPoPDF(r){
-  await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',()=>!!window.html2canvas);
-  await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF));
-  const host=document.createElement('div');host.style.cssText='position:fixed;left:-10000px;top:0;width:700px;background:#fff;';
-  host.innerHTML=poReportHtml(r);document.body.appendChild(host);
-  try{
-    const c=await window.html2canvas(host.firstElementChild,{scale:2,backgroundColor:'#ffffff',logging:false});
-    const pdf=new window.jspdf.jsPDF({orientation:'p',unit:'pt',format:'letter'});
-    const W=572,h=c.height*W/c.width;pdf.addImage(c.toDataURL('image/jpeg',0.92),'JPEG',20,20,W,Math.min(h,752));
-    return pdf.output('blob');
-  }finally{host.remove();}
-}
-/* Enter in a count field jumps to the next line (the iPad keypad sends the same Enter). */
-document.addEventListener('keydown',e=>{
-  const el=e.target;if(e.key!=='Enter'||!(el&&el.classList&&el.classList.contains('po-cnt')))return;
-  e.preventDefault();const all=[...document.querySelectorAll('#po-overlay .po-cnt')];const n=all[all.indexOf(el)+1];
-  if(n)setTimeout(()=>n.focus(),60);else el.blur();
-});
-const poFileName=r=>'Receiving_'+r.plant+'_'+r.po.replace(/[^A-Za-z0-9-]/g,'')+'_'+r.ts.slice(0,10)+'.pdf';
-/* ---------- report delivery: Email · Teams · Save PDF · Print ---------- */
-function poSendTo(){try{return localStorage.getItem('wms_po_sendto')||'';}catch(e){return '';}}
-function poSaveSendTo(v){try{localStorage.setItem('wms_po_sendto',String(v||'').trim());}catch(e){}}
-function poRecipients(){const el=document.getElementById('po-sendto');const v=(el?el.value:poSendTo()).trim();poSaveSendTo(v);return v.split(/[;,\s]+/).filter(x=>/@/.test(x));}
-function poSubject(r){return `Receiving Report · ${r.plant} · PO ${r.po} · ${r.vendor} · ${ST_LABEL[receiptStatus(r)].replace(/^[^A-Za-z]+/,'')}`;}
-/* Email: opens Outlook / Mail with To, subject and the report as text (a browser cannot attach files to an email by itself —
-   use Save PDF and attach it if the PDF is needed). */
-function emailPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
-  const to=poRecipients().join(',');
-  location.href='mailto:'+encodeURIComponent(to).replace(/%40/g,'@').replace(/%2C/g,',')+'?subject='+encodeURIComponent(poSubject(r))+'&body='+encodeURIComponent(poReportText(r)+'\n\n— Sent from the Schweid & Sons WMS');
-}
-/* Teams: opens a chat with the recipients and the report text ready to send (text is also copied, in case Teams drops it). */
-async function teamsPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
-  const to=poRecipients();
-  const txt=poReportText(r);
-  try{await navigator.clipboard.writeText(txt);}catch(e){}
-  if(!to.length){showToast('Type who to send it to (their work email) — the report text is copied, you can also paste it in any Teams chat.','error');document.getElementById('po-sendto').focus();return;}
-  window.open('https://teams.microsoft.com/l/chat/0/0?users='+to.map(encodeURIComponent).join(',')+'&message='+encodeURIComponent(txt),'_blank');
-  showToast('Opening Teams… the report text is also copied.','success');
-}
-/* Print: prints only the report (letter page). */
-function printPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
-  let el=document.getElementById('po-print');if(!el){el=document.createElement('div');el.id='po-print';document.body.appendChild(el);}
-  el.innerHTML=poReportHtml(r);
-  document.body.classList.add('printing-po');
-  const done=()=>{document.body.classList.remove('printing-po');el.innerHTML='';window.removeEventListener('afterprint',done);};
-  window.addEventListener('afterprint',done);
-  setTimeout(()=>{window.print();setTimeout(()=>{if(document.body.classList.contains('printing-po')&&!matchMedia('print').matches)done();},1500);},50);
-}
-async function sharePoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
-  let blob;try{showToast('Creating PDF…','success');blob=await buildPoPDF(r);}catch(e){showToast('Could not create PDF ('+e.message+').','error');return;}
-  const file=new File([blob],poFileName(r),{type:'application/pdf'});
-  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({title:'Receiving Report '+r.po,text:poReportText(r),files:[file]});return;}}
-  catch(e){if(e&&e.name==='AbortError')return;}
-  poDownloadBlob(blob,file.name);showToast('PDF downloaded (sharing not available on this device).','success');
-}
-async function downloadPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
-  try{showToast('Creating PDF…','success');poDownloadBlob(await buildPoPDF(r),poFileName(r));}catch(e){showToast('Could not create PDF ('+e.message+').','error');}
-}
-function poDownloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);}
-async function copyPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;const t=poReportText(r);
-  try{await navigator.clipboard.writeText(t);showToast('Report copied — paste it in Teams or email.','success');}
-  catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showToast('Report copied.','success');}catch(_){showToast('Copy not available.','error');}ta.remove();}
-}
-
 const POWER_AUTOMATE_URL = 'https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/26/workflows/b66c79f1c1574893ac70de04d0443e3c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=XhJeiUCbbu51E5kCOqDI8sZhgZMSr9rWjSXQk0Q6XM0';
 
 let SYNC_HISTORY_KEY = 'wms_sync_history_local';
@@ -4967,7 +4568,7 @@ document.addEventListener('keydown',e=>{
     return;
   }
   if(e.key==='Escape'){
-    closeModal();closeRoModal();closePoModal();
+    closeModal();closeRoModal();
   }
   if(e.key==='Enter'&&!document.getElementById('modal-overlay').classList.contains('hidden')){
     if(_pickTarget!=='primary'){e.preventDefault();return;}          // picking an item for the pallet: Enter does not save
@@ -5529,7 +5130,7 @@ async function autoLoadIfEmpty(){
 })();
 /* Qty fields: on focus the current value is highlighted, so typing replaces it and Enter keeps it. */
 (function(){
-  const SEL='#modal-qty,.mx-qty,.plan-delivered-input,.po-cnt';
+  const SEL='#modal-qty,.mx-qty,.plan-delivered-input';
   document.addEventListener('focusin',e=>{
     const el=e.target;if(!(el&&el.matches&&el.matches(SEL))||el.value==='')return;
     if(el.getAttribute('inputmode')==='none')return;            // iPad keypad handles it
@@ -5540,7 +5141,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.21c';
+const APP_VERSION='2026.10.19k';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
