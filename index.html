@@ -951,6 +951,16 @@
   .po-st.miss{background:color-mix(in srgb,var(--danger,#ff3b30) 14%,transparent);color:var(--danger,#ff3b30);}
   .po-empty{color:var(--text3);font-size:13px;text-align:center;padding:24px 10px;background:var(--surface);border-radius:16px;}
   #po-overlay .modal{width:min(680px,96vw)!important;max-width:96vw!important;}
+  #po-overlay .modal{max-height:calc(100dvh - 32px)!important;overflow-y:auto!important;}
+  /* the line you are typing in is highlighted in orange, like the item picker, so you don't lose your place */
+  .po-lines tr:focus-within td{background:color-mix(in srgb,#ff9500 14%,transparent);}
+  .po-lines tr:focus-within td:first-child{box-shadow:inset 4px 0 0 #ff9500;}
+  .po-lines tr:focus-within .po-code{color:#c76a00;}
+  .po-lines tr:focus-within input.po-cnt:focus{box-shadow:0 0 0 2px #ff9500!important;background:var(--surface)!important;}
+  @media(max-width:600px){
+    .po-lines tr:focus-within{background:color-mix(in srgb,#ff9500 14%,transparent);border-radius:12px;box-shadow:inset 4px 0 0 #ff9500;padding-left:10px;padding-right:6px;}
+    .po-lines tr:focus-within td,.po-lines tr:focus-within td:first-child{background:none;box-shadow:none;}
+  }
   .po-lines{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px;}
   .po-lines th{font-size:10px;color:var(--text3);font-weight:600;text-align:right;padding:4px 4px;}
   .po-lines th:first-child{text-align:left;}
@@ -5516,7 +5526,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.21e';
+const APP_VERSION='2026.10.21f';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
