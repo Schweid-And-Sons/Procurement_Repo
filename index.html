@@ -4566,7 +4566,7 @@ document.addEventListener('keydown',e=>{
 const poFileName=r=>'Receiving_'+r.plant+'_'+r.po.replace(/[^A-Za-z0-9-]/g,'')+'_'+r.ts.slice(0,10)+'.pdf';
 /* ---------- Save a receiving report to SharePoint (list WMS_Receiving, one row per PO line) ----------
    Only when someone presses the button — never automatic. Paste the URL of the "WMS Receiving" flow here: */
-let RECEIVING_FLOW_URL='';
+let RECEIVING_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/ccb1eddbbb424c5f821e4ce6f2503d91/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=YLZZMbe_BndakJ4N2tIHomhDbsdtLtohnv7ArE6HnS0';
 function poDevice(){const u=navigator.userAgent;return /iPad|Macintosh/.test(u)&&navigator.maxTouchPoints>1?'iPad':/iPhone/.test(u)?'iPhone':/Android/.test(u)?'Android':/Windows/.test(u)?'Windows PC':/Mac/.test(u)?'Mac':'Other';}
 function poPayload(r){
   const st=receiptStatus(r);
@@ -5563,7 +5563,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.21h';
+const APP_VERSION='2026.10.21i';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
