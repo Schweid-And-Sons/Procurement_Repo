@@ -4407,7 +4407,7 @@ function renderPoView(){
   if(hist.length){
     h+=`<div class="po-sec">Recent receiving reports</div>`+hist.map(r=>{const s=receiptStatus(r);
       return `<div class="po-card" onclick="openPoReport('${poEsc(r.key)}')"><div class="po-main"><div class="po-t">${poEsc(r.po)} · ${poEsc(r.vendor)}</div>
-      <div class="po-l">Checked ${new Date(r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${r.by?' by '+poEsc(r.by):''}${s==='diff'||s==='bol'?' · '+r.lines.filter(l=>lineStatus(l)!=='ok').length+' line(s) off':''}</div></div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;}).join('');
+      <div class="po-l">${r.spAt?'☁ ':''}Checked ${new Date(r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${r.by?' by '+poEsc(r.by):''}${s==='diff'||s==='bol'?' · '+r.lines.filter(l=>lineStatus(l)!=='ok').length+' line(s) off':''}</div></div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;}).join('');
   }
   el.innerHTML=h;
 }
@@ -4483,6 +4483,7 @@ function savePoReceipt(notArrived){
   try{if(by)localStorage.setItem('wms_receiver_name',by);}catch(e){}
   const all=loadReceipts();
   const r={key:g.key,po:g.po,vendor:g.vendor,due:g.due,plant:currentPlant,ts:new Date().toISOString(),by,notes,notArrived:!!notArrived,lines};
+  if(all[g.key]&&all[g.key].spAt)r.spPrev=all[g.key].spAt;          // was in SharePoint before this edit → needs saving again
   all[g.key]=r;saveReceipts(all);
   const s=receiptStatus(r);
   const off=lines.filter(l=>lineStatus(l)!=='ok');
@@ -4540,6 +4541,7 @@ function openPoReport(key){
     <label style="margin-top:12px">Send to <span style="color:var(--text3);font-size:10px">(email of the Procurement team · separate several with commas)</span></label>
     <input type="email" id="po-sendto" value="${poEsc(poSendTo())}" placeholder="name@schweidandsons.com" autocomplete="email" onchange="poSaveSendTo(this.value)">
     <div class="po-quick" style="margin-top:8px"><button class="po-btn pri" onclick="emailPoReport()">✉ Email</button><button class="po-btn pri" style="background:#5059c9" onclick="teamsPoReport()">💬 Teams</button><button class="po-btn" onclick="downloadPoReport()">⬇ Save PDF</button><button class="po-btn" onclick="printPoReport()">🖨 Print</button></div>
+    <div class="po-quick"><button class="po-btn${r.spAt?' ok':''}" id="po-sp-btn" onclick="sendPoToSharePoint()">${r.spAt?'☁ Saved to SharePoint · '+new Date(r.spAt).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):r.spPrev?'☁ Save to SharePoint again (count was edited)':'☁ Save to SharePoint'}</button></div>
     <div class="modal-actions"><button class="btn-clear" onclick="openPoReceive._edit=true;openPoReceive('${poEsc(key)}')">✎ Edit count</button><button class="btn-cancel" onclick="closePoModal()">Close</button></div>`;
   document.getElementById('po-overlay').classList.remove('hidden');
 }
@@ -4562,6 +4564,33 @@ document.addEventListener('keydown',e=>{
   if(n)setTimeout(()=>n.focus(),60);else el.blur();
 });
 const poFileName=r=>'Receiving_'+r.plant+'_'+r.po.replace(/[^A-Za-z0-9-]/g,'')+'_'+r.ts.slice(0,10)+'.pdf';
+/* ---------- Save a receiving report to SharePoint (list WMS_Receiving, one row per PO line) ----------
+   Only when someone presses the button — never automatic. Paste the URL of the "WMS Receiving" flow here: */
+let RECEIVING_FLOW_URL='';
+function poDevice(){const u=navigator.userAgent;return /iPad|Macintosh/.test(u)&&navigator.maxTouchPoints>1?'iPad':/iPhone/.test(u)?'iPhone':/Android/.test(u)?'Android':/Windows/.test(u)?'Windows PC':/Mac/.test(u)?'Mac':'Other';}
+function poPayload(r){
+  const st=receiptStatus(r);
+  return {receiptKey:r.plant+'|'+r.key,plant:r.plant,po:r.po,vendor:r.vendor,due:r.due,checkedAt:r.ts,receivedBy:r.by||'',
+    status:ST_LABEL[st].replace(/^[^A-Za-z]+/,''),notes:r.notes||'',device:poDevice(),notArrived:!!r.notArrived,
+    lines:r.lines.map(l=>{const it=ITEMS.find(x=>x.code===l.code);return {item:l.code,description:it?it.name:(l.desc||''),
+      ordered:l.ordered,bol:l.bol,counted:l.counted,
+      bolVsPo:l.bol!=null&&l.ordered!=null?l.bol-l.ordered:null,countVsBol:l.bol!=null&&l.counted!=null?l.counted-l.bol:null,
+      lineStatus:LINE_TXT[lineStatus(l)]==='✓'?'OK':LINE_TXT[lineStatus(l)]};})};
+}
+async function sendPoToSharePoint(){
+  const all=loadReceipts();const r=all[_poKey];if(!r)return;
+  if(!RECEIVING_FLOW_URL){showToast('SharePoint is not connected yet for receiving reports.','error');return;}
+  if(r.spAt&&!confirm('This report was already saved to SharePoint. Save it again with the current numbers? (the old rows are replaced)'))return;
+  const btn=document.getElementById('po-sp-btn');if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  try{
+    const res=await fetch(RECEIVING_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(poPayload(r))});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    r.spAt=new Date().toISOString();all[_poKey]=r;saveReceipts(all);
+    addLog('RECEIVE','PO '+r.po+' · '+r.vendor+' — saved to SharePoint ('+r.lines.length+' line(s))');
+    showToast('Saved to SharePoint ✓','success');
+  }catch(e){showToast('Could not save to SharePoint ('+e.message+'). The report is still saved on this device.','error');}
+  openPoReport(_poKey);if(currentView==='po')renderPoView();
+}
 /* ---------- report delivery: Email · Teams · Save PDF · Print ---------- */
 function poSendTo(){try{return localStorage.getItem('wms_po_sendto')||'';}catch(e){return '';}}
 function poSaveSendTo(v){try{localStorage.setItem('wms_po_sendto',String(v||'').trim());}catch(e){}}
@@ -5534,7 +5563,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.21g';
+const APP_VERSION='2026.10.21h';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
