@@ -2734,7 +2734,7 @@ GA_AREAS['DM ROOM'].sides=[{title:'DM ROOM — RIGHT SIDE',secs:['1','2','3','4'
 const GA_EXPORT_ORDER = ['DM ROOM','DM ROOM FLOOR','LABEL RACKS','TRAILER','BACK DOCK RACK','BACK DOCK FLOOR','FRONT DOCK RACK','FRONT DOCK FLOOR','TO RELOCATE'];
 /* GA layout v3 (Oct-19). Saved data / SharePoint copies from earlier layouts are converted automatically;
    anything with no place in the new layout goes to "TO RELOCATE" (shown only while it has items) — nothing is lost.
-   v1 = Jonathan's original sheet · v2 = first rework (19g) · v3 = current names. */
+   v1 = Jonathan's original sheet · v2 = first rework (19g) · v3 = current names.*/
 function migrateGaLayout(){
   if(currentPlant!=='GA')return;
   const keys=Object.keys(inventory);
