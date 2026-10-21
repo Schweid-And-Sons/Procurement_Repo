@@ -1,0 +1,21 @@
+name: Cancel stuck Pages deployment
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: 'Code of the stuck deployment (from the log line "in progress deployment ...")'
+        required: true
+permissions:
+  pages: write
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel stuck deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEP: ${{ inputs.deployment_id }}
+        run: |
+          DEP=$(echo "$DEP" | tr -d '[:space:]')
+          echo "Cancelling deployment $DEP"
+          gh api -X POST "repos/${{ github.repository }}/pages/deployments/$DEP/cancel" && echo "Done - now re-run 'pages build and deployment'."
