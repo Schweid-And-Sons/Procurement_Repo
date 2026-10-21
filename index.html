@@ -985,6 +985,10 @@
   .po-quick .po-btn{flex:1;}
   .po-note{width:100%;min-height:54px;border-radius:10px;border:none;background:var(--fill,#f2f2f7);color:var(--text);font:inherit;font-size:13px;padding:8px 10px;box-sizing:border-box;}
   .po-hint{font-size:11px;color:var(--text3);margin:2px 0 8px;}
+  .po-find{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;}
+  .po-find input[type=text]{flex:1 1 200px;margin:0!important;}
+  .po-find input[type=date]{flex:0 1 170px;margin:0!important;}
+  .po-find-or{font-size:12px;color:var(--text3);}
   .po-report-wrap{background:#fff;border-radius:12px;overflow-x:auto;box-shadow:0 0 0 1px rgba(0,0,0,.08);}
   @media(max-width:520px){.po-kpis{grid-template-columns:repeat(2,1fr);}.po-report-wrap .po-report{padding:16px 12px!important;font-size:12px;}}
   /* phone: each PO line becomes a small card — item + ordered on top, BOL / Counted / result below */
@@ -4403,6 +4407,14 @@ function renderPoView(){
     </div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;};
   h+=`<div class="po-sec">Expected ${fmtDay(poDate)}</div>`+(today.length?today.map(card).join(''):`<div class="po-empty">No DM purchase orders due on ${fmtDay(poDate)}.</div>`);
   if(earlier.length)h+=`<div class="po-sec">Earlier — not checked in the WMS (last 14 days)</div>`+earlier.map(card).join('');
+  h+=`<div class="po-sec">🔎 Find a receiving report</div>
+    <div class="po-find">
+      <input type="text" id="po-find-q" placeholder="PO number, vendor or item" value="${poEsc(_poFind.q)}" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();poFind('po');}">
+      <button class="po-btn pri" onclick="poFind('po')">Search</button>
+      <span class="po-find-or">or day</span>
+      <input type="date" id="po-find-d" value="${_poFind.d||''}" onchange="poFind('date')">
+    </div>
+    <div id="po-find-res">${poFindResultsHtml()}</div>`;
   const hist=Object.values(rec).sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,20);
   if(hist.length){
     h+=`<div class="po-sec">Recent receiving reports</div>`+hist.map(r=>{const s=receiptStatus(r);
@@ -4410,6 +4422,65 @@ function renderPoView(){
       <div class="po-l">${r.spAt?'☁ ':''}Checked ${new Date(r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${r.by?' by '+poEsc(r.by):''}${s==='diff'||s==='bol'?' · '+r.lines.filter(l=>lineStatus(l)!=='ok').length+' line(s) off':''}</div></div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;}).join('');
   }
   el.innerHTML=h;
+}
+/* ---------- Find past receiving reports: this device + SharePoint ----------
+   SharePoint is searched by exact PO number or by day (both use indexed columns, so it keeps working when the
+   list is large). Partial text (vendor, item, part of a PO) is searched on this device and inside the SharePoint results. */
+let RECEIVING_SEARCH_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/5760451ebd1347d096921c205d848df8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IwmA_q1teK0LKgabGSdF9N1DEDOgw0fbGRzl3sBZZak';
+let _poRemote={};
+let _poFind={q:'',d:'',mode:'',loading:false,results:null,note:''};
+function poRowsToReceipts(rows){
+  const g={};
+  (rows||[]).forEach(x=>{
+    const get=k=>{if(x[k]!==undefined)return x[k];const kk=Object.keys(x).find(z=>z.toLowerCase().startsWith(k.toLowerCase()));return kk?x[kk]:undefined;};
+    const rk=get('ReceiptKey')||((get('Plant')||'')+'|'+(get('Title')||''));
+    const rkey='sp:'+rk;
+    const r=g[rkey]||(g[rkey]={key:rkey,po:get('Title')||'',vendor:get('Vendor')||'',plant:get('Plant')||'',due:get('DueDate')?toYmd(new Date(get('DueDate'))):'',
+      ts:get('CheckedAt')||get('Created')||new Date().toISOString(),by:get('ReceivedBy')||'',notes:get('Notes')||'',notArrived:/not arrived/i.test(get('Status')||''),lines:[],remote:true});
+    const n=v=>v===null||v===undefined||v===''?null:+v;
+    r.lines.push({code:get('Item')||'',desc:get('Description')||'',ordered:n(get('Ordered')),bol:n(get('BOL')),counted:n(get('Counted'))});
+  });
+  return Object.values(g);
+}
+function poLocalMatch(q){
+  q=q.trim().toLowerCase();if(!q)return [];
+  return Object.values(loadReceipts()).filter(r=>(r.po+' '+r.vendor+' '+r.lines.map(l=>l.code+' '+(l.desc||'')).join(' ')).toLowerCase().includes(q));
+}
+async function poFind(mode){
+  const q=(document.getElementById('po-find-q')||{}).value||'';const d=(document.getElementById('po-find-d')||{}).value||'';
+  _poFind={q:q.trim(),d,mode,loading:true,results:null,note:''};
+  let local=mode==='po'?poLocalMatch(_poFind.q):Object.values(loadReceipts()).filter(r=>r.ts&&ymd(new Date(r.ts))===d);
+  if((mode==='po'&&!_poFind.q)||(mode==='date'&&!d)){_poFind.loading=false;_poFind.results=[];renderPoFind();return;}
+  renderPoFind();
+  let remote=[];
+  if(RECEIVING_SEARCH_URL){
+    try{
+      let body;
+      if(mode==='po')body={mode:'po',po:_poFind.q.toUpperCase(),plant:currentPlant};
+      else{const a=new Date(d+'T00:00:00'),z=new Date(a);z.setDate(z.getDate()+1);body={mode:'date',plant:currentPlant,from:a.toISOString(),to:z.toISOString()};}
+      const res=await fetch(RECEIVING_SEARCH_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const js=await res.json();
+      remote=poRowsToReceipts(Array.isArray(js)?js:(js.value||js.rows||[])).filter(r=>!r.plant||r.plant===currentPlant);
+      if(mode==='po'&&!remote.length)_poFind.note='SharePoint searches the exact PO number (e.g. YZ-26-27647).';
+    }catch(e){_poFind.note='Could not reach SharePoint ('+e.message+') — showing reports saved on this device.';}
+  }else _poFind.note='SharePoint search is not connected yet — showing reports saved on this device.';
+  remote.forEach(r=>{_poRemote[r.key]=r;});
+  // a report saved on this device and also in SharePoint shows once (the local copy, which can be edited)
+  const localKeys=new Set(local.map(r=>r.plant+'|'+r.key));
+  const merged=[...local,...remote.filter(r=>!localKeys.has(r.key.replace(/^sp:/,'')))];
+  _poFind.loading=false;_poFind.results=merged.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  renderPoFind();
+}
+function renderPoFind(){const el=document.getElementById('po-find-res');if(el)el.innerHTML=poFindResultsHtml();}
+function poFindResultsHtml(){
+  const f=_poFind;if(f.loading)return '<div class="po-empty">Searching…</div>';
+  if(!f.results)return '';
+  const note=f.note?`<div class="po-hint">${poEsc(f.note)}</div>`:'';
+  if(!f.results.length)return note+`<div class="po-empty">No receiving reports found${f.mode==='date'?' on '+fmtDay(f.d):' for “'+poEsc(f.q)+'”'}.</div>`;
+  return note+f.results.map(r=>{const s=receiptStatus(r);
+    return `<div class="po-card" onclick="openPoReport('${poEsc(r.key)}')"><div class="po-main"><div class="po-t">${poEsc(r.po)} · ${poEsc(r.vendor)}</div>
+      <div class="po-l">${r.remote?'☁ SharePoint · ':'This device · '}Checked ${new Date(r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'})}${r.by?' by '+poEsc(r.by):''} · ${r.lines.length} line(s)</div></div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;}).join('');
 }
 function poShiftDay(n){const d=new Date(poDate+'T12:00');d.setDate(d.getDate()+n);poDate=ymd(d);renderPoView();}
 function closePoModal(e){if(!e||e.target===document.getElementById('po-overlay'))document.getElementById('po-overlay').classList.add('hidden');}
@@ -4533,16 +4604,17 @@ function poReportText(r){
   if(r.notes)L.push('Notes: '+r.notes);
   return L.join('\n');
 }
+function poGetR(key){return loadReceipts()[key]||_poRemote[key]||null;}
 function openPoReport(key){
-  const r=loadReceipts()[key];if(!r)return;
-  _poKey=key;
+  const r=poGetR(key);if(!r)return;
+  _poKey=key;const remote=!loadReceipts()[key];
   document.getElementById('po-modal-body').innerHTML=`
     <div class="po-report-wrap">${poReportHtml(r)}</div>
     <label style="margin-top:12px">Send to <span style="color:var(--text3);font-size:10px">(email of the Procurement team · separate several with commas)</span></label>
     <input type="email" id="po-sendto" value="${poEsc(poSendTo())}" placeholder="name@schweidandsons.com" autocomplete="email" onchange="poSaveSendTo(this.value)">
     <div class="po-quick" style="margin-top:8px"><button class="po-btn pri" onclick="emailPoReport()">✉ Email</button><button class="po-btn pri" style="background:#5059c9" onclick="teamsPoReport()">💬 Teams</button><button class="po-btn" onclick="downloadPoReport()">⬇ Save PDF</button><button class="po-btn" onclick="printPoReport()">🖨 Print</button></div>
-    <div class="po-quick"><button class="po-btn${r.spAt?' ok':''}" id="po-sp-btn" onclick="sendPoToSharePoint()">${r.spAt?'☁ Saved to SharePoint · '+new Date(r.spAt).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):r.spPrev?'☁ Save to SharePoint again (count was edited)':'☁ Save to SharePoint'}</button></div>
-    <div class="modal-actions"><button class="btn-clear" onclick="openPoReceive._edit=true;openPoReceive('${poEsc(key)}')">✎ Edit count</button><button class="btn-cancel" onclick="closePoModal()">Close</button></div>`;
+    ${remote?`<div class="po-hint" style="margin-top:8px">☁ Opened from SharePoint (saved ${new Date(r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'})}${r.by?' by '+poEsc(r.by):''}) — read only.</div><div class="modal-actions"><button class="btn-cancel" onclick="closePoModal()">Close</button></div>`:`<div class="po-quick"><button class="po-btn${r.spAt?' ok':''}" id="po-sp-btn" onclick="sendPoToSharePoint()">${r.spAt?'☁ Saved to SharePoint · '+new Date(r.spAt).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):r.spPrev?'☁ Save to SharePoint again (count was edited)':'☁ Save to SharePoint'}</button></div>
+    <div class="modal-actions"><button class="btn-clear" onclick="openPoReceive._edit=true;openPoReceive('${poEsc(key)}')">✎ Edit count</button><button class="btn-cancel" onclick="closePoModal()">Close</button></div>`}`;
   document.getElementById('po-overlay').classList.remove('hidden');
 }
 async function buildPoPDF(r){
@@ -4599,13 +4671,13 @@ function poSubject(r){return `Receiving Report · ${r.plant} · PO ${r.po} · ${
 /* Email: opens Outlook / Mail with To, subject and the report as text (a browser cannot attach files to an email by itself —
    use Save PDF and attach it if the PDF is needed). */
 function emailPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
+  const r=poGetR(_poKey);if(!r)return;
   const to=poRecipients().join(',');
   location.href='mailto:'+encodeURIComponent(to).replace(/%40/g,'@').replace(/%2C/g,',')+'?subject='+encodeURIComponent(poSubject(r))+'&body='+encodeURIComponent(poReportText(r)+'\n\n— Sent from the Schweid & Sons WMS');
 }
 /* Teams: opens a chat with the recipients and the report text ready to send (text is also copied, in case Teams drops it). */
 async function teamsPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
+  const r=poGetR(_poKey);if(!r)return;
   const to=poRecipients();
   const txt=poReportText(r);
   try{await navigator.clipboard.writeText(txt);}catch(e){}
@@ -4615,7 +4687,7 @@ async function teamsPoReport(){
 }
 /* Print: prints only the report (letter page). */
 function printPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
+  const r=poGetR(_poKey);if(!r)return;
   let el=document.getElementById('po-print');if(!el){el=document.createElement('div');el.id='po-print';document.body.appendChild(el);}
   el.innerHTML=poReportHtml(r);
   document.body.classList.add('printing-po');
@@ -4624,7 +4696,7 @@ function printPoReport(){
   setTimeout(()=>{window.print();setTimeout(()=>{if(document.body.classList.contains('printing-po')&&!matchMedia('print').matches)done();},1500);},50);
 }
 async function sharePoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
+  const r=poGetR(_poKey);if(!r)return;
   let blob;try{showToast('Creating PDF…','success');blob=await buildPoPDF(r);}catch(e){showToast('Could not create PDF ('+e.message+').','error');return;}
   const file=new File([blob],poFileName(r),{type:'application/pdf'});
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({title:'Receiving Report '+r.po,text:poReportText(r),files:[file]});return;}}
@@ -4632,12 +4704,12 @@ async function sharePoReport(){
   poDownloadBlob(blob,file.name);showToast('PDF downloaded (sharing not available on this device).','success');
 }
 async function downloadPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;
+  const r=poGetR(_poKey);if(!r)return;
   try{showToast('Creating PDF…','success');poDownloadBlob(await buildPoPDF(r),poFileName(r));}catch(e){showToast('Could not create PDF ('+e.message+').','error');}
 }
 function poDownloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);}
 async function copyPoReport(){
-  const r=loadReceipts()[_poKey];if(!r)return;const t=poReportText(r);
+  const r=poGetR(_poKey);if(!r)return;const t=poReportText(r);
   try{await navigator.clipboard.writeText(t);showToast('Report copied — paste it in Teams or email.','success');}
   catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showToast('Report copied.','success');}catch(_){showToast('Copy not available.','error');}ta.remove();}
 }
@@ -5563,7 +5635,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.21i';
+const APP_VERSION='2026.10.21k';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
