@@ -2932,9 +2932,10 @@ function showPlantSelector(){
   const bs=document.getElementById('plant-sum-BATCH');
   if(bs){
     const d=new Date(),iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    const cnt=k=>{try{return (JSON.parse(localStorage.getItem(k)||'[]')||[]).filter(b=>b.date===iso).length;}catch(e){return 0;}};
-    const nj=cnt('batch_sheets_nj'),ga=cnt('batch_sheets_ga');
-    bs.innerHTML='Production · Today: '+(nj+ga)+' batch'+(nj+ga===1?'':'es')+' (NJ '+nj+' · GA '+ga+')';
+    const day=k=>{try{return (JSON.parse(localStorage.getItem(k)||'[]')||[]).filter(b=>b.date===iso&&b.status!=='deleted');}catch(e){return [];}};
+    const txt=(p,l)=>{const open=l.filter(b=>b.status!=='done'&&!(b.status==null&&b.completedAt)).length;return p+' '+l.length+(open?' · '+open+' open':'');};
+    const nj=day('batch_sheets_nj'),ga=day('batch_sheets_ga');
+    bs.innerHTML='Production · Today: '+txt('NJ',nj)+' &nbsp;|&nbsp; '+txt('GA',ga);
   }
   let rem=null; try{rem=localStorage.getItem(PLANT_REMEMBER_KEY);}catch(e){}
   const cb=document.getElementById('plant-remember'); if(cb)cb.checked=!!rem;
@@ -5777,7 +5778,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.21l';
+const APP_VERSION='2026.10.22a';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

@@ -139,6 +139,40 @@
   body.kb-open .ov:not(.hidden) .modal{max-height:calc(var(--vvh,100vh) - 16px);overflow-y:auto;border-radius:22px;}
   .modal .row-actions{position:sticky;bottom:0;background:linear-gradient(to bottom,transparent,var(--glass-strong) 30%);padding:12px 0 6px;}
   @media print{.card{box-shadow:none;border:1px solid #999;border-radius:8px;}}
+  /* ---------- Batch v2 ---------- */
+  .h-note{font-size:12px;font-weight:500;color:var(--text3);margin-left:6px;}
+  .btn.warn{color:var(--warn);}
+  .btn.warn.primary,.btn.warn.on{background:var(--warn);color:#fff;}
+  .badge.need{background:rgba(255,149,0,.16);color:#c76a00;}
+  .badge.draft{background:var(--fill,rgba(0,0,0,.06));color:var(--text2);}
+  .seg{display:inline-flex;gap:4px;background:var(--fill,#eee);border-radius:12px;padding:3px;margin-bottom:10px;}
+  .seg button{border:none;background:none;border-radius:9px;padding:7px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;}
+  .seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .sync-line,.plan-line{font-size:12px;color:var(--text3);margin:-4px 2px 8px;}
+  .sync-line a,.plan-line a{color:var(--accent);font-weight:600;text-decoration:none;cursor:pointer;}
+  .sync-line.warn{color:#c76a00;}
+  .line-row{display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(90px,.7fr) 1.4fr auto;gap:8px;align-items:center;padding:6px 0;border-bottom:.5px solid var(--border);}
+  .line-row .hint{font-size:12px;color:var(--text3);}
+  .line-row .hint b{color:var(--text2);}
+  .line-row .hint.over b{color:var(--danger);}
+  .lines-sum{font-size:13px;font-weight:600;margin-top:8px;}
+  .lines-sum.bad{color:#c76a00;}
+  .rm-tbl td.left{font-weight:700;font-variant-numeric:tabular-nums;}
+  .rm-tbl td.left.zero{color:var(--text3);font-weight:500;}
+  .cf-left{background:color-mix(in srgb,var(--warn) 14%,transparent);color:#9a5200;border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:10px;}
+  .list-sec{font-size:13px;font-weight:700;color:var(--text2);margin:14px 2px 8px;}
+  .list-card .lines{font-size:12px;color:var(--text2);margin-top:2px;}
+  .pg-card h3{display:flex;justify-content:space-between;gap:10px;font-size:16px;margin-bottom:8px;}
+  .pg-card h3 span{font-size:13px;font-weight:600;color:var(--text2);font-variant-numeric:tabular-nums;}
+  .pg-tbl td,.pg-tbl th{font-variant-numeric:tabular-nums;}
+  .pg-tbl td.n,.pg-tbl th.n{text-align:right;}
+  .bar2{height:8px;border-radius:5px;background:var(--fill,#eee);overflow:hidden;display:flex;min-width:60px;}
+  .bar2 i{display:block;height:100%;}
+  .bar2 i.d{background:var(--success);} .bar2 i.p{background:var(--warn);}
+  .pg-over{color:var(--danger);font-weight:700;}
+  .pg-legend{font-size:12px;color:var(--text3);margin:0 2px 10px;display:flex;gap:14px;flex-wrap:wrap;}
+  .pg-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;}
+  @media(max-width:600px){.line-row{grid-template-columns:1fr 90px auto;}.line-row .hint{grid-column:1/-1;order:5;}}
 </style>
 </head>
 <body>
@@ -154,12 +188,32 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.21l</span></h1>
-      <input type="date" id="list-date" style="width:auto" onchange="renderList()">
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.22a</span></h1>
+      <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
+      <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Export day</button>
       <button class="btn primary big" onclick="newBatch()">+ New Batch</button>
     </div>
+    <div class="sync-line" id="sync-line-list"></div>
+    <div class="plan-line" id="plan-line-list"></div>
+    <div class="seg" id="list-filter">
+      <button data-f="all" class="on" onclick="setListFilter('all')">All</button>
+      <button data-f="open" onclick="setListFilter('open')">Open</button>
+      <button data-f="done" onclick="setListFilter('done')">Complete</button>
+    </div>
     <div id="batch-list"></div>
+  </div>
+
+  <!-- PROGRESS VIEW -->
+  <div id="view-progress" class="hidden">
+    <div class="bar">
+      <button class="btn" onclick="showList()">← Batches</button>
+      <h1 id="pg-title">Line progress</h1>
+      <button class="btn" onclick="document.getElementById('plan-file').click()">⬆ Load plan</button>
+    </div>
+    <div class="sync-line" id="sync-line-pg"></div>
+    <div class="plan-line" id="plan-line-pg"></div>
+    <div id="pg-body"></div>
   </div>
 
   <!-- EDITOR VIEW -->
@@ -174,46 +228,69 @@
     <div class="card">
       <h2>1 · Batch info</h2>
       <div class="grid">
-        <div style="grid-column:span 2;min-width:0"><label>Product / Meat Block</label><select id="f-product" onchange="setField('product',this.value)"></select></div>
-        <div><label>Mixer</label><select id="f-line" onchange="setField('line',this.value)"></select></div>
+        <div style="grid-column:span 2;min-width:0"><label>Meat block</label><select id="f-product" onchange="pickProduct(this.value)"></select></div>
+        <div><label>Mixer</label><select id="f-line" onchange="pickMixer(this)"></select></div>
         <div><label>Batch #</label><input id="f-batchNo" onchange="setField('batchNo',this.value)"></div>
         <div><label>Date</label><input type="date" id="f-date" onchange="setField('date',this.value)"></div>
         <div><label>Start time</label><input type="time" id="f-startTime" onchange="setField('startTime',this.value)"></div>
+        <div><label>End time</label><input type="time" id="f-endTime" onchange="setField('endTime',this.value)"></div>
         <div><label>Mixer operator</label><select id="f-operator" onchange="pickPerson(this,'operator')"></select></div>
       </div>
     </div>
 
     <div class="card">
-      <h2>2 · Raw materials (combos / boxes)</h2>
+      <h2>2 · Production lines <span class="h-note">up to 4 · where this meat goes</span></h2>
+      <div id="lines-box"></div>
+      <div class="row-actions" style="margin-top:6px"><button class="btn no-print" id="btn-add-line" onclick="addLine()">+ Add line</button></div>
+      <div class="lines-sum" id="lines-sum"></div>
+    </div>
+
+    <div class="card">
+      <h2>3 · Raw materials <span class="h-note">combos / boxes · weight used and left</span></h2>
       <div class="scanrow no-print">
         <input id="scan-input" placeholder="🔫 Scan barcode here (or type it) + Enter" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();onScanInput();}">
         <button class="btn primary" onclick="openCamera()">📷 Camera</button>
         <button class="btn" onclick="addManual()">+ Manual</button>
       </div>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>#</th><th>RM Code</th><th>Lot / Serial</th><th class="hide-sm">Pack date</th><th class="hide-sm">EST #</th><th class="hide-sm">Supplier</th><th>Net LBS</th><th class="no-print"></th></tr></thead>
+      <div class="tbl-wrap"><table class="rm-tbl">
+        <thead><tr><th>#</th><th>RM Code</th><th>Lot / Serial</th><th class="hide-sm">Pack date</th><th class="hide-sm">EST #</th><th class="hide-sm">Temp °F</th><th class="hide-sm">Supplier</th><th>Current lbs</th><th>Used lbs</th><th>Left</th><th class="no-print"></th></tr></thead>
         <tbody id="rm-body"></tbody>
       </table></div>
-      <div class="tot">Boxes: <span id="tot-count">0</span> &nbsp; Total Net: <span id="tot-lbs">0</span> lbs</div>
+      <div class="tot">Boxes: <span id="tot-count">0</span> &nbsp; Batch amount (used): <span id="tot-lbs">0</span> lbs</div>
     </div>
 
     <div class="card">
-      <h2>3 · Quality</h2>
+      <h2>4 · Seasoning</h2>
+      <div class="seg" id="seas-yn"><button data-v="no" onclick="setSeason('no')">No seasoning</button><button data-v="yes" onclick="setSeason('yes')">Yes, seasoned</button></div>
+      <div class="grid" id="seas-box" style="margin-top:10px">
+        <div><label>Seasoning type</label><select id="f-seasType" onchange="pickList(this,'seasType',SEASON_KEY,seasonList,'seasoning type')"></select></div>
+        <div><label>Seasoning lbs</label><input type="text" inputmode="decimal" autocomplete="off" id="f-seasLbs" onchange="setField('seasLbs',this.value)"></div>
+        <div><label>Seasoning lot #</label><input id="f-seasLot" autocomplete="off" onchange="setField('seasLot',this.value)"></div>
+        <div><label>Seasoning supplier</label><select id="f-seasSupplier" onchange="pickList(this,'seasSupplier',SEASON_SUP_KEY,seasonSupList,'seasoning supplier')"></select></div>
+        <div><label>Water amount</label><div style="display:flex;gap:6px"><input type="text" inputmode="decimal" autocomplete="off" id="f-water" onchange="setField('water',this.value)"><select id="f-waterUnit" style="width:90px" onchange="setField('waterUnit',this.value)"><option value="lbs">lbs</option><option value="gal">gal</option></select></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>5 · Quality</h2>
       <div class="grid">
-        <div><label>Fat test (%)</label><input type="text" inputmode="decimal" autocomplete="off" id="f-fatTest" onchange="setField('fatTest',this.value)"></div>
-        <div><label>Grind temp (°F)</label><input type="text" inputmode="decimal" autocomplete="off" id="f-grindTemp" onchange="setField('grindTemp',this.value)"></div>
+        <div><label>Initial fat test (%)</label><input type="text" inputmode="decimal" autocomplete="off" id="f-fatTest" onchange="setField('fatTest',this.value)"></div>
+        <div><label>Fat test OK?</label><div class="seg" id="fat-ok"><button data-v="yes" onclick="setFatOk('yes')">Yes</button><button data-v="no" onclick="setFatOk('no')">No, corrected</button></div></div>
+        <div id="fat-final-wrap"><label>Final fat test (%)</label><input type="text" inputmode="decimal" autocomplete="off" id="f-fatFinal" onchange="setField('fatFinal',this.value)"></div>
+        <div><label>Final grind temp (°F)</label><input type="text" inputmode="decimal" autocomplete="off" id="f-grindTemp" onchange="setField('grindTemp',this.value)"></div>
         <div style="grid-column:1/-1"><label>Notes</label><textarea id="f-notes" onchange="setField('notes',this.value)"></textarea></div>
       </div>
     </div>
 
     <div class="card">
-      <h2>4 · Sign-off</h2>
+      <h2>6 · Sign-off</h2>
       <div class="grid">
         <div><label>Completed by</label><select id="f-completedBy" onchange="pickPerson(this,'completedBy')"></select></div>
         <div><label>Completed at</label><input id="f-completedAt" readonly placeholder="—"></div>
       </div>
       <div class="row-actions no-print">
-        <button class="btn ok primary big" id="btn-complete" onclick="toggleComplete()">✓ Mark complete</button>
+        <button class="btn ok primary big" id="btn-complete" onclick="completeBatch()">✓ Complete</button>
+        <button class="btn warn big" id="btn-need" onclick="needAddBatch()">⏸ Still need add</button>
         <button class="btn" onclick="exportBatch()">⬇ Excel</button>
         <button class="btn" onclick="window.print()">🖨 Print</button>
         <button class="btn danger" onclick="deleteBatch()">🗑 Delete</button>
@@ -221,20 +298,25 @@
     </div>
   </div>
 </div>
+<input type="file" id="plan-file" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="onPlanFile(this)">
 
 <!-- SCAN CONFIRM -->
 <div class="ov hidden" id="confirm-ov">
   <div class="modal">
     <h3>Add raw material</h3>
     <div class="raw" id="cf-raw"></div>
+    <div class="cf-left hidden" id="cf-left"></div>
     <div class="grid">
       <div style="grid-column:1/-1"><label>RM Code</label><select id="cf-rm"></select></div>
       <div><label>Lot / Serial</label><input id="cf-lot"></div>
       <div><label>Pack date</label><input id="cf-pack" placeholder="MM/DD/YYYY"></div>
       <div><label>EST #</label><input id="cf-est"></div>
+      <div><label>Temp °F</label><input type="text" inputmode="decimal" autocomplete="off" id="cf-temp"></div>
       <div style="grid-column:1/-1"><label>Supplier</label><select id="cf-supplier" onchange="if(this.value===ADD_NEW){const v=askNew(SUPPLIER_KEY,supplierList(),'supplier');this.innerHTML=listOptions(supplierList(),v,'— Supplier —','+ Add new supplier…');}"></select></div>
-      <div><label>Net LBS</label><input type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" id="cf-lbs"></div>
+      <div><label>Current weight (lbs)</label><input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" id="cf-cur" oninput="cfSyncUsed()"></div>
+      <div><label>Weight used (lbs)</label><input type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" id="cf-used"></div>
     </div>
+    <div class="muted" style="margin-top:6px">Used = the whole box unless you change it. What is left stays recorded for the next batch that scans this lot.</div>
     <label style="display:flex;gap:6px;align-items:center;margin-top:10px;font-size:10px;text-transform:none;letter-spacing:0" id="cf-remember-wrap"><input type="checkbox" id="cf-remember" style="width:auto" checked> Remember this product barcode → RM code (next scans fill it automatically)</label>
     <div class="row-actions">
       <button class="btn ok primary big" onclick="confirmAdd()">+ Add</button>
@@ -258,16 +340,26 @@
 <script>
 const RM_CODES=[{"code": "NM4165", "name": "Natural trim 65% Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4185", "name": "Natural trim 85% Certied Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4050", "name": "Natural trim 50%", "group": "NATURAL", "vendor": ""}, {"code": "NM4180", "name": "Natural 80/20 trim Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4065", "name": "Natural trim 65%", "group": "NATURAL", "vendor": ""}, {"code": "NM4085", "name": "Natural trim 85%", "group": "NATURAL", "vendor": ""}, {"code": "GM3080", "name": "Grass Fed Trim 80%", "group": "GRASS FED", "vendor": ""}, {"code": "PM5100", "name": "USDA Prime Chuck", "group": "PRIME", "vendor": ""}, {"code": "PM5150", "name": "USDA Prime Chuck Clod", "group": "PRIME", "vendor": ""}, {"code": "CM2500", "name": "Cab Prime Chuck", "group": "CAB PRIME", "vendor": ""}, {"code": "CM2200", "name": "Cab Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "BM0200", "name": "Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "CM2065", "name": "Cab Trim 65%", "group": "CAB", "vendor": ""}, {"code": "CM2085", "name": "Cab Trim 85%", "group": "CAB", "vendor": ""}, {"code": "CM2050", "name": "Cab Trim 50%", "group": "CAB", "vendor": ""}, {"code": "CM2075", "name": "Cab Trim 75%", "group": "CAB", "vendor": ""}, {"code": "CM2180", "name": "Cab Chuck Trim 80%", "group": "CAB", "vendor": ""}, {"code": "CM2160", "name": "Cab Short Plate Rib", "group": "CAB", "vendor": ""}, {"code": "CM2800", "name": "Cab Loin Wing", "group": "CAB", "vendor": ""}, {"code": "AM1065", "name": "Angus trim 65%", "group": "ANGUS", "vendor": ""}, {"code": "AM1085", "name": "Angus Trim 85%", "group": "ANGUS", "vendor": ""}, {"code": "AM1180", "name": "Angus Chuck Trim 80%", "group": "ANGUS", "vendor": ""}, {"code": "AM1175", "name": "Angus Trim 75%", "group": "ANGUS", "vendor": ""}, {"code": "AM1050", "name": "Angus Trim 50%", "group": "ANGUS", "vendor": ""}, {"code": "SM010", "name": "Cab Peeled Tri Tips", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1011", "name": "Coulottes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM8780", "name": "Halal trim 80%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1010", "name": "Rib Eyes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6455", "name": "Wagyu Trim 65%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6450", "name": "Wagyu Trim 50%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6475", "name": "Wagyu Trim 75%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6460", "name": "Wagyu Round Trim", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "TM0065", "name": "Trim 65%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0085", "name": "Trim 85%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0090", "name": "Trim 90%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0073", "name": "Trim 73%", "group": "TRIMMINGS", "vendor": ""}, {"code": "LM2800", "name": "Loin Wing", "group": "TRIMMINGS", "vendor": ""}, {"code": "FZ9995", "name": "Frozen Bull Meat AU/NZ 95%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9966", "name": "Frozen Bull Meat AU/NZ 65%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9900", "name": "BLBT", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9920", "name": "Cab Block FTB", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9070", "name": "Frozen 70%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9075", "name": "Frozen Angus 75/25 Halal", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9680", "name": "Wagyu Frozen Block", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9085", "name": "Frozen 85%", "group": "FROZEN BLOCKS", "vendor": ""}];
 const MEAT_BLOCKS=[{"mb": "10", "name": "Fresh 90/10"}, {"mb": "", "name": "Halal 75/25"}, {"mb": "5", "name": "Wagyu"}, {"mb": "7", "name": "Natural Angus Ground Beef - CH 80/20"}, {"mb": "8", "name": "Natural Angus Ground Beef 75/25"}, {"mb": "12", "name": "CAB Prime Chuck"}, {"mb": "13", "name": "Prime Chuck"}, {"mb": "15", "name": "CAB Chuck"}, {"mb": "17", "name": "CAB Chuck Brisket Sirloin"}, {"mb": "18", "name": "CAB Chuck Brisket"}, {"mb": "19", "name": "CAB Chuck Brisket Short Rib"}, {"mb": "23", "name": "CAB Ground Beef 75/25"}, {"mb": "26", "name": "Angus Chuck"}, {"mb": "30", "name": "Angus Ground Beef 75/25"}, {"mb": "", "name": "Angus Ground Beef 80/20"}, {"mb": "35", "name": "Chuck Brisket"}, {"mb": "37", "name": "Chuck Brisket Short Rib"}, {"mb": "38", "name": "Chuck Brisket Steaktail"}, {"mb": "39", "name": "Chuck Rib Eye"}, {"mb": "40", "name": "Fuddruckers"}, {"mb": "", "name": "Fresh 73/27"}, {"mb": "42", "name": "Fresh 5 Guys"}, {"mb": "45", "name": "Fresh 85/15"}, {"mb": "50", "name": "Fresh 80/20"}, {"mb": "51", "name": "Fresh 80/20 USF"}, {"mb": "55", "name": "Ranchers 80/20"}, {"mb": "60", "name": "Fresh 75/25"}, {"mb": "62", "name": "Ranchers 75/25"}, {"mb": "75", "name": "Tower Isle Patties 50051"}, {"mb": "90", "name": "RT The Steakhouse Blend"}, {"mb": "91", "name": "RT The Korean Blend"}, {"mb": "92", "name": "RT The Taco Blend"}];
-const PROD_LINES=["Mixer 1","Mixer 2","Mixer 3"];
-
+/* ---------- per-plant lists ---------- */
 const PLANT_COLORS={NJ:'#1d4ed8',GA:'#15803d'};
-const DEFAULT_OPERATORS=['Jesus Flores','Carlos Monrroy','Percy Cardenas','Tomas Izquierdo','Arnulfo Flores'];
-const PEOPLE_KEY='batch_people', SUPPLIER_KEY='batch_suppliers';
+const PLANT_NAMES={NJ:'NEW JERSEY',GA:'GEORGIA'};
+const MIXER_DEFAULTS={NJ:['Mixer 1','Mixer 2','Mixer 3'],GA:['Grinder 1']};
+/* Production lines when no plan is loaded (and lines that are not in today's plan). */
+const LINE_DEFAULTS={NJ:['Line 1','Line 2','Line 3','Line 4','Line 5','Line 6-7','Line 22 - Retail','Line 23 - Retail'],
+  GA:['Line 70/71','Line 72','Line 73','Line 74','Line 75','Line 76','Line 77','Line 78','Line 79']};
+const OPERATOR_DEFAULTS={NJ:['Jesus Flores','Carlos Monrroy','Percy Cardenas','Tomas Izquierdo','Arnulfo Flores'],GA:[]};
+const SEASON_DEFAULTS=['Mustard','Steakhouse','Korean','Taco','Teriyaki Style Tri-Tip','Cajun Style Tri-Tip','Brazilian Steakhouse'];
+const SUPPLIER_KEY='batch_suppliers',SEASON_KEY='batch_season_types',SEASON_SUP_KEY='batch_season_suppliers';
+const peopleKey=()=>plant==='NJ'?'batch_people':'batch_people_'+plant.toLowerCase();   // NJ keeps its original list
+const mixerKey=()=>'batch_mixers_'+plant.toLowerCase();
 const ADD_NEW='__add_new__';
 function loadList(key,defaults){let l=[];try{l=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}if(!Array.isArray(l))l=defaults.slice();return l;}
 function saveList(key,l){try{localStorage.setItem(key,JSON.stringify(l));}catch(e){}}
-function peopleList(){return loadList(PEOPLE_KEY,DEFAULT_OPERATORS);}
+function peopleList(){return loadList(peopleKey(),OPERATOR_DEFAULTS[plant]||[]);}
+function mixerList(){return loadList(mixerKey(),MIXER_DEFAULTS[plant]||[]);}
 function supplierList(){const base=[...new Set(RM_CODES.map(r=>r.vendor).filter(Boolean))];return loadList(SUPPLIER_KEY,base);}
+function seasonList(){return loadList(SEASON_KEY,SEASON_DEFAULTS);}
+function seasonSupList(){return loadList(SEASON_SUP_KEY,[]);}
 function listOptions(list,sel,placeholder,addLabel){
   let h=`<option value="">${placeholder}</option>`;
   const all=sel&&!list.includes(sel)?[...list,sel]:list;
@@ -275,44 +367,59 @@ function listOptions(list,sel,placeholder,addLabel){
   return h+`<option value="${ADD_NEW}">${addLabel}</option>`;
 }
 function askNew(key,list,what){
-  const v=(prompt('New '+what+' (full name):')||'').trim().replace(/\s+/g,' ');
+  const v=(prompt('New '+what+':')||'').trim().replace(/\s+/g,' ');
   if(!v)return '';
   const found=list.find(x=>x.toLowerCase()===v.toLowerCase());
   if(found)return found;
-  list.push(v);list.sort((a,b)=>a.localeCompare(b));saveList(key,list);
+  list.push(v);list.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));saveList(key,list);
   return v;
 }
-function pickPerson(sel,field){
-  let v=sel.value;
-  if(v===ADD_NEW){v=askNew(PEOPLE_KEY,peopleList(),'person');}
-  setField(field,v);
-  fillPeople();
-}
-function fillPeople(){
+function pickPerson(sel,field){let v=sel.value;if(v===ADD_NEW)v=askNew(peopleKey(),peopleList(),'person (full name)');setField(field,v);fillSelects();}
+function pickMixer(sel){let v=sel.value;if(v===ADD_NEW)v=askNew(mixerKey(),mixerList(),'mixer / grinder');setField('line',v);fillSelects();}
+function pickList(sel,field,key,listFn,what){let v=sel.value;if(v===ADD_NEW)v=askNew(key,listFn(),what);setField(field,v);fillSelects();}
+function fillSelects(){
   const l=peopleList();
   document.getElementById('f-operator').innerHTML=listOptions(l,cur.operator,'— Select operator —','+ Add new…');
   document.getElementById('f-completedBy').innerHTML=listOptions(l,cur.completedBy,'— Select name —','+ Add new…');
+  document.getElementById('f-line').innerHTML=listOptions(mixerList(),cur.line,'— Mixer —','+ Add mixer…');
+  document.getElementById('f-seasType').innerHTML=listOptions(seasonList(),cur.seasType,'— Type —','+ Add new type…');
+  document.getElementById('f-seasSupplier').innerHTML=listOptions(seasonSupList(),cur.seasSupplier,'— Supplier —','+ Add new supplier…');
 }
-const PLANT_NAMES={NJ:'NEW JERSEY',GA:'GEORGIA'};
-const MAP_KEY='batch_barcode_map';           // barcode product key -> {rm, est}
-let plant='NJ', batches=[], cur=null;
+const MAP_KEY='batch_barcode_map';           // barcode product key -> {rm, est, supplier}
+let plant='NJ', batches=[], cur=null, listFilter='all', curView='list';
 
 /* ---------- storage ---------- */
 function bKey(){return 'batch_sheets_'+plant.toLowerCase();}
-function loadBatches(){try{batches=JSON.parse(localStorage.getItem(bKey())||'[]')||[];}catch(e){batches=[];}}
+function normBatch(b){
+  b.status=b.status||(b.completedAt?'done':'draft');
+  b.lines=Array.isArray(b.lines)?b.lines:[];
+  if(!b.mbName&&b.product){const m=String(b.product).match(/^\s*(\d+)\s*·\s*(.+)$/);b.mbName=m?m[2].trim():String(b.product).trim();if(m&&!b.mbNo)b.mbNo=m[1];}
+  b.items=(b.items||[]).map((x,i)=>{if(!x.id)x.id=(b.id||'b')+'-'+i+'-'+(x.at||'');if(x.cur==null||x.cur==='')x.cur=x.netLbs;if(x.used==null||x.used==='')x.used=x.cur;if(x.left==null)x.left=Math.max(0,(+x.cur||0)-(+x.used||0));return x;});
+  b.updatedAt=b.updatedAt||b.createdAt||new Date(0).toISOString();
+  return b;
+}
+function loadBatches(){try{batches=(JSON.parse(localStorage.getItem(bKey())||'[]')||[]).map(normBatch);}catch(e){batches=[];}}
 function saveBatches(){try{localStorage.setItem(bKey(),JSON.stringify(batches));}catch(e){toast('Could not save: '+e.message,true);}}
+/* every change: timestamp + mark for upload to SharePoint */
+function touch(b){b.updatedAt=new Date().toISOString();b.updatedBy=deviceName();b._dirty=true;saveBatches();schedulePush();}
 function loadMap(){try{return JSON.parse(localStorage.getItem(MAP_KEY)||'{}')||{};}catch(e){return{};}}
 function saveMap(m){try{localStorage.setItem(MAP_KEY,JSON.stringify(m));}catch(e){}}
+const liveBatches=()=>batches.filter(b=>b.status!=='deleted');
 
 /* ---------- helpers ---------- */
-function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(err?' err':'');t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>t.style.opacity='0',2600);}
+function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(err?' err':'');t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>t.style.opacity='0',2800);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function isoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function isoDay(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function isoToday(){return isoDay(new Date());}
 function nowTime(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 function rmByCode(c){return RM_CODES.find(r=>r.code===c);}
-function lineShort(l){const m=String(l).match(/mixer\s*(\d+)/i);return m?'M'+m[1]:(l==='TI'?'TI':'L'+String(l).replace(/[^0-9-]/g,'').replace(/-$/,''));}
+function lineShort(l){const m=String(l).match(/(?:mixer|grinder)\s*(\d+)/i);return m?'M'+m[1]:'M';}
 function fmtLbs(n){return (Math.round((+n||0)*100)/100).toLocaleString();}
-
+function fmt0(n){return Math.round(+n||0).toLocaleString();}
+function deviceName(){const u=navigator.userAgent;return /iPad|Macintosh/.test(u)&&navigator.maxTouchPoints>1?'iPad':/iPhone/.test(u)?'iPhone':/Android/.test(u)?'Android':/Windows/.test(u)?'Windows PC':/Mac/.test(u)?'Mac':'Other';}
+const listDate=()=>document.getElementById('list-date').value||isoToday();
+const lineNum=l=>{const m=String(l).match(/(\d+)/);return m?+m[1]:999;};
+const sortLines=a=>a.sort((x,y)=>lineNum(x)-lineNum(y)||String(x).localeCompare(String(y)));
 /* ---------- GS1-128 parser ----------
    Accepts "(01)…(3202)…" human-readable form, raw scanner output with FNC1/GS (\x1d)
    separators, or symbology-prefixed text (]C1…). Non-GS1 codes are returned as-is. */
@@ -372,142 +479,477 @@ function parseBarcode(input){
   return out;
 }
 
-/* ---------- plant ---------- */
-function setPlant(p){
+/* ---------- Daily Production Plan (per plant, per day) ----------
+   GA: sheet "Grind Prod with Meat" (pivot already filtered by Day) → meat block × line × open lbs + raw materials.
+   NJ: sheet "Grind Production (Today - CO)" → meat block × line open lbs.
+   One person loads the Excel here; it is published to SharePoint so every tablet uses the same plan. */
+const planKey=d=>'batch_plan_'+plant.toLowerCase()+'_'+d;
+function loadPlan(d){try{return JSON.parse(localStorage.getItem(planKey(d||listDate())))||null;}catch(e){return null;}}
+function savePlanLocal(p){try{localStorage.setItem(planKey(p.date),JSON.stringify(p));}catch(e){toast('Could not save the plan on this tablet.',true);}}
+function cleanNum(v){const n=+String(v).replace(/,/g,'');return isFinite(n)?n:0;}
+function parsePlanWB(wb){
+  const gaS=wb.SheetNames.find(n=>/grind prod with meat/i.test(n));
+  const njS=wb.SheetNames.find(n=>/grind production\s*\(today/i.test(n));
+  if(gaS)return parseGA(wb.Sheets[gaS],gaS);
+  if(njS)return parseNJ(wb.Sheets[njS],njS);
+  throw new Error('No "Grind Prod with Meat" (GA) or "Grind Production (Today - CO)" (NJ) sheet in this file');
+}
+function addEntry(map,mb,name,line,lbs,rms){
+  const k=name+'|'+line;const e=map[k]||(map[k]={mb,name,line,lbs:0,rms:{}});
+  e.lbs+=lbs;if(!e.mb&&mb)e.mb=mb;
+  Object.entries(rms||{}).forEach(([c,v])=>{e.rms[c]=(e.rms[c]||0)+v;});
+}
+function parseGA(ws,sheet){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const dayRow=rows.find(r=>r.some((c,i)=>String(c).trim()==='Day'&&i<4));
+  const day=dayRow?String(dayRow[dayRow.findIndex(c=>String(c).trim()==='Day')+1]||'').trim():'';
+  const hi=rows.findIndex(r=>r.some(c=>String(c).trim()==='Meat Block')&&r.some(c=>/open lbs/i.test(String(c))));
+  if(hi<0)throw new Error('Header row (Meat Block … Open Lbs) not found in '+sheet);
+  const h=rows[hi].map(c=>String(c).trim());const ci=n=>h.findIndex(x=>x.toLowerCase()===n.toLowerCase());
+  const cMB=ci('MB'),cName=ci('Meat Block'),cLine=ci('Line'),cOpen=h.findIndex(x=>/open lbs/i.test(x));
+  const pairs=[['Meat 1','M1%'],['Meat 2','M2%'],['Meat 3','M3%'],['Block 1','B1%'],['Block 2','B2%']].map(([a,b])=>[ci(a),ci(b)]).filter(p=>p[0]>=0&&p[1]>=0);
+  const map={};
+  rows.slice(hi+1).forEach(r=>{
+    const line=String(r[cLine]).trim();if(!/^line\s/i.test(line))return;
+    const name=String(r[cName]).trim();if(!name||/^meat block/i.test(name)||/total$/i.test(name))return;
+    if(!(cleanNum(r[cOpen])>0))return;
+    const rms={};pairs.forEach(([a,b])=>{const c=String(r[a]).trim();const v=cleanNum(r[b]);if(c&&c!=='0'&&/^[A-Z]{2}\d/i.test(c)&&v>0)rms[c.toUpperCase()]=(rms[c.toUpperCase()]||0)+v;});
+    addEntry(map,String(r[cMB]).trim(),name,line,cleanNum(r[cOpen]),rms);
+  });
+  return {plant:'GA',sheet,day,entries:Object.values(map)};
+}
+function parseNJ(ws,sheet){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const hi=rows.findIndex(r=>r.some(c=>String(c).trim()==='Meat Block'));
+  if(hi<0)throw new Error('Header row (Meat Block) not found in '+sheet);
+  const h=rows[hi];const nameCol=h.findIndex(c=>String(c).trim()==='Meat Block');const mbCol=Math.max(0,nameCol-1);
+  const cols=[];for(let j=nameCol+1;j<h.length;j++){const t=String(h[j]).trim();if(!t)continue;if(/grand total/i.test(t))break;cols.push([j,t]);}
+  const map={};
+  for(const r of rows.slice(hi+1)){
+    if(/grand total/i.test(String(r[mbCol])+' '+String(r[nameCol])))break;
+    const name=String(r[nameCol]).trim();if(!name)continue;
+    cols.forEach(([j,t])=>{const v=cleanNum(r[j]);if(v>0)addEntry(map,String(r[mbCol]).trim(),name,t,v,null);});
+  }
+  return {plant:'NJ',sheet,day:'',entries:Object.values(map)};
+}
+function onPlanFile(input){
+  const f=input.files&&input.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const p=parsePlanWB(wb);
+      if(p.plant!==plant){
+        if(!confirm(`This file is the ${p.plant} plan, but you are in ${plant}. Switch to ${p.plant} and load it there?`))return;
+        setPlant(p.plant,true);
+      }
+      const d=listDate();
+      const old=loadPlan(d);
+      if(old&&!confirm(`Replace the ${plant} plan already loaded for ${d} (${old.file})?`))return;
+      Object.assign(p,{date:d,file:f.name,loadedAt:new Date().toISOString(),by:deviceName(),updatedAt:new Date().toISOString(),_dirty:true,
+        total:p.entries.reduce((a,x)=>a+x.lbs,0)});
+      savePlanLocal(p);schedulePush();
+      toast(`Plan loaded: ${p.entries.length} meat block/line rows · ${fmt0(p.total)} lb`+(p.day?` · Day = ${p.day}`:''));
+      render();
+    }catch(err){toast('Could not read the plan: '+err.message,true);}
+    finally{input.value='';}
+  };
+  rd.readAsArrayBuffer(f);
+}
+function planLineHtml(){
+  const p=loadPlan();
+  if(!p)return `No ${plant} plan for ${listDate()} — <a onclick="document.getElementById('plan-file').click()">⬆ load the Daily Production Plan</a> (the supervisor does it once; every tablet gets it).`;
+  return `📋 Plan ${esc(p.file)} · ${fmt0(p.total)} lb${p.day?' · Day = <b>'+esc(p.day)+'</b>':''} · loaded ${new Date(p.loadedAt).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${p._dirty?' · <span style="color:#c76a00">not published yet</span>':''} · <a onclick="document.getElementById('plan-file').click()">replace</a>`;
+}
+/* meat blocks offered in the editor: today's plan first, then the full catalogue */
+function meatBlockOptions(sel){
+  const p=loadPlan(cur&&cur.date);
+  const planned={};(p?p.entries:[]).forEach(e=>{const k=e.name;(planned[k]=planned[k]||{mb:e.mb,name:e.name,lbs:0}).lbs+=e.lbs;});
+  const pl=Object.values(planned).sort((a,b)=>(+a.mb||999)-(+b.mb||999));
+  const rest=MEAT_BLOCKS.filter(m=>!planned[m.name]);
+  const opt=(m,extra)=>`<option value="${esc(m.name)}"${m.name===sel?' selected':''}>${esc((m.mb?m.mb+' · ':'')+m.name+(extra||''))}</option>`;
+  let h='<option value="">— Select meat block —</option>';
+  if(pl.length)h+=`<optgroup label="In today's plan">${pl.map(m=>opt(m,' — '+fmt0(m.lbs)+' lb')).join('')}</optgroup>`;
+  h+=`<optgroup label="${pl.length?'Other meat blocks':'Meat blocks'}">${rest.map(m=>opt(m)).join('')}</optgroup>`;
+  if(sel&&!pl.some(m=>m.name===sel)&&!rest.some(m=>m.name===sel))h+=opt({mb:'',name:sel});
+  return h;
+}
+/* how much of a meat block is planned / already assigned on a line (other batches of that day) */
+function planned(name,line,d){const p=loadPlan(d);if(!p)return null;const e=p.entries.find(x=>x.name===name&&x.line===line);return e?e.lbs:0;}
+function batchAmount(b){return b.items.reduce((a,x)=>a+(+x.used||0),0);}
+function lineLbs(b,l){return l.lbs!==''&&l.lbs!=null?+l.lbs||0:(b.lines.length===1?batchAmount(b):0);}
+function assigned(name,line,d,exceptId){
+  let s=0;liveBatches().forEach(b=>{if(b.date!==d||b.mbName!==name||b.id===exceptId)return;b.lines.forEach(l=>{if(l.line===line)s+=lineLbs(b,l);});});return s;
+}
+/* ---------- Sync between tablets (SharePoint list "WMS_Batches") ----------
+   Every change is uploaded automatically (it is the shared work list of the batching room, not a message).
+   Each tablet pulls the last 14 days when the module opens, when the day changes and every 45 s while it is open.
+   Paste the two flow URLs here when the flows exist; until then everything stays on this tablet. */
+const BATCH_SAVE_URL='';
+const BATCH_READ_URL='';
+let sync={at:0,busy:false,err:'',pushT:null,pushing:false};
+const syncOn=()=>!!(BATCH_SAVE_URL&&BATCH_READ_URL);
+function stripLocal(o){const c=Object.assign({},o);delete c._dirty;return c;}
+function schedulePush(){if(!BATCH_SAVE_URL)return;clearTimeout(sync.pushT);sync.pushT=setTimeout(pushDirty,800);}
+async function postSave(rec){
+  const res=await fetch(BATCH_SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+}
+async function pushDirty(){
+  if(!BATCH_SAVE_URL||sync.pushing)return;
+  sync.pushing=true;
+  try{
+    for(const b of batches.filter(x=>x._dirty)){
+      const sent=b.updatedAt;
+      await postSave({key:b.plant+'|batch|'+b.id,plant:b.plant,kind:'batch',day:b.date,status:b.status,batchNo:b.batchNo,meatBlock:b.mbName||'',
+        updatedAt:b.updatedAt,updatedBy:b.updatedBy||deviceName(),json:JSON.stringify(stripLocal(b))});
+      if(b.updatedAt===sent)b._dirty=false;
+    }
+    saveBatches();
+    // plans of this plant (any day) not published yet
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);if(!k||!k.startsWith('batch_plan_'+plant.toLowerCase()+'_'))continue;
+      let p;try{p=JSON.parse(localStorage.getItem(k));}catch(e){continue;}
+      if(!p||!p._dirty)continue;
+      await postSave({key:p.plant+'|plan|'+p.date,plant:p.plant,kind:'plan',day:p.date,status:'',batchNo:'',meatBlock:'',updatedAt:p.updatedAt,updatedBy:p.by,json:JSON.stringify(stripLocal(p))});
+      p._dirty=false;savePlanLocal(p);
+    }
+    sync.err='';
+  }catch(e){sync.err=e.message;}
+  finally{sync.pushing=false;renderSyncLines();}
+}
+/* Merge a batch coming from SharePoint with this tablet's copy.
+   Fields: the newest version wins. Boxes: always the union of both copies (minus boxes someone removed),
+   so two tablets adding boxes to the same batch at the same time never lose one. */
+function mergeBatch(r){
+  r=normBatch(r);
+  const i=batches.findIndex(b=>b.id===r.id);
+  if(i<0){batches.push(r);if(cur&&cur.id===r.id)cur=r;return true;}
+  const l=batches[i];
+  const del=new Set([...(l.delItems||[]),...(r.delItems||[])]);
+  const rNewer=String(r.updatedAt)>String(l.updatedAt);
+  const base=rNewer?r:l,other=rNewer?l:r;
+  const items=base.items.filter(x=>!del.has(x.id));
+  other.items.forEach(x=>{if(!del.has(x.id)&&!items.some(y=>y.id===x.id))items.push(x);});
+  items.sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+  const sig=b=>b.items.filter(x=>!del.has(x.id)).map(x=>x.id).sort().join(',');
+  const merged=Object.assign({},base,{items,delItems:[...del]});
+  const newForRemote=sig(merged)!==sig(r)||!rNewer&&String(l.updatedAt)!==String(r.updatedAt);
+  const newForLocal=rNewer||sig(merged)!==sig(l);
+  if(newForRemote){merged._dirty=true;if(sig(merged)!==sig(r)&&sig(merged)!==sig(l))merged.updatedAt=new Date().toISOString();}
+  else delete merged._dirty;
+  if(!newForLocal&&!newForRemote)return false;
+  batches[i]=merged;
+  if(cur&&cur.id===r.id)cur=merged;
+  return newForLocal;
+}
+async function pullRemote(force){
+  if(!BATCH_READ_URL||sync.busy)return;
+  if(!force&&Date.now()-sync.at<20000)return;
+  sync.busy=true;renderSyncLines();
+  const p0=plant,d=listDate();
+  try{
+    const a=new Date(d+'T12:00');a.setDate(a.getDate()-14);const z=new Date(d+'T12:00');z.setDate(z.getDate()+1);
+    const res=await fetch(BATCH_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:p0,from:isoDay(a),to:isoDay(z)})});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const js=await res.json();const rows=Array.isArray(js)?js:(js.value||[]);
+    if(p0!==plant)return;
+    let changed=false;
+    rows.forEach(x=>{
+      const kind=x.Kind||x.kind;let o;try{o=JSON.parse(x.JsonData||x.jsonData||'null');}catch(e){o=null;}if(!o)return;
+      if(kind==='plan'){const lp=loadPlan(o.date);if(!lp||(!lp._dirty&&String(o.updatedAt)>String(lp.updatedAt))){savePlanLocal(o);changed=true;}}
+      else if(o.id&&mergeBatch(o))changed=true;
+    });
+    saveBatches();if(batches.some(b=>b._dirty))schedulePush();
+    sync.at=Date.now();sync.err='';
+    if(changed)softRender();
+  }catch(e){sync.err=e.message;sync.at=Date.now();}
+  finally{sync.busy=false;renderSyncLines();}
+}
+function syncLineHtml(){
+  const dirty=batches.filter(b=>b._dirty).length;
+  if(!syncOn())return {cls:'',h:'📴 Tablet sync is not connected yet — batches are saved on this tablet only.'};
+  if(sync.busy)return {cls:'',h:'☁ Updating from SharePoint…'};
+  if(sync.err)return {cls:'warn',h:`⚠ SharePoint not reachable${dirty?' · '+dirty+' change(s) waiting to upload':''} — working on this tablet · <a onclick="pullRemote(true);pushDirty()">Retry</a>`};
+  return {cls:dirty?'warn':'',h:`☁ ${dirty?dirty+' change(s) uploading… · ':'All tablets in sync · '}${sync.at?new Date(sync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):''} · <a onclick="pullRemote(true)">⟳ Refresh</a>`};
+}
+function renderSyncLines(){const s=syncLineHtml();['sync-line-list','sync-line-pg'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML=s.h;el.className='sync-line '+s.cls;}});}
+/* re-render after remote changes without disturbing someone who is typing */
+function softRender(){
+  const a=document.activeElement;
+  const typing=a&&/INPUT|SELECT|TEXTAREA/.test(a.tagName)&&a.closest('#view-edit,.ov');
+  if(curView==='edit'){if(!cur||typing){renderEditorStatus();return;}fillEditor();renderEditor();return;}
+  render();
+}
+setInterval(()=>{if(document.visibilityState==='visible')pullRemote(false);},45000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pullRemote(true);});
+/* ---------- plant / views ---------- */
+function setPlant(p,keepView){
   plant=p;
   try{localStorage.setItem('batch_last_plant',p);}catch(e){}
   document.documentElement.style.setProperty('--plant',PLANT_COLORS[p]);
   document.getElementById('plant-name').textContent=PLANT_NAMES[p];
   ['NJ','GA'].forEach(x=>document.getElementById('pt-'+x).classList.toggle('on',x===p));
-  loadBatches();showList();
+  loadBatches();sync.at=0;
+  if(!keepView)showList();
+  pullRemote(true);
 }
-
-/* ---------- list ---------- */
-function showList(){
-  cur=null;
-  document.getElementById('view-edit').classList.add('hidden');
-  document.getElementById('view-list').classList.remove('hidden');
-  renderList();
+function showView(v){curView=v;['list','progress','edit'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==v));}
+function showList(){cur=null;showView('list');render();window.scrollTo(0,0);}
+function showProgress(){cur=null;showView('progress');render();window.scrollTo(0,0);}
+function onDateChange(){sync.at=0;render();pullRemote(true);}
+function render(){
+  renderSyncLines();
+  const pl=planLineHtml();['plan-line-list','plan-line-pg'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=pl;});
+  if(curView==='list')renderList();else if(curView==='progress')renderProgress();
 }
-function batchTotals(b){return{n:b.items.length,lbs:b.items.reduce((a,x)=>a+(+x.netLbs||0),0)};}
+function setListFilter(f){listFilter=f;document.querySelectorAll('#list-filter button').forEach(b=>b.classList.toggle('on',b.dataset.f===f));renderList();}
+const ST_TXT={draft:'Draft',need:'⏸ Still need add',done:'✓ Complete'};
+function linesTxt(b){return b.lines.filter(l=>l.line).map(l=>esc(l.line.replace(/^Line\s*/i,'L'))+' '+fmt0(lineLbs(b,l))).join(' · ');}
 function renderList(){
-  const d=document.getElementById('list-date').value;
-  const rows=batches.filter(b=>b.date===d).sort((a,b)=>(a.createdAt<b.createdAt?1:-1));
+  const d=listDate();
+  const rows=liveBatches().filter(b=>b.date===d).filter(b=>listFilter==='all'||(listFilter==='done'?b.status==='done':b.status!=='done'));
   const el=document.getElementById('batch-list');
-  if(!rows.length){el.innerHTML='<div class="card empty">No batches for this day yet.<br>Tap <b>+ New Batch</b> to start one.</div>';return;}
-  el.innerHTML=rows.map(b=>{const t=batchTotals(b);return `<div class="card list-card" onclick="openBatch('${b.id}')">
-    <div><div style="font-weight:800;font-size:14px">${esc(b.product||'(no product yet)')}</div>
-    <div class="muted">#${esc(b.batchNo)} · ${esc(b.line||'—')} · ${t.n} box${t.n===1?'':'es'} · ${fmtLbs(t.lbs)} lbs${b.operator?' · '+esc(b.operator):''}</div></div>
-    <span class="badge ${b.completedAt?'done':'draft'}">${b.completedAt?'✓ Complete':'Draft'}</span></div>`;}).join('');
+  if(!rows.length){el.innerHTML='<div class="card empty">No batches '+(listFilter==='all'?'for this day yet.<br>Tap <b>+ New Batch</b> to start one.':'in this filter.')+'</div>';return;}
+  const card=b=>{const n=b.items.length;return `<div class="card list-card" onclick="openBatch('${b.id}')">
+    <div><div style="font-weight:800;font-size:14px">${esc(b.product||'(no meat block yet)')}</div>
+    <div class="muted">#${esc(b.batchNo)} · ${esc(b.line||'—')} · ${n} box${n===1?'':'es'} · ${fmtLbs(batchAmount(b))} lbs${b.operator?' · '+esc(b.operator):''}${b.updatedBy&&syncOn()?' · '+esc(b.updatedBy):''}</div>
+    ${b.lines.length?`<div class="lines">→ ${linesTxt(b)}</div>`:''}</div>
+    <span class="badge ${b.status}">${ST_TXT[b.status]}</span></div>`;};
+  const order=['need','draft','done'],title={need:'Still need add',draft:'Draft',done:'Complete'};
+  el.innerHTML=order.map(s=>{const g=rows.filter(b=>b.status===s).sort((a,b)=>(a.createdAt<b.createdAt?1:-1));return g.length?`<div class="list-sec">${title[s]} · ${g.length}</div>`+g.map(card).join(''):'';}).join('');
 }
 
+/* ---------- line progress: plan vs batched, by line and meat block ---------- */
+function renderProgress(){
+  const d=listDate();const p=loadPlan(d);
+  document.getElementById('pg-title').textContent='Line progress · '+d;
+  const al={};const add=(name,line,lbs,st)=>{const k=name+'|'+line;const o=al[k]||(al[k]={name,line,done:0,prog:0});o[st==='done'?'done':'prog']+=lbs;};
+  const day=liveBatches().filter(b=>b.date===d);
+  day.forEach(b=>b.lines.forEach(l=>{if(l.line)add(b.mbName||b.product||'(no meat block)',l.line,lineLbs(b,l),b.status);}));
+  const lines=new Set([...(p?p.entries.map(e=>e.line):[]),...Object.values(al).map(a=>a.line)]);
+  const body=document.getElementById('pg-body');
+  if(!lines.size){body.innerHTML=`<div class="card empty">${p?'':'Load today\'s Daily Production Plan to see the target per line.<br>'}No batches assigned to lines yet.</div>`;return;}
+  let h=`<div class="pg-legend"><span><i style="background:var(--success)"></i>Batched (complete)</span><span><i style="background:var(--warn)"></i>In progress (still need add / draft)</span><span>Left = planned − batched − in progress</span></div>`;
+  let gP=0,gD=0,gG=0;
+  sortLines([...lines]).forEach(line=>{
+    const rows={};
+    (p?p.entries.filter(e=>e.line===line):[]).forEach(e=>{rows[e.name]={name:e.name,mb:e.mb,plan:e.lbs,done:0,prog:0};});
+    Object.values(al).filter(a=>a.line===line).forEach(a=>{const r=rows[a.name]||(rows[a.name]={name:a.name,mb:'',plan:p?0:null,done:0,prog:0,extra:true});r.done+=a.done;r.prog+=a.prog;});
+    const rs=Object.values(rows).sort((a,b)=>(+a.mb||999)-(+b.mb||999));
+    const tP=rs.reduce((s,r)=>s+(r.plan||0),0),tD=rs.reduce((s,r)=>s+r.done,0),tG=rs.reduce((s,r)=>s+r.prog,0);gP+=tP;gD+=tD;gG+=tG;
+    const bar=(r)=>{const pl=r.plan||0;if(!pl)return '';const d1=Math.min(100,r.done/pl*100),p1=Math.min(100-d1,r.prog/pl*100);return `<div class="bar2"><i class="d" style="width:${d1}%"></i><i class="p" style="width:${p1}%"></i></div>`;};
+    const left=r=>{if(r.plan==null)return '—';const v=r.plan-r.done-r.prog;return v<0?`<span class="pg-over">+${fmt0(-v)} over</span>`:fmt0(v);};
+    h+=`<div class="card pg-card"><h3>${esc(line)}<span>${p?fmt0(tD+tG)+' / '+fmt0(tP)+' lb'+(tP?' · '+Math.round((tD+tG)/tP*100)+'%':''):fmt0(tD+tG)+' lb batched'}</span></h3>
+      <div class="tbl-wrap"><table class="pg-tbl"><thead><tr><th>Meat block</th><th class="n">Planned</th><th class="n">Batched</th><th class="n">In progress</th><th class="n">Left</th><th style="width:22%"></th></tr></thead><tbody>
+      ${rs.map(r=>`<tr><td>${r.mb?esc(r.mb)+' · ':''}${esc(r.name)}${r.extra&&p?' <span class="muted">(not in plan)</span>':''}</td><td class="n">${r.plan==null?'—':fmt0(r.plan)}</td><td class="n">${fmt0(r.done)}</td><td class="n">${r.prog?fmt0(r.prog):'—'}</td><td class="n">${left(r)}</td><td>${bar(r)}</td></tr>`).join('')}
+      </tbody></table></div></div>`;
+  });
+  if(p){
+    h=`<div class="card"><h3 style="display:flex;justify-content:space-between;font-size:16px">All lines<span style="font-size:13px;color:var(--text2)">${fmt0(gD+gG)} / ${fmt0(gP)} lb · ${gP?Math.round((gD+gG)/gP*100):0}%</span></h3>${(()=>{const pl=gP||1;return `<div class="bar2" style="height:12px"><i class="d" style="width:${Math.min(100,gD/pl*100)}%"></i><i class="p" style="width:${Math.min(100,gG/pl*100)}%"></i></div>`;})()}</div>`+h;
+    const need={};p.entries.forEach(e=>Object.entries(e.rms||{}).forEach(([c,v])=>{need[c]=(need[c]||0)+v;}));
+    if(Object.keys(need).length){
+      const used={};day.forEach(b=>b.items.forEach(x=>{if(x.rm)used[x.rm]=(used[x.rm]||0)+(+x.used||0);}));
+      const codes=[...new Set([...Object.keys(need),...Object.keys(used)])].sort((a,b)=>(need[b]||0)-(need[a]||0));
+      h+=`<div class="card"><h2>Raw materials · planned vs used today</h2><div class="tbl-wrap"><table class="pg-tbl"><thead><tr><th>RM</th><th>Description</th><th class="n">Planned</th><th class="n">Used</th><th class="n">Left</th></tr></thead><tbody>
+      ${codes.map(c=>{const r=rmByCode(c);const n=need[c]||0,u=used[c]||0;return `<tr><td><b>${esc(c)}</b></td><td class="muted">${r?esc(r.name):''}</td><td class="n">${n?fmt0(n):'—'}</td><td class="n">${fmt0(u)}</td><td class="n">${n?(n-u<0?`<span class="pg-over">+${fmt0(u-n)}</span>`:fmt0(n-u)):'—'}</td></tr>`;}).join('')}
+      </tbody></table></div></div>`;
+    }
+  }
+  body.innerHTML=h;
+}
 /* ---------- editor ---------- */
 function nextBatchNo(date,line,self){
   const ymd=date.replace(/-/g,'').slice(2);
-  const n=batches.filter(b=>b!==self&&b.date===date&&b.line===line).length+1;
+  const n=liveBatches().filter(b=>b!==self&&b.date===date&&b.line===line).length+1;
   return ymd+'-'+lineShort(line)+'-'+n;
 }
 function newBatch(){
-  const date=document.getElementById('list-date').value||isoToday();
-  const line=PROD_LINES[0];
-  const b={id:'b'+Date.now(),plant,date,line,product:'',batchNo:nextBatchNo(date,line),startTime:nowTime(),operator:'',items:[],fatTest:'',grindTemp:'',notes:'',completedBy:'',completedAt:'',createdAt:new Date().toISOString()};
-  batches.push(b);saveBatches();openBatch(b.id);
+  const date=listDate();
+  const line=mixerList()[0]||'';
+  const b=normBatch({id:'b'+Date.now()+Math.random().toString(36).slice(2,5),plant,date,line,product:'',mbName:'',mbNo:'',batchNo:nextBatchNo(date,line),
+    startTime:nowTime(),endTime:'',operator:'',lines:[{line:'',lbs:''}],items:[],seasoning:'',seasType:'',seasLbs:'',seasLot:'',seasSupplier:'',water:'',waterUnit:'lbs',
+    fatTest:'',fatOk:'',fatFinal:'',grindTemp:'',notes:'',completedBy:'',completedAt:'',status:'draft',createdAt:new Date().toISOString()});
+  batches.push(b);touch(b);openBatch(b.id);
 }
 function openBatch(id){
   cur=batches.find(b=>b.id===id);if(!cur)return;
-  document.getElementById('view-list').classList.add('hidden');
-  document.getElementById('view-edit').classList.remove('hidden');
-  const ps=document.getElementById('f-product');
-  ps.innerHTML='<option value="">— Select product —</option>'+MEAT_BLOCKS.map(m=>{const v=(m.mb?m.mb+' · ':'')+m.name;return `<option value="${esc(v)}">${esc(v)}</option>`;}).join('');
-  document.getElementById('f-line').innerHTML=PROD_LINES.map(l=>`<option>${esc(l)}</option>`).join('');
-  ['product','line','batchNo','date','startTime','fatTest','grindTemp','notes'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=cur[k]||'';});
-  fillPeople();
-  renderEditor();
-  window.scrollTo(0,0);
+  showView('edit');fillEditor();renderEditor();window.scrollTo(0,0);
+  pullRemote(false);
+}
+function fillEditor(){
+  document.getElementById('f-product').innerHTML=meatBlockOptions(cur.mbName||cur.product);
+  ['batchNo','date','startTime','endTime','seasLbs','seasLot','water','fatTest','fatFinal','grindTemp','notes'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=cur[k]||'';});
+  document.getElementById('f-waterUnit').value=cur.waterUnit||'lbs';
+  fillSelects();
 }
 function setField(k,v){
   if(!cur)return;
   cur[k]=v;
   if((k==='line'||k==='date')&&!cur._batchNoEdited){cur.batchNo=nextBatchNo(cur.date,cur.line,cur);document.getElementById('f-batchNo').value=cur.batchNo;}
   if(k==='batchNo')cur._batchNoEdited=true;
-  saveBatches();renderEditor(true);
+  touch(cur);renderEditor(k!=='date');
+}
+function pickProduct(name){
+  const p=loadPlan(cur.date);const e=p&&p.entries.find(x=>x.name===name);const m=MEAT_BLOCKS.find(x=>x.name===name);
+  cur.mbName=name;cur.mbNo=(e&&e.mb)||(m&&m.mb)||'';cur.product=name?((cur.mbNo?cur.mbNo+' · ':'')+name):'';
+  // first meat block pick: suggest the lines where it is planned
+  if(name&&p&&cur.lines.every(l=>!l.line)){const ls=sortLines(p.entries.filter(x=>x.name===name).map(x=>x.line));if(ls.length)cur.lines=ls.slice(0,4).map(l=>({line:l,lbs:''}));if(ls.length>1)toast('Planned on '+ls.length+' lines — enter the lbs for each one.');}
+  touch(cur);renderEditor();
 }
 function rmOptions(sel){
   let html='<option value="">— RM code —</option>',g='';
   RM_CODES.forEach(r=>{if(r.group!==g){if(g)html+='</optgroup>';g=r.group;html+=`<optgroup label="${esc(g)}">`;}html+=`<option value="${r.code}"${r.code===sel?' selected':''}>${r.code} — ${esc(r.name)}</option>`;});
   return html+'</optgroup>';
 }
-function renderEditor(light){
-  const t=batchTotals(cur);
-  document.getElementById('ed-title').textContent=(cur.product||'New batch')+' · #'+cur.batchNo;
-  const st=document.getElementById('ed-status');st.textContent=cur.completedAt?'✓ Complete':'Draft';st.className='badge '+(cur.completedAt?'done':'draft');
+function lineOptions(sel){
+  const p=loadPlan(cur.date);
+  const inPlan=p?sortLines([...new Set(p.entries.filter(e=>e.name===cur.mbName).map(e=>e.line))]):[];
+  const all=sortLines([...new Set([...(p?p.entries.map(e=>e.line):[]),...LINE_DEFAULTS[plant]])]).filter(l=>!inPlan.includes(l));
+  const o=l=>`<option${l===sel?' selected':''}>${esc(l)}</option>`;
+  let h='<option value="">— Line —</option>';
+  if(inPlan.length)h+=`<optgroup label="Planned for ${esc(cur.mbName)}">${inPlan.map(o).join('')}</optgroup>`;
+  h+=`<optgroup label="${inPlan.length?'Other lines':'Lines'}">${all.map(o).join('')}</optgroup>`;
+  if(sel&&!inPlan.includes(sel)&&!all.includes(sel))h+=o(sel);
+  return h;
+}
+function renderLines(){
+  const box=document.getElementById('lines-box');const amount=batchAmount(cur);
+  box.innerHTML=cur.lines.map((l,i)=>{
+    let hint='';
+    if(l.line&&cur.mbName){
+      const pl=planned(cur.mbName,l.line,cur.date);
+      if(pl==null)hint='No plan loaded for this day';
+      else if(!pl)hint='<b>Not in the plan</b> for this line';
+      else{const other=assigned(cur.mbName,l.line,cur.date,cur.id);const left=pl-other-lineLbs(cur,l);hint=`Plan <b>${fmt0(pl)}</b> · other batches ${fmt0(other)} · <b>${left<0?'+'+fmt0(-left)+' over':fmt0(left)+' left'}</b>`;if(left<0)hint=`<span class="hint over">${hint}</span>`;}
+    }
+    return `<div class="line-row"><select onchange="setLine(${i},'line',this.value)">${lineOptions(l.line)}</select>
+      <input type="text" inputmode="decimal" autocomplete="off" placeholder="${cur.lines.length===1?'= batch':'lbs'}" value="${esc(l.lbs)}" onchange="setLine(${i},'lbs',this.value)">
+      <div class="hint">${hint}</div>
+      <button class="btn danger no-print" style="padding:6px 10px" onclick="removeLine(${i})" ${cur.lines.length<2?'disabled':''}>✕</button></div>`;
+  }).join('');
+  document.getElementById('btn-add-line').style.display=cur.lines.length>=4?'none':'';
+  const sum=cur.lines.reduce((a,l)=>a+lineLbs(cur,l),0);
+  const el=document.getElementById('lines-sum');
+  const bad=cur.lines.length>1&&amount>0&&Math.abs(sum-amount)>1;
+  el.className='lines-sum'+(bad?' bad':'');
+  el.innerHTML=cur.lines.filter(l=>l.line).length?`Assigned to lines: ${fmtLbs(sum)} lb of ${fmtLbs(amount)} lb batch${bad?' — the lines should add up to the batch amount':''}`:'Pick the line(s) this batch goes to.';
+}
+function setLine(i,k,v){cur.lines[i][k]=k==='lbs'?String(v).trim():v;touch(cur);renderLines();}
+function addLine(){if(cur.lines.length>=4)return;cur.lines.push({line:'',lbs:''});touch(cur);renderLines();}
+function removeLine(i){if(cur.lines.length<2)return;cur.lines.splice(i,1);touch(cur);renderLines();}
+function setSeason(v){cur.seasoning=v;touch(cur);renderEditor(true);}
+function setFatOk(v){cur.fatOk=v;touch(cur);renderEditor(true);}
+function renderEditorStatus(){
+  if(!cur)return;
+  const st=document.getElementById('ed-status');st.textContent=ST_TXT[cur.status];st.className='badge '+cur.status;
   document.getElementById('f-completedAt').value=cur.completedAt?new Date(cur.completedAt).toLocaleString():'';
-  document.getElementById('btn-complete').textContent=cur.completedAt?'↺ Reopen batch':'✓ Mark complete';
-  document.getElementById('tot-count').textContent=t.n;
-  document.getElementById('tot-lbs').textContent=fmtLbs(t.lbs);
+  document.getElementById('btn-complete').textContent=cur.status==='done'?'↺ Reopen batch':'✓ Complete';
+  document.getElementById('btn-need').style.display=cur.status==='done'?'none':'';
+  document.getElementById('btn-need').classList.toggle('on',cur.status==='need');
+}
+function renderEditor(light){
+  const amount=batchAmount(cur);
+  document.getElementById('ed-title').textContent=(cur.product||'New batch')+' · #'+cur.batchNo;
+  renderEditorStatus();
+  document.getElementById('tot-count').textContent=cur.items.length;
+  document.getElementById('tot-lbs').textContent=fmtLbs(amount);
+  document.querySelectorAll('#seas-yn button').forEach(b=>b.classList.toggle('on',b.dataset.v===cur.seasoning));
+  document.getElementById('seas-box').style.display=cur.seasoning==='yes'?'':'none';
+  document.querySelectorAll('#fat-ok button').forEach(b=>b.classList.toggle('on',b.dataset.v===cur.fatOk));
+  document.getElementById('fat-final-wrap').style.display=cur.fatOk==='no'?'':'none';
   document.getElementById('print-head').innerHTML=`<b>Schweid &amp; Sons · ${plant} · Batch Sheet</b><br>${esc(cur.product)} · #${esc(cur.batchNo)} · ${esc(cur.line)} · ${esc(cur.date)}`;
+  renderLines();
   if(light)return;
-  document.getElementById('rm-body').innerHTML=cur.items.length?cur.items.map((x,i)=>{const r=rmByCode(x.rm);return `<tr>
+  document.getElementById('rm-body').innerHTML=cur.items.length?cur.items.map((x,i)=>{const r=rmByCode(x.rm);const left=Math.max(0,(+x.cur||0)-(+x.used||0));return `<tr>
     <td>${i+1}</td>
     <td style="min-width:150px"><select onchange="setItem(${i},'rm',this.value)">${rmOptions(x.rm)}</select>${r?'':'<div class="rm-desc" style="color:var(--danger)">Select RM code</div>'}</td>
     <td><input value="${esc(x.lot)}" onchange="setItem(${i},'lot',this.value)" style="min-width:90px"></td>
     <td class="hide-sm"><input value="${esc(x.packDate)}" onchange="setItem(${i},'packDate',this.value)" style="min-width:90px"></td>
     <td class="hide-sm"><input value="${esc(x.est)}" onchange="setItem(${i},'est',this.value)" style="min-width:60px"></td>
+    <td class="hide-sm"><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.temp||'')}" onchange="setItem(${i},'temp',this.value)" style="min-width:52px"></td>
     <td class="hide-sm"><select onchange="pickItemSupplier(${i},this)" style="min-width:110px">${listOptions(supplierList(),x.supplier||'','—','+ Add new…')}</select></td>
-    <td><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.netLbs)}" onchange="setItem(${i},'netLbs',this.value)" style="min-width:70px"></td>
-    <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="8" class="empty">Scan the first box label or add it manually.</td></tr>';
+    <td><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.cur)}" onchange="setItem(${i},'cur',this.value)" style="min-width:70px"></td>
+    <td><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.used)}" onchange="setItem(${i},'used',this.value)" style="min-width:70px"></td>
+    <td class="left${left?'':' zero'}">${fmtLbs(left)}</td>
+    <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">Scan the first box label or add it manually.</td></tr>';
 }
-function pickItemSupplier(i,sel){
-  let v=sel.value;
-  if(v===ADD_NEW)v=askNew(SUPPLIER_KEY,supplierList(),'supplier');
-  cur.items[i].supplier=v;saveBatches();renderEditor();
+function pickItemSupplier(i,sel){let v=sel.value;if(v===ADD_NEW)v=askNew(SUPPLIER_KEY,supplierList(),'supplier');cur.items[i].supplier=v;touch(cur);renderEditor();}
+function setItem(i,k,v){
+  const x=cur.items[i];x[k]=typeof v==='string'?v.trim():v;
+  if(k==='cur'&&(+x.used||0)>(+x.cur||0))x.used=x.cur;
+  if(k==='used'&&(+x.used||0)>(+x.cur||0)){toast('Used cannot be more than the current weight.',true);x.used=x.cur;}
+  x.left=Math.max(0,(+x.cur||0)-(+x.used||0));
+  touch(cur);renderEditor(k!=='rm'&&k!=='cur'&&k!=='used');
 }
-function setItem(i,k,v){cur.items[i][k]=v;saveBatches();renderEditor(k!=='rm');}
-function removeItem(i){if(!confirm('Remove box #'+(i+1)+'?'))return;cur.items.splice(i,1);saveBatches();renderEditor();}
-function toggleComplete(){
-  if(!cur.completedAt){
-    if(!cur.product){toast('Select the product first.',true);return;}
-    if(!cur.items.length){toast('Add at least one raw material.',true);return;}
-    if(cur.items.some(x=>!x.rm)){toast('Every box needs an RM code.',true);return;}
-    if(!cur.completedBy){toast('Select who completed the batch.',true);document.getElementById('f-completedBy').focus();return;}
-    cur.completedAt=new Date().toISOString();
-  }else{
-    if(!confirm('Reopen this batch for editing?'))return;
-    cur.completedAt='';
-  }
-  saveBatches();renderEditor();
+function removeItem(i){if(i<0||!cur.items[i])return;if(!confirm('Remove box #'+(i+1)+'?'))return;const x=cur.items.splice(i,1)[0];cur.delItems=[...(cur.delItems||[]),x.id];touch(cur);renderEditor();}
+function validateBasics(){
+  if(!cur.mbName&&!cur.product){toast('Select the meat block first.',true);return false;}
+  return true;
 }
-function deleteBatch(){if(!confirm('Delete batch #'+cur.batchNo+'? This cannot be undone.'))return;batches=batches.filter(b=>b.id!==cur.id);saveBatches();showList();}
+function completeBatch(){
+  if(cur.status==='done'){if(!confirm('Reopen this batch for editing?'))return;cur.status='need';cur.completedAt='';touch(cur);renderEditor();return;}
+  if(!validateBasics())return;
+  if(!cur.items.length){toast('Add at least one raw material.',true);return;}
+  if(cur.items.some(x=>!x.rm)){toast('Every box needs an RM code.',true);return;}
+  if(cur.items.some(x=>!(+x.used>0))){toast('Every box needs the weight used.',true);return;}
+  if(!cur.lines.some(l=>l.line)){toast('Pick at least one production line.',true);return;}
+  const amount=batchAmount(cur),sum=cur.lines.reduce((a,l)=>a+lineLbs(cur,l),0);
+  if(cur.lines.length>1&&Math.abs(sum-amount)>1&&!confirm(`The lines add up to ${fmtLbs(sum)} lb but the batch is ${fmtLbs(amount)} lb. Complete anyway?`))return;
+  if(cur.seasoning==='yes'&&(!cur.seasType||!cur.seasLot)){toast('Enter the seasoning type and lot #.',true);return;}
+  if(cur.fatOk==='no'&&!cur.fatFinal){toast('Enter the final fat test.',true);return;}
+  if(!cur.completedBy){toast('Select who completed the batch.',true);document.getElementById('f-completedBy').focus();return;}
+  cur.status='done';cur.completedAt=new Date().toISOString();if(!cur.endTime)cur.endTime=nowTime();
+  touch(cur);fillEditor();renderEditor();toast('✓ Batch complete');
+}
+function needAddBatch(){
+  if(!validateBasics())return;
+  cur.status='need';cur.completedAt='';touch(cur);renderEditor();
+  toast('⏸ Marked "Still need add" — every tablet sees it as open');
+}
+function deleteBatch(){if(!confirm('Delete batch #'+cur.batchNo+'? This cannot be undone.'))return;cur.status='deleted';touch(cur);showList();}
 
 /* ---------- adding raw materials ---------- */
 let pending=null;
-function onScanInput(){
-  const el=document.getElementById('scan-input');const v=el.value;el.value='';
-  if(!v.trim())return;
-  handleScan(v);
+function onScanInput(){const el=document.getElementById('scan-input');const v=el.value;el.value='';if(!v.trim())return;handleScan(v);}
+/* What is left of a lot/serial from the most recent batch that used it (any tablet, last 14 days). */
+function lotLeft(lotKey,exceptItemId){
+  if(!lotKey)return null;let best=null;
+  liveBatches().forEach(b=>b.items.forEach(x=>{if(x.id===exceptItemId)return;if((x.serial||x.lot)!==lotKey)return;if(!best||String(x.at)>String(best.x.at))best={x,b};}));
+  return best?{left:Math.max(0,(+best.x.cur||0)-(+best.x.used||0)),batchNo:best.b.batchNo,date:best.b.date}:null;
 }
 function handleScan(text){
   if(!cur)return;
   const p=parseBarcode(text);
   const map=loadMap();const known=map[p.key];
   if(p.isGS1&&p.serial&&cur.items.some(x=>x.serial===p.serial&&x.key===p.key)){toast('This box (serial '+p.serial+') is already on the batch.',true);return;}
-  pending={key:p.key,raw:p.raw,gtin:p.gtin||'',serial:p.serial||'',lot:p.lot||p.serial||'',packDate:p.packDate||'',est:p.est||(known&&known.est)||'',supplier:(known&&known.supplier)||'',netLbs:p.netLbs!=null?p.netLbs:'',rm:(known&&known.rm)||''};
-  // Known product + weight read from the label → add straight away (fastest path)
-  if(known&&known.rm&&pending.netLbs!==''){addPending();toast('✓ '+pending.rm+' · '+fmtLbs(pending.netLbs)+' lbs added');pending=null;return;}
+  const net=p.netLbs!=null?p.netLbs:'';
+  pending={key:p.key,raw:p.raw,gtin:p.gtin||'',serial:p.serial||'',lot:p.lot||p.serial||'',packDate:p.packDate||'',est:p.est||(known&&known.est)||'',supplier:(known&&known.supplier)||'',netLbs:net,cur:net,used:'',temp:'',rm:(known&&known.rm)||''};
+  const prev=lotLeft(pending.serial||pending.lot);
+  pending.prev=prev;
+  if(prev){pending.cur=prev.left;}
+  // Known product + weight read from the label + never used before → add straight away (fastest path)
+  if(known&&known.rm&&net!==''&&!prev){pending.used=pending.cur;addPending();toast('✓ '+pending.rm+' · '+fmtLbs(pending.cur)+' lbs added');pending=null;return;}
   openConfirm(p);
 }
-function addManual(){pending={key:'',raw:'',gtin:'',serial:'',lot:'',packDate:'',est:'',supplier:'',netLbs:'',rm:''};openConfirm(null);}
+function addManual(){pending={key:'',raw:'',gtin:'',serial:'',lot:'',packDate:'',est:'',supplier:'',netLbs:'',cur:'',used:'',temp:'',rm:''};openConfirm(null);}
+function cfSyncUsed(){const u=document.getElementById('cf-used');if(!u.dataset.touched)u.value=document.getElementById('cf-cur').value;}
 function openConfirm(p){
   document.getElementById('cf-raw').textContent=p?('Scanned: '+p.raw.replace(/\x1d/g,'␝')+(p.isGS1?'  ·  GS1 label read':'  ·  plain code')):'Manual entry';
+  const lf=document.getElementById('cf-left');
+  if(pending.prev){lf.classList.remove('hidden');lf.innerHTML=pending.prev.left>0?`♻ This lot was opened before: batch #${esc(pending.prev.batchNo)} (${esc(pending.prev.date)}) left <b>${fmtLbs(pending.prev.left)} lb</b>${pending.netLbs!==''?' (label: '+fmtLbs(pending.netLbs)+' lb)':''}.`:`⚠ This lot was already <b>used up</b> in batch #${esc(pending.prev.batchNo)} (${esc(pending.prev.date)}). Check the box.`;}
+  else lf.classList.add('hidden');
   document.getElementById('cf-rm').innerHTML=rmOptions(pending.rm);
   document.getElementById('cf-lot').value=pending.lot;
   document.getElementById('cf-pack').value=pending.packDate;
   document.getElementById('cf-est').value=pending.est;
+  document.getElementById('cf-temp').value=pending.temp;
   document.getElementById('cf-supplier').innerHTML=listOptions(supplierList(),pending.supplier,'— Supplier —','+ Add new supplier…');
-  document.getElementById('cf-lbs').value=pending.netLbs;
+  document.getElementById('cf-cur').value=pending.cur;
+  const u=document.getElementById('cf-used');u.value=pending.cur;delete u.dataset.touched;u.oninput=()=>{u.dataset.touched='1';};
   document.getElementById('cf-remember-wrap').style.display=pending.key?'':'none';
   document.getElementById('confirm-ov').classList.remove('hidden');
-  setTimeout(()=>document.getElementById(pending.rm?'cf-lbs':'cf-rm').focus(),80);
+  setTimeout(()=>document.getElementById(pending.rm?(pending.cur!==''?'cf-used':'cf-cur'):'cf-rm').focus(),80);
 }
 function closeConfirm(){document.getElementById('confirm-ov').classList.add('hidden');pending=null;setTimeout(()=>{const s=document.getElementById('scan-input');if(s)s.focus();},50);}
 function confirmAdd(){
@@ -515,19 +957,25 @@ function confirmAdd(){
   pending.lot=document.getElementById('cf-lot').value.trim();
   pending.packDate=document.getElementById('cf-pack').value.trim();
   pending.est=document.getElementById('cf-est').value.trim();
+  pending.temp=document.getElementById('cf-temp').value.trim();
   pending.supplier=document.getElementById('cf-supplier').value===ADD_NEW?'':document.getElementById('cf-supplier').value;
   if(!pending.supplier){const r=rmByCode(pending.rm);if(r&&r.vendor)pending.supplier=r.vendor;}
-  pending.netLbs=document.getElementById('cf-lbs').value;
+  pending.cur=document.getElementById('cf-cur').value.trim();
+  pending.used=document.getElementById('cf-used').value.trim();
   if(!pending.rm){toast('Select the RM code.',true);return;}
-  if(!(+pending.netLbs>0)){toast('Enter the net weight (lbs).',true);return;}
+  if(!(+pending.cur>0)){toast('Enter the current weight (lbs).',true);return;}
+  if(!(+pending.used>0)){toast('Enter the weight used (lbs).',true);return;}
+  if(+pending.used>+pending.cur){toast('Used cannot be more than the current weight.',true);return;}
+  if(pending.netLbs==='')pending.netLbs=pending.cur;
   if(pending.key&&document.getElementById('cf-remember').checked){const m=loadMap();m[pending.key]={rm:pending.rm,est:pending.est,supplier:pending.supplier};saveMap(m);}
   addPending();closeConfirm();toast('✓ Added');
 }
 function addPending(){
-  cur.items.push({rm:pending.rm,lot:pending.lot,serial:pending.serial,packDate:pending.packDate,est:pending.est,supplier:pending.supplier||'',netLbs:pending.netLbs,key:pending.key,gtin:pending.gtin,raw:pending.raw,at:new Date().toISOString()});
-  saveBatches();renderEditor();
+  const at=new Date().toISOString();
+  cur.items.push({id:cur.id+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),rm:pending.rm,lot:pending.lot,serial:pending.serial,packDate:pending.packDate,est:pending.est,temp:pending.temp||'',supplier:pending.supplier||'',
+    netLbs:pending.netLbs,cur:pending.cur,used:pending.used,left:Math.max(0,(+pending.cur||0)-(+pending.used||0)),key:pending.key,gtin:pending.gtin,raw:pending.raw,at});
+  touch(cur);renderEditor();
 }
-
 /* ---------- camera scanning ---------- */
 let camStream=null,camTimer=null,zxReader=null;
 function loadZXing(){
@@ -570,31 +1018,35 @@ function closeCamera(){
 /* ---------- Excel ---------- */
 function batchRows(b){
   const rows=[['Schweid & Sons · '+b.plant+' · Batch Sheet'],[],
-    ['Product',b.product],['Mixer',b.line],['Batch #',b.batchNo],['Date',b.date],['Start time',b.startTime],['Mixer operator',b.operator],[],
-    ['#','RM Code','Description','Supplier','Lot / Serial','Pack date','EST #','Net LBS']];
-  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);rows.push([i+1,x.rm,r?r.name:'',x.supplier||'',x.lot,x.packDate,x.est,+x.netLbs||0]);});
-  const t=batchTotals(b);
-  rows.push(['','','','','','','TOTAL',Math.round(t.lbs*100)/100],[],['Fat test (%)',b.fatTest],['Grind temp (°F)',b.grindTemp],['Notes',b.notes],[],['Completed by',b.completedBy],['Completed at',b.completedAt?new Date(b.completedAt).toLocaleString():'(draft)']);
+    ['Meat block',b.product],['Mixer',b.line],['Batch #',b.batchNo],['Date',b.date],['Start time',b.startTime],['End time',b.endTime||''],['Mixer operator',b.operator],['Status',ST_TXT[b.status]||b.status],[],
+    ['Production line','LBS']];
+  b.lines.filter(l=>l.line).forEach(l=>rows.push([l.line,lineLbs(b,l)]));
+  rows.push([],['#','RM Code','Description','Supplier','Lot / Serial','Pack date','EST #','Temp °F','Current LBS','Used LBS','Left LBS']);
+  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);rows.push([i+1,x.rm,r?r.name:'',x.supplier||'',x.lot,x.packDate,x.est,x.temp||'',+x.cur||0,+x.used||0,Math.max(0,(+x.cur||0)-(+x.used||0))]);});
+  rows.push(['','','','','','','','','','TOTAL USED',Math.round(batchAmount(b)*100)/100],[],
+    ['Seasoning',b.seasoning==='yes'?'Yes':b.seasoning==='no'?'No':''],
+    ...(b.seasoning==='yes'?[['Seasoning type',b.seasType],['Seasoning lbs',b.seasLbs],['Seasoning lot #',b.seasLot],['Seasoning supplier',b.seasSupplier],['Water',(b.water||'')+' '+(b.waterUnit||'')]]:[]),
+    [],['Initial fat test (%)',b.fatTest],['Fat test OK',b.fatOk==='yes'?'Yes':b.fatOk==='no'?'No':''],['Final fat test (%)',b.fatFinal||''],['Final grind temp (°F)',b.grindTemp],['Notes',b.notes],[],
+    ['Completed by',b.completedBy],['Completed at',b.completedAt?new Date(b.completedAt).toLocaleString():'(open)']);
   return rows;
 }
 function exportBatch(){
   const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(batchRows(cur));
-  ws['!cols']=[{wch:16},{wch:12},{wch:34},{wch:18},{wch:18},{wch:12},{wch:10},{wch:10}];
+  ws['!cols']=[{wch:18},{wch:12},{wch:30},{wch:16},{wch:16},{wch:11},{wch:9},{wch:8},{wch:11},{wch:11},{wch:10}];
   XLSX.utils.book_append_sheet(wb,ws,'Batch');
   XLSX.writeFile(wb,'Batch_'+plant+'_'+cur.batchNo+'.xlsx');
 }
 function exportDay(){
-  const d=document.getElementById('list-date').value;
-  const rows=batches.filter(b=>b.date===d);
+  const d=listDate();
+  const rows=liveBatches().filter(b=>b.date===d);
   if(!rows.length){toast('No batches for this day.',true);return;}
   const wb=XLSX.utils.book_new();
-  const sum=[['Batch #','Product','Mixer','Boxes','Net LBS','Fat %','Grind °F','Mixer operator','Completed by','Status']];
-  rows.forEach(b=>{const t=batchTotals(b);sum.push([b.batchNo,b.product,b.line,t.n,Math.round(t.lbs*100)/100,b.fatTest,b.grindTemp,b.operator,b.completedBy,b.completedAt?'Complete':'Draft']);});
+  const sum=[['Batch #','Meat block','Mixer','Lines','Boxes','Used LBS','Seasoning','Fat %','Final fat %','Grind °F','Mixer operator','Completed by','Status']];
+  rows.forEach(b=>{sum.push([b.batchNo,b.product,b.line,b.lines.filter(l=>l.line).map(l=>l.line+' '+lineLbs(b,l)).join(', '),b.items.length,Math.round(batchAmount(b)*100)/100,b.seasoning==='yes'?b.seasType:'',b.fatTest,b.fatFinal||'',b.grindTemp,b.operator,b.completedBy,ST_TXT[b.status]]);});
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),'Summary');
   rows.forEach(b=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(batchRows(b)),String(b.batchNo).replace(/[\\\/\?\*\[\]:]/g,'-').slice(0,31)));
   XLSX.writeFile(wb,'Batches_'+plant+'_'+d+'.xlsx');
 }
-
 /* keep dialogs above the on-screen keyboard */
 /* iPad numeric keypad + basic calculator. iPadOS has no numbers-only keyboard (inputmode=numeric
    shows the full number/symbol layout), so on iPad numeric fields use this in-app keypad instead.
