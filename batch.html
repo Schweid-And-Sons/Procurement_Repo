@@ -188,7 +188,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.22a</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.22b</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Export day</button>
@@ -823,8 +823,9 @@ function renderLines(){
       else if(!pl)hint='<b>Not in the plan</b> for this line';
       else{const other=assigned(cur.mbName,l.line,cur.date,cur.id);const left=pl-other-lineLbs(cur,l);hint=`Plan <b>${fmt0(pl)}</b> · other batches ${fmt0(other)} · <b>${left<0?'+'+fmt0(-left)+' over':fmt0(left)+' left'}</b>`;if(left<0)hint=`<span class="hint over">${hint}</span>`;}
     }
+    if(cur.lines.length===1&&(l.lbs===''||l.lbs==null))hint=(hint?hint+'<br>':'')+`Blank = the whole batch goes to this line${amount?' ('+fmtLbs(amount)+' lb)':''}`;
     return `<div class="line-row"><select onchange="setLine(${i},'line',this.value)">${lineOptions(l.line)}</select>
-      <input type="text" inputmode="decimal" autocomplete="off" placeholder="${cur.lines.length===1?'= batch':'lbs'}" value="${esc(l.lbs)}" onchange="setLine(${i},'lbs',this.value)">
+      <input type="text" inputmode="decimal" autocomplete="off" placeholder="lbs" value="${esc(l.lbs)}" onchange="setLine(${i},'lbs',this.value)">
       <div class="hint">${hint}</div>
       <button class="btn danger no-print" style="padding:6px 10px" onclick="removeLine(${i})" ${cur.lines.length<2?'disabled':''}>✕</button></div>`;
   }).join('');
