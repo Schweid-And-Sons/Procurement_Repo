@@ -1723,7 +1723,7 @@ const AREA_ABBR={
   'BOX ROOM':'BR','BOX ROOM FLOOR':'BRF',
   'RETAIL COOLER SLEEVES RACK':'RCS','RETAIL COOLER FLOOR':'RCF',
   'FROZEN COOLER FLOOR':'FCF',
-  'DM ROOM':'DM','DM ROOM FLOOR':'DMF','LABEL RACKS':'LBR','TRAILER':'TRL',
+  'DM ROOM':'DM','DM ROOM FLOOR':'DMF','LABEL RACKS':'LBR','DM ROOM EXTRA':'DMX','DOOR 7 TRAILER':'TRL',
   'BACK DOCK RACK':'BDR','BACK DOCK FLOOR':'BDF','FRONT DOCK RACK':'FDR','FRONT DOCK FLOOR':'FDF','TO RELOCATE':'REL'
 };
 function locAbbrev(id){
@@ -2819,25 +2819,32 @@ const GA_AREAS = {
   }},
   'DM ROOM FLOOR':{type:'floor',slots:20},
   'LABEL RACKS':{type:'floor',slots:15},
-  'TRAILER':{type:'floor',slots:20},                                           // trailer parked at the dock door, used as storage
+  'DM ROOM EXTRA':{type:'floor',slots:5},
+  'DOOR 7 TRAILER':{type:'floor',slots:20},                                    // trailer permanently parked at Door 7, used as storage
   'BACK DOCK RACK':{type:'rack',sections:{1:{2:[1,2,3]},2:{2:[1,2,3]},3:{2:[1,2,3]},4:{2:[1,2,3]}}},   // single level, on a 2nd floor → Tier 2 only
   'BACK DOCK FLOOR':{type:'floor',slots:10},
   'FRONT DOCK RACK':{type:'rack',sections:{1:{2:[1,2,3],3:[1,2,3]},2:{2:[1,2,3],3:[1,2,3]},3:{2:[1,2,3],3:[1,2,3]},4:{2:[1,2,3],3:[1,2,3]}}},   // no Tier 1
   'FRONT DOCK FLOOR':{type:'floor',slots:10},
 };
 GA_AREAS['DM ROOM'].sides=[{title:'DM ROOM — RIGHT SIDE',secs:['1','2','3','4','5','6','7','8','9']},{title:'DM ROOM — LEFT SIDE',secs:['10','11','12','13','14','15','16','17']}];
-const GA_EXPORT_ORDER = ['DM ROOM','DM ROOM FLOOR','LABEL RACKS','TRAILER','BACK DOCK RACK','BACK DOCK FLOOR','FRONT DOCK RACK','FRONT DOCK FLOOR','TO RELOCATE'];
+const GA_EXPORT_ORDER = ['DM ROOM','DM ROOM FLOOR','LABEL RACKS','DM ROOM EXTRA','DOOR 7 TRAILER','BACK DOCK RACK','BACK DOCK FLOOR','FRONT DOCK RACK','FRONT DOCK FLOOR','TO RELOCATE'];
 /* GA layout v3 (Oct-19). Saved data / SharePoint copies from earlier layouts are converted automatically;
    anything with no place in the new layout goes to "TO RELOCATE" (shown only while it has items) — nothing is lost.
-   v1 = Jonathan's original sheet · v2 = first rework (19g) · v3 = current names. */
+   v1 = Jonathan's original sheet · v2 = first rework (19g) · v3 = Oct-19 names · v4 = TRAILER renamed DOOR 7 TRAILER, DM ROOM EXTRA 5 slots. */
 function migrateGaLayout(){
   if(currentPlant!=='GA')return;
   const keys=Object.keys(inventory);
   const has=re=>keys.some(k=>re.test(k));
-  const v1=has(/^(DN ROOM FLOOR INVENTORY|DM ROOM EXTRA|DOCK DOORS)\|/)||keys.some(k=>/^BACK DOCK FLOOR\|\d+$/.test(k)&&+k.split('|')[1]>10);
+  const v1=has(/^(DN ROOM FLOOR INVENTORY|DOCK DOORS)\|/)||keys.some(k=>/^BACK DOCK FLOOR\|\d+$/.test(k)&&+k.split('|')[1]>10);
   let lv=null;try{lv=localStorage.getItem('wms_ga_layout');}catch(e){}
+  // v4: TRAILER → DOOR 7 TRAILER (same 20 slots, contents kept as they are)
+  if(has(/^TRAILER\|/)){let ren=0,n=keys.filter(k=>k.startsWith('TO RELOCATE|')).reduce((m,k)=>Math.max(m,+k.split('|')[1]),0);
+    keys.forEach(k=>{if(!k.startsWith('TRAILER|'))return;const v=inventory[k];delete inventory[k];
+      const nk='DOOR 7 '+k;if(!inventory[nk])inventory[nk]=v;else{const o=Object.assign({},v);if(!o.from)o.from=k.replace(/\|/g,' · ');inventory['TO RELOCATE|'+(++n)]=o;}ren++;});
+    saveData();addLog('LAYOUT UPDATE','TRAILER renamed DOOR 7 TRAILER — '+ren+' position(s) moved');
+    return migrateGaLayout();}
   // before v3, "FRONT DOCK FLOOR" was the trailer door → on a device that never ran v3, treat it as old data
-  const v2=!v1&&(has(/^(DM ROOM FLOOR INVENTORY|DOCK DOOR RACK|DOCK DOOR FLOOR)\|/)||(lv!=='3'&&has(/^FRONT DOCK FLOOR\|/)));
+  const v2=!v1&&(has(/^(DM ROOM FLOOR INVENTORY|DOCK DOOR RACK|DOCK DOOR FLOOR)\|/)||(lv!=='3'&&lv!=='4'&&has(/^FRONT DOCK FLOOR\|/)));
   const old=v1||v2||has(/^(SAMPLES|DOCK DOOR)\|/);
   if(old){
     const next={},reloc=[],moved=[];
@@ -2847,15 +2854,15 @@ function migrateGaLayout(){
       return ((d.sections[r[0]]||{})[r[1]]||[]).includes(+r[2]);};
     keys.forEach(k=>{
       const v=inventory[k];const [area,...rest]=k.split('|');const tail=rest.join('|');let nk=null;
-      if(area==='DOCK DOOR'&&!v1&&!v2){const nk='TRAILER|'+tail;if(fits(nk)){put(k,nk,v);return;}}
-      if(area==='SAMPLES'||area==='DM ROOM EXTRA'||area==='DOCK DOORS'||area==='TO RELOCATE'){reloc.push([k,v]);return;}
+      if(area==='DOCK DOOR'&&!v1&&!v2){const nk='DOOR 7 TRAILER|'+tail;if(fits(nk)){put(k,nk,v);return;}}
+      if(area==='SAMPLES'||area==='DOCK DOORS'||area==='TO RELOCATE'){reloc.push([k,v]);return;}
       if(v1){
         if(area==='DN ROOM FLOOR INVENTORY')nk='DM ROOM FLOOR|'+tail;
         else if(area==='DM ROOM FLOOR INVENTORY'){reloc.push([k,v]);return;}     // old 4-slot area, removed
-        else if(area==='FRONT DOCK FLOOR')nk='TRAILER|'+tail;                  // the trailer door
+        else if(area==='FRONT DOCK FLOOR')nk='DOOR 7 TRAILER|'+tail;           // the trailer door
         else nk=k;
       }else if(v2){
-        nk=({'DM ROOM FLOOR INVENTORY':'DM ROOM FLOOR','FRONT DOCK FLOOR':'TRAILER','DOCK DOOR RACK':'FRONT DOCK RACK','DOCK DOOR FLOOR':'FRONT DOCK FLOOR'}[area]||area)+'|'+tail;
+        nk=({'DM ROOM FLOOR INVENTORY':'DM ROOM FLOOR','FRONT DOCK FLOOR':'DOOR 7 TRAILER','DOCK DOOR RACK':'FRONT DOCK RACK','DOCK DOOR FLOOR':'FRONT DOCK FLOOR'}[area]||area)+'|'+tail;
       }else nk=k;
       if(fits(nk))put(k,nk,v);else reloc.push([k,v]);
     });
@@ -2864,7 +2871,7 @@ function migrateGaLayout(){
     inventory=next;saveData();
     if(moved.length)addLog('LAYOUT UPDATE','GA layout v3 applied — '+moved.length+' position(s) moved: '+moved.slice(0,40).join('; ')+(moved.length>40?' …':''));
   }
-  try{localStorage.setItem('wms_ga_layout','3');}catch(e){}
+  try{localStorage.setItem('wms_ga_layout','4');}catch(e){}
   const nReloc=Object.keys(inventory).filter(k=>k.startsWith('TO RELOCATE|')).reduce((m,k)=>Math.max(m,+k.split('|')[1]),0);
   if(nReloc)GA_AREAS['TO RELOCATE']={type:'floor',slots:nReloc};else delete GA_AREAS['TO RELOCATE'];
 }
@@ -5778,7 +5785,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.22b';
+const APP_VERSION='2026.10.24a';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
