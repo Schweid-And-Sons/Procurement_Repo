@@ -829,7 +829,7 @@
   /* Section (or floor row) that holds the last-touched position: soft orange tint + thin ring, same family as the marker */
   .section-block.sec-current{background:color-mix(in srgb,#ff8c00 9%,var(--surface))!important;box-shadow:0 0 0 1.5px rgba(255,140,0,.55),var(--shadow,0 1px 3px rgba(0,0,0,.08))!important;}
   .section-block.sec-current .sec-num{color:#ea7a00;}
-  .floor-slots.sec-current{background:color-mix(in srgb,#ff8c00 9%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,#ff8c00 9%,transparent),0 0 0 5.5px rgba(255,140,0,.45);border-radius:10px;width:fit-content;max-width:100%;}
+  .floor-slots.sec-current{background:color-mix(in srgb,#ff8c00 7%,transparent);outline:1px solid rgba(255,140,0,.45);outline-offset:3px;border-radius:9px;width:fit-content;max-width:100%;}
   /* Selected item is only an EXTRA on a mixed pallet (the main item is another code): purple ring, not purple fill */
   .pos-cell.highlighted-mix,.floor-cell.highlighted-mix{box-shadow:inset 0 0 0 3px var(--accent2),0 0 0 2px var(--accent2)!important;opacity:1!important;filter:none!important;}
   /* desktop cells are 30px — smaller ✓ there; touch screens keep the 15px one */
@@ -5852,7 +5852,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.26f';
+const APP_VERSION='2026.10.26g';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
