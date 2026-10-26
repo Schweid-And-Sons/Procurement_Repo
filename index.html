@@ -826,6 +826,8 @@
   .pos-cell.reviewed::after,.floor-cell.reviewed::after{content:'✓';position:absolute;right:-5px;bottom:-5px;width:15px;height:15px;border-radius:50%;background:var(--success);color:#fff;font-size:9px;font-weight:800;line-height:15px;text-align:center;box-shadow:0 0 0 1.5px var(--surface);pointer-events:none;}
   /* Search match keeps its normal purple look in Count Mode too — never faded like the pending cells. */
   .pos-cell.highlighted.unreviewed,.floor-cell.highlighted.unreviewed{opacity:1!important;filter:none!important;}
+  /* the orange "you are here" marker is never faded either, even if that position is still pending */
+  .pos-cell.last-touched.unreviewed,.floor-cell.last-touched.unreviewed{opacity:1!important;filter:none!important;outline:3px solid #ff8c00!important;outline-offset:2px!important;}
   /* Section (or floor row) that holds the last-touched position: soft orange tint + thin ring, same family as the marker */
   .section-block.sec-current{background:color-mix(in srgb,#ff8c00 9%,var(--surface))!important;box-shadow:0 0 0 1.5px rgba(255,140,0,.55),var(--shadow,0 1px 3px rgba(0,0,0,.08))!important;}
   .section-block.sec-current .sec-num{color:#ea7a00;}
@@ -5852,7 +5854,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.26g';
+const APP_VERSION='2026.10.26h';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
