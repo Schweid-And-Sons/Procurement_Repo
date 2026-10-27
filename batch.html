@@ -188,7 +188,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.22b</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.27d</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Export day</button>
@@ -1062,11 +1062,15 @@ function exportDay(){
     box-shadow:0 12px 40px rgba(0,0,0,.28);display:grid;grid-template-columns:repeat(3,1fr) 1fr 1fr;gap:8px;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
   .numpad.hidden{display:none;}
   body .modal input.np-fresh,body input.np-fresh{font-weight:600;color:var(--accent,#007aff)!important;background:color-mix(in srgb,var(--accent,#007aff) 20%,var(--card,#fff))!important;}
-  .numpad .np-disp{grid-column:1/-1;min-height:24px;padding:0 6px;text-align:right;font:500 17px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .numpad .np-hide{height:34px!important;font-size:16px!important;}
+  .numpad .np-zero{grid-column:span 2;}
+  .numpad .np-disp{grid-column:2/-1;align-self:center;min-height:24px;padding:0 6px;text-align:right;font:500 17px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .numpad .np-disp b{color:#000;font-weight:700;}
   .numpad .np-disp.err b{color:#ff3b30;}
   .numpad button{height:52px;border:none;border-radius:14px;background:#fff;color:#000;font:600 24px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;box-shadow:0 1px 0 rgba(0,0,0,.18);cursor:pointer;}
-  .numpad button:active{background:#d1d1d6;}
+  .numpad button:active,.numpad button.np-down{background:#d1d1d6;}
+  .numpad .np-enter.np-down{background:#0062cc;}
+  .numpad .np-op.np-down{background:#ff9500;color:#fff;}
   .numpad .np-fn{background:#d1d5db;font-size:18px;}
   .numpad .np-op{background:#e5e7eb;color:#ff9500;font-size:26px;}
   .numpad .np-op:active{background:#ff9500;color:#fff;}
@@ -1080,6 +1084,7 @@ function exportDay(){
   body.np-open .modal-overlay:not(.hidden)>.modal,body.np-open .ov:not(.hidden) .modal{max-height:calc(var(--npavail,60vh) - 16px)!important;overflow-y:auto!important;}
   html.theme-dark .numpad{background:rgba(28,28,30,.94);}
   html.theme-dark .numpad button{background:#3a3a3c;color:#fff;box-shadow:none;}
+  html.theme-dark .numpad button.np-down{background:#636366;}
   html.theme-dark .numpad .np-fn{background:#2c2c2e;}
   html.theme-dark .numpad .np-op{background:#2c2c2e;color:#ff9f0a;}
   html.theme-dark .numpad .np-eq{background:#ff9f0a;color:#fff;}
@@ -1092,8 +1097,8 @@ function exportDay(){
     ['7'],['8'],['9'],['÷','div','np-op'],['⌫','back','np-fn'],
     ['4'],['5'],['6'],['×','mul','np-op'],['C','clear','np-fn'],
     ['1'],['2'],['3'],['−','sub','np-op'],['=','eq','np-eq'],
-    ['⌄','hide','np-fn'],['0'],['.','dot'],['+','add','np-op'],['Enter','enter','np-enter']];
-  pad.innerHTML='<div class="np-disp" id="np-disp"></div>'+keys.map(k=>`<button type="button" data-k="${k[1]||k[0]}" class="${k[2]||''}" aria-label="${k[1]||k[0]}">${k[0]}</button>`).join('');
+    ['0','0','np-zero'],['.','dot'],['+','add','np-op'],['Enter','enter','np-enter']];
+  pad.innerHTML='<button type="button" data-k="hide" class="np-fn np-hide" aria-label="hide keypad">⌄</button><div class="np-disp" id="np-disp"></div>'+keys.map(k=>`<button type="button" data-k="${k[1]||k[0]}" class="${k[2]||''}" aria-label="${k[1]||k[0]}">${k[0]}</button>`).join('');
   document.body.appendChild(pad);
   const disp=pad.querySelector('#np-disp');
   const OPS={add:'+',sub:'−',mul:'×',div:'÷'};
@@ -1179,14 +1184,25 @@ function exportDay(){
     if(el&&el.value!==startVal){startVal=el.value;fire(el,'change');}
   };
   document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);});  // closing is left to focusout (delayed)
-  document.addEventListener('focusout',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},350);});
+  document.addEventListener('focusout',e=>{const el=e.target;
+    if(el===target&&!leaving&&Date.now()-lastTouch<700){setTimeout(()=>{if(target===el&&document.activeElement!==el){try{el.focus({preventScroll:true});}catch(_){el.focus();}}},0);return;}
+    if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},350);});
   window.addEventListener('resize',()=>{if(target)fit();});
 
   pad.addEventListener('pointerdown',e=>e.preventDefault()); // keep focus in the field
-  pad.addEventListener('click',e=>{
-    const b=e.target.closest('button');if(!b||!target)return;
+  /* Touch: handle the key on touchend (fast double taps on iPadOS could drop a key or hide the keypad). */
+  let lastTouch=0,leaving=false;
+  pad.addEventListener('touchstart',e=>{lastTouch=Date.now();e.preventDefault();const b=e.target.closest&&e.target.closest('button');if(b)b.classList.add('np-down');},{passive:false});
+  const upAll=()=>pad.querySelectorAll('.np-down').forEach(x=>x.classList.remove('np-down'));
+  pad.addEventListener('touchend',e=>{lastTouch=Date.now();e.preventDefault();upAll();const t=e.changedTouches&&e.changedTouches[0];if(!t)return;
+    const hit=document.elementFromPoint(t.clientX,t.clientY);const b=hit&&hit.closest&&hit.closest('button');if(b&&pad.contains(b)&&!b.disabled)press(b);},{passive:false});
+  pad.addEventListener('touchcancel',upAll);
+  pad.addEventListener('click',e=>{if(Date.now()-lastTouch<800)return;press(e.target.closest('button'));});
+  function press(b){
+    if(!b||!target)return;
     const k=b.dataset.k,el=target;
     let s=el.selectionStart??el.value.length,en=el.selectionEnd??el.value.length;
+    if(k==='hide'||k==='enter'){leaving=true;setTimeout(()=>{leaving=false;},800);}
     if(k==='hide'){commit(el);el.blur();close();return;}
     if(k==='eq'){resolve(el);el.setSelectionRange&&el.setSelectionRange(el.value.length,el.value.length);showDisp();return;}
     if(k==='enter'){
@@ -1220,7 +1236,7 @@ function exportDay(){
       el.setRangeText(ch,s,en,'end');
     }
     fire(el,'input');showDisp();
-  });
+  }
 })();
 (function(){const vv=window.visualViewport;if(!vv)return;const fit=()=>{if(document.body.classList.contains('np-open'))return;const kb=window.innerHeight-vv.height>120;document.body.classList.toggle('kb-open',kb);document.documentElement.style.setProperty('--vvh',vv.height+'px');document.documentElement.style.setProperty('--vvt',vv.offsetTop+'px');if(kb){const a=document.activeElement;if(a&&a.closest&&a.closest('.modal'))setTimeout(()=>a.scrollIntoView({block:'center',behavior:'smooth'}),60);}};vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);})();
 /* ---------- start ---------- */

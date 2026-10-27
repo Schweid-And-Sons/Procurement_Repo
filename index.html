@@ -1507,7 +1507,6 @@ let VENDOR_EQUIV=[
   {a:'BX1875-1',b:'BX1875PCA-1',box:'Retail Carton 6 Bricks'},
   {a:'BX7500-1',b:'BX7500PCA-1',box:'FIVE GUYS'},
   {a:'BX7600-1',b:'BX7600PCA-1',box:'5 GUYS FGE PREFORMED'},
-  {a:'BX7700-1',b:'BX7700PCA-1',box:'FIVE GUYS FRESH 3.7OZ 1/2 PATTY L7'},
 ];
 function vendorEquivCode(code){
   const pair=VENDOR_EQUIV.find(r=>r.a===code||r.b===code);
@@ -1551,7 +1550,7 @@ let ITEMS = [
   {code:'BX7500PCA-1',name:'Five Guys Box PCA',cat:'BOXES',client:'Five Guys'},
   {code:'BX7600PCA-1',name:'Five Guys FGE Preformed PCA',cat:'BOXES',client:'Five Guys'},
   {code:'BX7700PCA-1',name:'Five Guys Fresh 3.7oz 1/2 Patty L7',cat:'BOXES',client:'Five Guys'},
-  {code:'BX7700-1',name:'Five Guys Fresh 3.7oz 1/2 Patty L7 Sonic',cat:'BOXES',client:'Five Guys'},
+  {code:'BX7700-1',name:'DISCONTINUED — Five Guys Fresh 3.7oz L7 Sonic (discard; use BX7700PCA-1)',cat:'BOXES',client:'Five Guys',disc:true},   // Oct-27: only PCA from now on; hidden once out of stock
   {code:'BX6500-1',name:'Prairie Creek Distinctions',cat:'BOXES'},
   {code:'BX6550-1',name:'Prairie Creek Originals',cat:'BOXES'},
   {code:'BX7500-1',name:'Five Guys Box',cat:'BOXES',client:'Five Guys'},
@@ -1769,6 +1768,7 @@ function saveData(){
   try{
     const json=JSON.stringify(inventory);
     localStorage.setItem(WMS_KEY,json);
+    try{localStorage.setItem(WMS_KEY+'_savedAt',String(Date.now()));}catch(_){}
     
     const verify=localStorage.getItem(WMS_KEY);
     if(!verify){showToast('⚠ Storage save failed — data may not persist','error');}
@@ -1800,7 +1800,7 @@ function calcStats(){
   document.getElementById('stat-racks').textContent=(rackTotal-rackOcc)+' / '+rackTotal;
   document.getElementById('stat-floor').textContent=(floorTotal-floorOcc)+' / '+floorTotal;
   document.getElementById('stat-units').textContent=totalUnits.toLocaleString();
-  document.getElementById('stat-skus').textContent=skus.size+' / '+ITEMS.length;
+  document.getElementById('stat-skus').textContent=skus.size+' / '+ITEMS.filter(i=>!i.disc).length;
 }
 
 function getRackFloorBreakdown(){
@@ -1920,7 +1920,7 @@ function renderSidebar(){
   const cats={};
   ITEMS.forEach(item=>{
     const s=summary[item.code];
-    if(!s&&!q)return;
+    if(!s&&(!q||item.disc))return;
     const normCode=normalizeSearch(item.code);
     const normName=normalizeSearch(item.name);
     const normPhys=(PHYS_CODES[item.code]||[]).map(p=>normalizeSearch(p)).join(' ');
@@ -2060,7 +2060,7 @@ function renderItemsView(q=''){
     `<button class="client-chip${activeClientFilter===c?' active':''}" onclick="setClientFilter('${c}')">${c}</button>`
   ).join('')+(activeClientFilter?`<button class="client-chip client-chip-clear" onclick="setClientFilter('')">✕ Clear</button>`:'')+`</div>`;
   CAT_ORDER.forEach(cat=>{
-    let items=ITEMS.filter(i=>i.cat===cat);
+    let items=ITEMS.filter(i=>i.cat===cat&&(!i.disc||summary[i.code]));
     if(activeClientFilter)items=items.filter(i=>i.client===activeClientFilter);
     const nq=normalizeSearch(q);
     if(nq)items=items.filter(i=>{
@@ -2236,7 +2236,9 @@ function openModal(id){
     document.getElementById('modal-loc-label').textContent=currentPlant+' · '+locLabel(id);
     
     _allModalOptions=[];
+    var _here=inventory[id];
     ITEMS.forEach(function(item){
+      if(item.disc&&!occHas(_here,item.code))return;   // discontinued codes can't be assigned anymore
       var phys=(typeof PHYS_CODES!=='undefined')?PHYS_CODES[item.code]:null;
       var text=phys
         ?(item.code+' — '+item.name+' · '+phys.join(' / '))
@@ -3449,7 +3451,7 @@ function renderStatsView(){
 
   else if(statsSubTab==='nostock'){
     CAT_ORDER.forEach(cat=>{
-      const noStock=ITEMS.filter(i=>i.cat===cat&&!summary[i.code]);
+      const noStock=ITEMS.filter(i=>i.cat===cat&&!summary[i.code]&&!i.disc);
       if(!noStock.length)return;
       html+=`<div class="stats-section-title">${cat} <span style="color:var(--text3);font-size:9px;font-weight:400;text-transform:none;letter-spacing:0">${noStock.length} item(s)</span> <span></span></div>
         <div class="no-stock-grid">`;
@@ -4683,7 +4685,7 @@ function openPoReceive(key,opt){
   _poKey=key;_poForm={key,base,dn,po:src.po,vendor:src.vendor,due:src.due,lines,before,prev};
   let by='';try{by=localStorage.getItem('wms_receiver_name')||'';}catch(e){}
   const pl=prev?Object.fromEntries(prev.lines.map(l=>[l.code,l])):{};
-  const dl=`<datalist id="po-items-dl">${ITEMS.map(i=>`<option value="${poEsc(i.code)}">${poEsc(i.name)}</option>`).join('')}</datalist>`;
+  const dl=`<datalist id="po-items-dl">${ITEMS.filter(i=>!i.disc).map(i=>`<option value="${poEsc(i.code)}">${poEsc(i.name)}</option>`).join('')}</datalist>`;
   document.getElementById('po-modal-body').innerHTML=`
     <h3>Receive · ${poEsc(src.po)}${dn>1?' · delivery '+dn:''}</h3>
     <div class="modal-loc">${poEsc(src.vendor)} · ${currentPlant} · due ${fmtDay(src.due)}</div>
@@ -4990,12 +4992,40 @@ function setSyncTab(t){
   document.getElementById('sync-import-body').classList.toggle('hidden',t!=='import');
   if(t==='import')renderSyncHistory();
 }
+/* When was the inventory on this device last changed? (saved time; older devices fall back to the last Log entry) */
+function lastLocalChange(){
+  try{const t=+localStorage.getItem(WMS_KEY+'_savedAt');if(t)return t;}catch(e){}
+  try{const lg=loadLog();if(lg.length){const m=String(lg[0].ts).match(/(\d+)\/(\d+)\/(\d{4})\s*·\s*(\d+):(\d+)\s*(AM|PM)/i);
+    if(m){let h=+m[4]%12;if(/pm/i.test(m[6]))h+=12;return new Date(+m[3],+m[1]-1,+m[2],h,+m[5]).getTime();}}}catch(e){}
+  return null;
+}
+function agoText(ms){const h=ms/3600e3;if(h<1)return Math.max(1,Math.round(ms/60e3))+' min';if(h<48)return Math.round(h)+' h';return Math.round(h/24)+' days';}
 async function syncExport(){
   const turnoSel=document.getElementById('sync-turno-sel').value;
   // NJ keeps its original labels; other plants prefix the shift ("GA · Before 9am (Morning)").
   // The flow's date+Shift filter then keeps each plant's copy separate — no flow change needed.
   const turnoLabel=(currentPlant==='NJ'?'':currentPlant+' · ')+SYNC_TURNO_LABELS[turnoSel];
   const d=today();
+  // Confirm first (like Import): a new/empty browser could otherwise overwrite today's good copy by mistake.
+  const nPos=Object.keys(inventory).length;
+  const nUnits=Object.values(inventory).reduce((a,o)=>a+occTotalQty(o),0);
+  const where=syncMode()==='sharepoint'?'SharePoint':'this device';
+  const nd=x=>{x=String(x||'').trim();let m=x.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return (+m[2])+'/'+(+m[3])+'/'+m[1];m=x.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?(+m[1])+'/'+(+m[2])+'/'+m[3]:x;};
+  const prev=(_syncHistoryCache||[]).find(h=>h&&h.plant===currentPlant&&h.turno===turnoSel&&nd(h.date)===nd(d));
+  const prevN=prev&&prev.data?Object.keys(prev.data).length:null;
+  let msg='Upload this inventory to '+where+'?\n\n'+currentPlant+' · '+SYNC_TURNO_LABELS[turnoSel]+' · '+d+'\n'+
+    nPos+' position(s) · '+nUnits.toLocaleString()+' units on this device.';
+  if(prevN!==null)msg+='\n\nThis REPLACES the copy already saved for this shift today ('+prevN+' positions).';
+  else msg+='\n\nIf a copy for this shift already exists today, it will be replaced.';
+  const lc=lastLocalChange(),age=lc?Date.now()-lc:null;
+  msg+='\n\nLast change on this device: '+(lc?new Date(lc).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+agoText(age)+' ago)':'unknown');
+  if(!confirm(msg))return;
+  const warn=[];
+  if(nPos===0)warn.push('This device has NO inventory.');
+  else if(prevN&&nPos<prevN*0.5)warn.push('This device has far fewer positions ('+nPos+') than the saved copy ('+prevN+').');
+  if(nPos>0&&(lc===null||age>8*3600e3||new Date(lc).toDateString()!==new Date().toDateString()))
+    warn.push('The inventory on this device was '+(lc?'last changed '+agoText(age)+' ago':'never changed here')+' — it may be OLD. If someone counted on another device since then, this would overwrite their work.');
+  if(warn.length&&!confirm('⚠ Careful:\n\n• '+warn.join('\n• ')+'\n\nTip: Import → Load the latest copy first, then count and upload.\n\nUpload anyway?'))return;
   const payload={date:d,turno:turnoSel,turnoLabel:turnoLabel,plant:currentPlant,ts:new Date().toISOString(),data:inventory};
   const statusEl=document.getElementById('sync-export-status');
   if(syncMode()==='sharepoint'){
@@ -5752,7 +5782,9 @@ async function autoLoadIfEmpty(){
   .numpad .np-disp b{color:#000;font-weight:700;}
   .numpad .np-disp.err b{color:#ff3b30;}
   .numpad button{height:52px;border:none;border-radius:14px;background:#fff;color:#000;font:600 24px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;box-shadow:0 1px 0 rgba(0,0,0,.18);cursor:pointer;}
-  .numpad button:active{background:#d1d1d6;}
+  .numpad button:active,.numpad button.np-down{background:#d1d1d6;}
+  .numpad .np-enter.np-down{background:#0062cc;}
+  .numpad .np-op.np-down{background:#ff9500;color:#fff;}
   .numpad .np-fn{background:#d1d5db;font-size:18px;}
   .numpad .np-op{background:#e5e7eb;color:#ff9500;font-size:26px;}
   .numpad .np-op:active{background:#ff9500;color:#fff;}
@@ -5766,6 +5798,7 @@ async function autoLoadIfEmpty(){
   body.np-open .modal-overlay:not(.hidden)>.modal,body.np-open .ov:not(.hidden) .modal{max-height:calc(var(--npavail,60vh) - 16px)!important;overflow-y:auto!important;}
   html.theme-dark .numpad{background:rgba(28,28,30,.94);}
   html.theme-dark .numpad button{background:#3a3a3c;color:#fff;box-shadow:none;}
+  html.theme-dark .numpad button.np-down{background:#636366;}
   html.theme-dark .numpad .np-fn{background:#2c2c2e;}
   html.theme-dark .numpad .np-op{background:#2c2c2e;color:#ff9f0a;}
   html.theme-dark .numpad .np-eq{background:#ff9f0a;color:#fff;}
@@ -5866,14 +5899,39 @@ async function autoLoadIfEmpty(){
     if(el&&el.value!==startVal){startVal=el.value;fire(el,'change');}
   };
   document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);});  // closing is left to focusout (delayed)
-  document.addEventListener('focusout',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},350);});
+  document.addEventListener('focusout',e=>{const el=e.target;
+    // focus slipped away because of a fast tap on the keypad itself → put it back, keep the keypad open
+    if(el===target&&!leaving&&Date.now()-lastTouch<700){setTimeout(()=>{if(target===el&&document.activeElement!==el){try{el.focus({preventScroll:true});}catch(_){el.focus();}}},0);return;}
+    if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},350);});
   window.addEventListener('resize',()=>{if(target)fit();});
 
   pad.addEventListener('pointerdown',e=>e.preventDefault()); // keep focus in the field
+  /* Touch: handle the key ourselves on touchend. iPadOS treats two quick taps as a double-tap and may drop the
+     2nd click or move focus off the field (which used to hide the keypad). Cancelling touchstart avoids both. */
+  let lastTouch=0,leaving=false;   // leaving = ⌄ / Enter closed it on purpose
+  pad.addEventListener('touchstart',e=>{
+    lastTouch=Date.now();e.preventDefault();
+    const b=e.target.closest&&e.target.closest('button');if(b)b.classList.add('np-down');
+  },{passive:false});
+  const upAll=()=>pad.querySelectorAll('.np-down').forEach(x=>x.classList.remove('np-down'));
+  pad.addEventListener('touchend',e=>{
+    lastTouch=Date.now();e.preventDefault();upAll();
+    const t=e.changedTouches&&e.changedTouches[0];if(!t)return;
+    const hit=document.elementFromPoint(t.clientX,t.clientY);
+    const b=hit&&hit.closest&&hit.closest('button');
+    if(b&&pad.contains(b)&&!b.disabled)press(b);
+  },{passive:false});
+  pad.addEventListener('touchcancel',upAll);
   pad.addEventListener('click',e=>{
-    const b=e.target.closest('button');if(!b||!target)return;
+    if(Date.now()-lastTouch<800)return;                       // already handled by touchend
+    press(e.target.closest('button'));
+  });
+  window._npRecentTouch=()=>Date.now()-lastTouch<700;
+  function press(b){
+    if(!b||!target)return;
     const k=b.dataset.k,el=target;
     let s=el.selectionStart??el.value.length,en=el.selectionEnd??el.value.length;
+    if(k==='hide'||k==='enter'){leaving=true;setTimeout(()=>{leaving=false;},800);}
     if(k==='hide'){commit(el);el.blur();close();return;}
     if(k==='eq'){resolve(el);el.setSelectionRange&&el.setSelectionRange(el.value.length,el.value.length);showDisp();return;}
     if(k==='enter'){
@@ -5907,7 +5965,7 @@ async function autoLoadIfEmpty(){
       el.setRangeText(ch,s,en,'end');
     }
     fire(el,'input');showDisp();
-  });
+  }
 })();
 /* Qty fields: on focus the current value is highlighted, so typing replaces it and Enter keeps it. */
 (function(){
@@ -5922,7 +5980,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.27b';
+const APP_VERSION='2026.10.27f';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
