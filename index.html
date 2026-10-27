@@ -155,6 +155,14 @@
   .sec-row-qty{color:var(--accent);font-weight:700;min-width:40px;text-align:right;}
   .sec-row-map{padding:3px 7px;background:transparent;border:1px solid var(--accent2);color:var(--accent2);border-radius:4px;cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;text-transform:uppercase;white-space:nowrap;}
   .sec-panel-empty{color:var(--text3);font-size:11px;text-align:center;padding:20px 0;}
+  .modal-actions.np-nudge{animation:npNudge .45s ease;}
+  @keyframes npNudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+  .sp-clear{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;}
+  .sp-clear-btn{background:transparent;border:1px solid var(--danger,#dc2626);color:var(--danger,#dc2626);border-radius:10px;padding:8px 14px;font:600 13px inherit;cursor:pointer;}
+  .sp-clear-msg{flex:1 1 100%;font-size:12px;color:var(--danger,#dc2626);font-weight:600;}
+  .sp-clear-pin{flex:1;min-width:110px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:8px 10px;font-size:16px;letter-spacing:.3em;}
+  .sp-clear-ok{background:var(--danger,#dc2626);color:#fff;border:none;border-radius:10px;padding:9px 14px;font:700 13px inherit;cursor:pointer;}
+  .sp-clear-no{background:var(--surface2);color:var(--text);border:none;border-radius:10px;padding:9px 14px;font:600 13px inherit;cursor:pointer;}
 
   
   .item-card{cursor:pointer;transition:border-color .15s,box-shadow .15s;}
@@ -2465,10 +2473,25 @@ function selectModalItem(code){
   setTimeout(function(){var q=document.getElementById('modal-qty');if(q)q.focus();},80);
 }
 
+/* A tap outside the Assign Item window no longer throws away what you typed:
+   if something changed, it stays open and points you to Save / Cancel. */
+let _modalSnap=null;
+function modalSnapshot(){
+  const v=id=>{const el=document.getElementById(id);return el?el.value:'';};
+  return JSON.stringify([v('modal-item'),v('modal-qty'),(typeof _modalExtras!=='undefined'?_modalExtras:[])]);
+}
+(function(){const _om=openModal;openModal=function(id){_om(id);
+  const ov=document.getElementById('modal-overlay');_modalSnap=ov&&!ov.classList.contains('hidden')?modalSnapshot():null;};})();
 function closeModal(e){
-  if(!e||e.target===document.getElementById('modal-overlay')){
-    document.getElementById('modal-overlay').classList.add('hidden');modalLoc=null;
+  const ov=document.getElementById('modal-overlay');
+  if(e&&e.target!==ov)return;
+  if(e&&!ov.classList.contains('hidden')&&_modalSnap!==null&&modalSnapshot()!==_modalSnap){
+    const act=ov.querySelector('.modal-actions');
+    if(act){act.classList.remove('np-nudge');void act.offsetWidth;act.classList.add('np-nudge');}
+    showToast('Not saved yet — tap Save, or Cancel to discard.','error');
+    return;
   }
+  ov.classList.add('hidden');modalLoc=null;_modalSnap=null;
 }
 function saveLocation(){
   const item=document.getElementById('modal-item').value;
@@ -5532,8 +5555,48 @@ function openSecPanel(areaName, sec){
       </div>`;
     });
   }
+  _spCtx={area:areaName,sec:+sec};
+  if(rows.length)html+=spClearFooter('section');
   document.getElementById('sec-panel-body').innerHTML=html;
   document.getElementById('sec-panel-overlay').classList.remove('hidden');
+}
+/* Clear one section (or one floor area) right from its panel — asks for the PIN, logged with Undo. */
+let _spCtx=null;
+function spClearFooter(kind){
+  return `<div class="sp-clear" id="sp-clear"><button class="sp-clear-btn" onclick="spClearAsk('${kind}')">🗑 Clear this ${kind}</button></div>`;
+}
+function spClearIds(){
+  if(!_spCtx)return [];
+  const aDef=AREAS[_spCtx.area];if(!aDef)return [];
+  const ids=[];
+  if(aDef.type==='rack'){const tiers=aDef.sections[_spCtx.sec]||{};
+    Object.entries(tiers).forEach(([t,ps])=>ps.forEach(pos=>ids.push(locId(_spCtx.area,_spCtx.sec,+t,pos))));}
+  else for(let i=1;i<=aDef.slots;i++)ids.push(locId(_spCtx.area,null,null,i));
+  return ids.filter(id=>inventory[id]);
+}
+function spClearAsk(kind){
+  const ids=spClearIds();const box=document.getElementById('sp-clear');if(!box||!ids.length)return;
+  const units=ids.reduce((a,id)=>a+occTotalQty(inventory[id]),0);
+  const where=_spCtx.sec?`${_spCtx.area} · Section ${_spCtx.sec}`:_spCtx.area;
+  box.innerHTML=`<div class="sp-clear-msg">⚠ This empties ${ids.length} position(s) · ${units.toLocaleString()} units in ${where}. Enter your PIN to confirm.</div>
+    <input type="password" class="sp-clear-pin" id="sp-clear-pin" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" maxlength="8" placeholder="PIN" onkeydown="if(event.key==='Enter')spClearConfirm('${kind}')">
+    <button class="sp-clear-ok" onclick="spClearConfirm('${kind}')">Clear</button>
+    <button class="sp-clear-no" onclick="spClearCancel('${kind}')">Cancel</button>`;
+  setTimeout(()=>{const i=document.getElementById('sp-clear-pin');if(i)i.focus();},60);
+}
+function spClearCancel(kind){const box=document.getElementById('sp-clear');if(box)box.outerHTML=spClearFooter(kind);}
+function spClearConfirm(kind){
+  const inp=document.getElementById('sp-clear-pin');if(!inp)return;
+  if(inp.value!==getPin()){inp.value='';inp.style.borderColor='var(--danger,#dc2626)';showToast('Incorrect PIN.','error');inp.focus();return;}
+  const ids=spClearIds();if(!ids.length)return;
+  const before=JSON.stringify(inventory);
+  ids.forEach(id=>{delete inventory[id];});
+  saveData();
+  const where=_spCtx.sec?`${_spCtx.area} S${_spCtx.sec}`:_spCtx.area;
+  addLog('CLEAR SECTION',where+' — '+ids.length+' positions cleared (from the section panel)',before);
+  refresh();
+  if(_spCtx.sec)openSecPanel(_spCtx.area,_spCtx.sec);else openFloorPanel(_spCtx.area);
+  showToast('Cleared '+ids.length+' position(s) in '+where+'. You can undo it in the Log.','success');
 }
 function closeSecPanel(e){
   if(!e||e.target===document.getElementById('sec-panel-overlay'))
@@ -5576,6 +5639,8 @@ function openFloorPanel(areaName){
       </div>`;
     });
   }
+  _spCtx={area:areaName,sec:null};
+  if(rows.length)html+=spClearFooter('area');
   document.getElementById('sec-panel-body').innerHTML=html;
   document.getElementById('sec-panel-overlay').classList.remove('hidden');
 }
@@ -5681,7 +5746,9 @@ async function autoLoadIfEmpty(){
     box-shadow:0 12px 40px rgba(0,0,0,.28);display:grid;grid-template-columns:repeat(3,1fr) 1fr 1fr;gap:8px;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
   .numpad.hidden{display:none;}
   body .modal input.np-fresh,body input.np-fresh{font-weight:600;color:var(--accent,#007aff)!important;background:color-mix(in srgb,var(--accent,#007aff) 20%,var(--card,#fff))!important;}
-  .numpad .np-disp{grid-column:1/-1;min-height:24px;padding:0 6px;text-align:right;font:500 17px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .numpad .np-hide{height:34px!important;font-size:16px!important;}
+  .numpad .np-zero{grid-column:span 2;}
+  .numpad .np-disp{grid-column:2/-1;align-self:center;min-height:24px;padding:0 6px;text-align:right;font:500 17px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .numpad .np-disp b{color:#000;font-weight:700;}
   .numpad .np-disp.err b{color:#ff3b30;}
   .numpad button{height:52px;border:none;border-radius:14px;background:#fff;color:#000;font:600 24px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;box-shadow:0 1px 0 rgba(0,0,0,.18);cursor:pointer;}
@@ -5707,12 +5774,13 @@ async function autoLoadIfEmpty(){
   const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 
   const pad=document.createElement('div');pad.className='numpad hidden';pad.id='numpad';
+  // 0 is double-width under 1–2 (like a calculator) so it is a big target; ⌄ (hide) moved up next to the display.
   const keys=[
     ['7'],['8'],['9'],['÷','div','np-op'],['⌫','back','np-fn'],
     ['4'],['5'],['6'],['×','mul','np-op'],['C','clear','np-fn'],
     ['1'],['2'],['3'],['−','sub','np-op'],['=','eq','np-eq'],
-    ['⌄','hide','np-fn'],['0'],['.','dot'],['+','add','np-op'],['Enter','enter','np-enter']];
-  pad.innerHTML='<div class="np-disp" id="np-disp"></div>'+keys.map(k=>`<button type="button" data-k="${k[1]||k[0]}" class="${k[2]||''}" aria-label="${k[1]||k[0]}">${k[0]}</button>`).join('');
+    ['0','0','np-zero'],['.','dot'],['+','add','np-op'],['Enter','enter','np-enter']];
+  pad.innerHTML='<button type="button" data-k="hide" class="np-fn np-hide" aria-label="hide keypad">⌄</button><div class="np-disp" id="np-disp"></div>'+keys.map(k=>`<button type="button" data-k="${k[1]||k[0]}" class="${k[2]||''}" aria-label="${k[1]||k[0]}">${k[0]}</button>`).join('');
   document.body.appendChild(pad);
   const disp=pad.querySelector('#np-disp');
   const OPS={add:'+',sub:'−',mul:'×',div:'÷'};
@@ -5854,7 +5922,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.26h';
+const APP_VERSION='2026.10.27b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
