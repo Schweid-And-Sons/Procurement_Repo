@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Schweid & Sons · Waste Log</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{color-scheme:light;
+    --bg:#f2f2f7;--surface:#ffffff;--surface2:#f2f2f7;--border:#e5e5ea;
+    --accent:#007aff;--plant:#15803d;--success:#16a34a;--warn:#d97706;--danger:#dc2626;
+    --text:#111827;--text2:#374151;--text3:#6b7280;}
+  html.theme-dark{color-scheme:dark;
+    --bg:#000;--surface:#1c1c1e;--surface2:#2c2c2e;--border:#3a3a3c;
+    --accent:#0a84ff;--success:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+    --text:#f2f2f7;--text2:#d1d5db;--text3:#9ca3af;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font:15px -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;min-height:100vh;-webkit-text-size-adjust:100%;}
+  button,input,select,textarea{font:inherit;color:inherit;}
+  .strip{background:var(--plant);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;position:sticky;top:0;z-index:50;padding-top:max(10px,env(safe-area-inset-top));}
+  .strip b{font-size:15px;letter-spacing:.08em;}
+  .strip .sub{font-size:12px;opacity:.85;margin-left:6px;}
+  .strip a{color:#fff;text-decoration:none;font-size:13px;font-weight:600;background:rgba(255,255,255,.18);border-radius:999px;padding:6px 12px;white-space:nowrap;}
+  .wrap{max-width:980px;margin:0 auto;padding:16px;}
+  .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .head h1{font-size:24px;font-weight:800;flex:1;min-width:160px;}
+  .ver{font-size:11px;color:var(--text3);font-weight:500;white-space:nowrap;}
+  .seg{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:3px;}
+  .seg button{border:none;background:transparent;padding:8px 16px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--text2);}
+  .seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .card{background:var(--surface);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .card h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:12px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  label{display:block;font-size:12px;font-weight:600;color:var(--text3);margin-bottom:5px;}
+  input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:16px;}
+  input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--accent) 45%,transparent);border-color:var(--accent);}
+  .btn{border:none;border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--surface2);color:var(--accent);}
+  .btn.primary{background:var(--accent);color:#fff;}
+  .btn.ok{background:var(--success);color:#fff;}
+  .btn.danger{color:var(--danger);}
+  .btn.big{padding:14px 20px;font-size:16px;}
+  .btn:disabled{opacity:.4;pointer-events:none;}
+  .empty{color:var(--text3);text-align:center;padding:22px 10px;font-size:14px;line-height:1.5;}
+  table{width:100%;border-collapse:collapse;}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);font-weight:700;}
+  td{padding:8px 6px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:14px;}
+  td input,td select{padding:8px 10px;font-size:16px;}
+  .code{font-weight:700;color:var(--accent);white-space:nowrap;}
+  .desc{font-size:12px;color:var(--text3);}
+  .qty{width:90px;text-align:right;}
+  .type{width:110px;}
+  tr.has td{background:color-mix(in srgb,var(--accent) 6%,transparent);}
+  input.miss{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,var(--surface2));}
+  .rm{border:none;background:transparent;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px;align-items:center;}
+  .hint{font-size:12px;color:var(--text3);flex:1;min-width:180px;}
+  .picker{margin-top:12px;border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--surface2);}
+  .pick-list{max-height:260px;overflow-y:auto;margin-top:8px;}
+  .pick{display:flex;gap:10px;align-items:center;padding:10px;border-radius:10px;cursor:pointer;}
+  .pick:hover,.pick:active{background:var(--surface);}
+  .kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+  .kpi{background:var(--surface2);border-radius:12px;padding:10px 14px;min-width:120px;}
+  .kpi b{display:block;font-size:22px;}
+  .kpi span{font-size:12px;color:var(--text3);}
+  .pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--surface2);}
+  .pill.film{color:#7c3aed;background:color-mix(in srgb,#7c3aed 12%,transparent);}
+  .pill.boxes{color:#b45309;background:color-mix(in srgb,#b45309 12%,transparent);}
+  .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:12px 18px;border-radius:14px;font-weight:600;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;}
+  .toast.err{background:var(--danger);}
+  .hidden{display:none!important;}
+  @media(max-width:640px){
+    .wrap{padding:12px;}
+    .rec-table thead{display:none;}
+    .rec-table tr{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 0;border-bottom:1px solid var(--border);}
+    .rec-table td{border:none;padding:0;}
+    .rec-table td.c-item{grid-column:1/-1;}
+    .rec-table td.c-reason{grid-column:1/-1;}
+    .rec-table td.c-rm{position:absolute;right:0;}
+    .rec-table tr{position:relative;}
+    .qty,.type{width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="strip"><div><b>WASTE LOG</b><span class="sub">GA · Direct Materials</span></div><a href="index.html">← WMS</a></div>
+<div class="wrap">
+  <div class="head"><h1>Daily Waste <span class="ver">v 2026.10.28e</span></h1>
+    <div class="seg"><button id="tab-rec" class="on" onclick="setTab('rec')">Record</button><button id="tab-hist" onclick="setTab('hist')">History</button></div>
+  </div>
+
+  <!-- RECORD -->
+  <div id="view-rec">
+    <div class="card">
+      <div class="grid">
+        <div><label>Date</label><input type="date" id="w-date"></div>
+        <div><label>Production Line</label><select id="w-line" onchange="renderRows()"></select></div>
+      </div>
+    </div>
+    <div class="card" id="rows-card">
+      <h2 id="rows-title">Direct materials</h2>
+      <div id="rows"></div>
+      <button class="btn" id="add-btn" onclick="togglePicker()">+ Add material</button>
+      <div class="picker hidden" id="picker">
+        <input type="search" id="pick-q" placeholder="Search code or description…" oninput="renderPicker()" autocomplete="off">
+        <div class="pick-list" id="pick-list"></div>
+      </div>
+      <div class="actions">
+        <div class="hint">Only rows with a quantity are saved. Reason is required for each one.</div>
+        <button class="btn ok big" id="save-btn" onclick="saveWaste()">Save waste</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="view-hist" class="hidden">
+    <div class="card">
+      <div class="grid">
+        <div><label>Period</label><select id="h-period" onchange="renderHistory()"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></div>
+        <div><label>Date</label><input type="date" id="h-date" onchange="renderHistory()"></div>
+        <div><label>Production Line</label><select id="h-line" onchange="renderHistory()"></select></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="kpis" id="h-kpis"></div>
+      <div id="h-table"></div>
+      <div class="actions"><span class="hint" id="h-range"></span><button class="btn" onclick="exportExcel()">📊 Excel</button></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== Settings ===== */
+const PLANT='GA';
+const LINES=['Line 70/71','Line 72','Line 73','Line 74','Line 75','Line 76','Line 77','Line 78','Line 79'];
+/* Direct materials used by each line: fill in with the codes Production confirms, e.g.
+   'Line 72':['BX6500-4','F1400-4'],   Until a line has its list, use "+ Add material". */
+const LINE_MATERIALS={
+};
+/* GA catalog (boxes + film) — code, description, type */
+const CATALOG=[{"c": "BX1000-4", "n": "SS B-1", "t": "Boxes"}, {"c": "BX1000PCA-4", "n": "SS B-1", "t": "Boxes"}, {"c": "BX1003-4", "n": "Ranchers Select", "t": "Boxes"}, {"c": "BX1050-4", "n": "SS B1-IQF", "t": "Boxes"}, {"c": "BX1075-4", "n": "B-1 IQF Plain", "t": "Boxes"}, {"c": "BX1100-4", "n": "SS B-25", "t": "Boxes"}, {"c": "BX1200-4", "n": "SS CAB 10lb", "t": "Boxes"}, {"c": "BX1300-4", "n": "SS 4/5 Loaf", "t": "Boxes"}, {"c": "BX1350-4", "n": "SS IQF 20LB", "t": "Boxes"}, {"c": "BX1400-4", "n": "SS LRG Fresh 10#", "t": "Boxes"}, {"c": "BX1850-4", "n": "6 PACK Retail Master case", "t": "Boxes"}, {"c": "BX1850PCA-4", "n": "6 PACK Retail Master case", "t": "Boxes"}, {"c": "BX1875-4", "n": "Retail Carton, 6 Bricks", "t": "Boxes"}, {"c": "BX1875PCA-4", "n": "Retail Carton, 6 Bricks", "t": "Boxes"}, {"c": "BX1900-4", "n": "Retail Carton, 4 Trays", "t": "Boxes"}, {"c": "BX2003-4", "n": "Ranchers Select 20lb Loaf", "t": "Boxes"}, {"c": "BX2300-4", "n": "SS Fresh 20LB", "t": "Boxes"}, {"c": "BX2350-4", "n": "Plain 20lbs", "t": "Boxes"}, {"c": "BX3000-4", "n": "CATTLEMAN 10lb", "t": "Boxes"}, {"c": "BX3050-4", "n": "CATTLEMAN 10# IQF", "t": "Boxes"}, {"c": "BX3100-4", "n": "CATTLEMAN 20LB 4/5 loaf", "t": "Boxes"}, {"c": "BX3125-4", "n": "Plain White 4/5 Loaf", "t": "Boxes"}, {"c": "BX3150-4", "n": "CATTLEMAN 10# 2/5 Bulk", "t": "Boxes"}, {"c": "BX3200-4", "n": "Harvest Value IQF", "t": "Boxes"}, {"c": "BX3300-4", "n": "Fresh Stockyard", "t": "Boxes"}, {"c": "BX6500-4", "n": "Prairie Creek Distinctions", "t": "Boxes"}, {"c": "BX7800-4", "n": "FUDDRUCKER", "t": "Boxes"}, {"c": "BX7900-4", "n": "BX7900 BURGERFI 44#", "t": "Boxes"}, {"c": "BX8000-4", "n": "Cattleman Large", "t": "Boxes"}, {"c": "BX8200-4", "n": "Ranchers Select, Large", "t": "Boxes"}, {"c": "BX8300PCA-4", "n": "S&S 48oz/384 pc- small slider", "t": "Boxes"}, {"c": "BX5LBS-4", "n": "5 LB SAMPLE BOX, S&S BRANDED", "t": "Boxes"}, {"c": "F1400-4", "n": "Forming 361 Film (ATL) - Line 72 & 73", "t": "Film"}, {"c": "F1550-4", "n": "Non-Forming 355 Film (ATL) - Line 72 & 73", "t": "Film"}, {"c": "F1500-4", "n": "Forming 363 Film (ATL) - Line 75", "t": "Film"}, {"c": "F1450-4", "n": "Non-Forming 344 Film (ATL) - Line 75", "t": "Film"}, {"c": "F1600B-4", "n": "Non-Forming 344 Film (ATL) Black - Line 75", "t": "Film"}, {"c": "F1650-4", "n": "Forming 421 Film (ATL) - Line 74", "t": "Film"}, {"c": "F1600-4", "n": "Non-Forming 415 Film (ATL) - Line 74", "t": "Film"}, {"c": "F1625-4", "n": "Non-Forming 415 Film Black - Line 74", "t": "Film"}, {"c": "F1800-4", "n": "Forming Clear 469 7 mil Film 366M - Line 79", "t": "Film"}, {"c": "F1825-4", "n": "Non-Forming Black 464 7 mil Film 914M - Line 79", "t": "Film"}, {"c": "BTB1000-4", "n": "Black Top Film 555mm x 3000 - Line 78 3mil", "t": "Film"}, {"c": "HBH1000-4", "n": "High Barrier Bottom Film 563mm x 1500 - Line 78 7mil", "t": "Film"}, {"c": "F1060-4", "n": "LIDDING FILM 1060 - Line 76 & 77", "t": "Film"}, {"c": "E1650060-4", "n": "355mm x 5250 Anti Fog Lidding Film", "t": "Film"}, {"c": "BX1900PCA-4", "n": "Retail Carton, 4 Trays (PCA)", "t": "Boxes"}];
+/* SharePoint: paste the flow URL when the WMS_Waste flow exists. Until then entries stay on this device. */
+const WASTE_SAVE_URL='';
+const LOG_KEY='waste_log_ga';
+
+/* ===== Helpers ===== */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const isoToday=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const fmtDate=iso=>{const [y,m,d]=iso.split('-');return (+m)+'/'+(+d)+'/'+y;};
+function toast(msg,err){const t=$('toast');t.textContent=msg;t.classList.toggle('err',!!err);t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2600);}
+function loadLog(){try{return JSON.parse(localStorage.getItem(LOG_KEY)||'[]')||[];}catch(e){return [];}}
+function saveLog(l){try{localStorage.setItem(LOG_KEY,JSON.stringify(l));}catch(e){toast('Could not save on this device','err');}}
+const catItem=c=>CATALOG.find(x=>x.c===c)||{c,n:'',t:/^F/.test(c)?'Film':'Boxes'};
+
+/* ===== Record ===== */
+let rows=[];   // {c,n,t,qty,reason}
+function initRecord(){
+  $('w-date').value=isoToday();
+  $('w-line').innerHTML='<option value="">— Select line —</option>'+LINES.map(l=>`<option>${l}</option>`).join('');
+  try{const l=localStorage.getItem('waste_last_line');if(l&&LINES.includes(l))$('w-line').value=l;}catch(e){}
+  renderRows();
+}
+function renderRows(){
+  const line=$('w-line').value;
+  try{if(line)localStorage.setItem('waste_last_line',line);}catch(e){}
+  if(!line){$('rows').innerHTML='<div class="empty">Select a production line to see its direct materials.</div>';$('add-btn').classList.add('hidden');$('save-btn').disabled=true;$('rows-title').textContent='Direct materials';rows=[];closePicker();return;}
+  $('add-btn').classList.remove('hidden');$('save-btn').disabled=false;
+  $('rows-title').textContent='Direct materials · '+line;
+  const keep=new Map(rows.filter(r=>r.qty||r.reason).map(r=>[r.c,r]));
+  rows=(LINE_MATERIALS[line]||[]).map(c=>{const it=catItem(c);return keep.get(c)||{c,n:it.n,t:it.t,qty:'',reason:''};});
+  keep.forEach((r,c)=>{if(!rows.some(x=>x.c===c))rows.push(r);});
+  drawRows();
+}
+function drawRows(){
+  if(!rows.length){$('rows').innerHTML='<div class="empty">No materials set up for this line yet.<br>Use <b>+ Add material</b> to add the ones with waste today.</div>';return;}
+  $('rows').innerHTML=`<table class="rec-table"><thead><tr><th>Item</th><th style="text-align:right">Qty</th><th>Type</th><th>Reason</th><th></th></tr></thead><tbody>${rows.map((r,i)=>`
+    <tr class="${r.qty?'has':''}" id="row-${i}">
+      <td class="c-item"><div class="code">${esc(r.c)}</div><div class="desc">${esc(r.n)}</div></td>
+      <td><input class="qty" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(r.qty)}" oninput="setRow(${i},'qty',this.value)"></td>
+      <td><select class="type" onchange="setRow(${i},'t',this.value)"><option${r.t==='Boxes'?' selected':''}>Boxes</option><option${r.t==='Film'?' selected':''}>Film</option></select></td>
+      <td class="c-reason"><input placeholder="Reason (required if qty)" value="${esc(r.reason)}" oninput="setRow(${i},'reason',this.value)"></td>
+      <td class="c-rm">${(LINE_MATERIALS[$('w-line').value]||[]).includes(r.c)?'':`<button class="rm" title="Remove" onclick="rows.splice(${i},1);drawRows()">✕</button>`}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function setRow(i,k,v){
+  const r=rows[i];if(!r)return;r[k]=k==='qty'?v.replace(/[^\d.]/g,''):v;
+  const tr=$('row-'+i);if(tr){tr.classList.toggle('has',!!r.qty);tr.querySelectorAll('input').forEach(x=>x.classList.remove('miss'));}
+}
+function togglePicker(){const p=$('picker');p.classList.toggle('hidden');if(!p.classList.contains('hidden')){$('pick-q').value='';renderPicker();setTimeout(()=>$('pick-q').focus(),50);}}
+function closePicker(){$('picker').classList.add('hidden');}
+function renderPicker(){
+  const q=$('pick-q').value.trim().toLowerCase();
+  const list=CATALOG.filter(x=>!rows.some(r=>r.c===x.c)&&(!q||x.c.toLowerCase().includes(q)||x.n.toLowerCase().includes(q))).slice(0,60);
+  $('pick-list').innerHTML=list.length?list.map(x=>`<div class="pick" onclick="addRow('${esc(x.c)}')"><span class="code">${esc(x.c)}</span><span class="desc" style="flex:1">${esc(x.n)}</span><span class="pill ${x.t.toLowerCase()}">${x.t}</span></div>`).join(''):'<div class="empty">No matches</div>';
+}
+function addRow(c){const it=catItem(c);rows.push({c,n:it.n,t:it.t,qty:'',reason:''});closePicker();drawRows();
+  setTimeout(()=>{const inp=document.querySelector('#row-'+(rows.length-1)+' .qty');if(inp)inp.focus();},60);}
+
+async function saveWaste(){
+  const date=$('w-date').value,line=$('w-line').value;
+  if(!date){toast('Pick a date','err');return;}
+  if(!line){toast('Select a production line','err');return;}
+  const filled=rows.map((r,i)=>({r,i})).filter(x=>parseFloat(x.r.qty)>0);
+  if(!filled.length){toast('Enter a quantity for at least one material','err');return;}
+  const miss=filled.filter(x=>!x.r.reason.trim());
+  if(miss.length){miss.forEach(x=>{const inp=document.querySelector('#row-'+x.i+' .c-reason input');if(inp)inp.classList.add('miss');});
+    toast('Reason is required for every row with a quantity','err');const f=document.querySelector('.miss');if(f)f.focus();return;}
+  const ts=new Date().toISOString();
+  const entries=filled.map(({r})=>({id:'w'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),plant:PLANT,date,line,item:r.c,description:r.n,qty:parseFloat(r.qty),type:r.t,reason:r.reason.trim(),ts,synced:false}));
+  const log=loadLog();log.unshift(...entries);saveLog(log);
+  rows.forEach(r=>{r.qty='';r.reason='';});
+  rows=rows.filter(r=>(LINE_MATERIALS[line]||[]).includes(r.c));
+  drawRows();
+  toast('Saved '+entries.length+' waste line(s) · '+line+' · '+fmtDate(date));
+  pushPending();
+}
+async function pushPending(){
+  if(!WASTE_SAVE_URL)return;
+  const log=loadLog();const pend=log.filter(e=>!e.synced);if(!pend.length)return;
+  try{
+    const res=await fetch(WASTE_SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entries:pend.map(({synced,...e})=>e)})});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const ids=new Set(pend.map(e=>e.id));saveLog(loadLog().map(e=>ids.has(e.id)?{...e,synced:true}:e));
+  }catch(e){/* stays pending; retried on next save / open */}
+}
+
+/* ===== History ===== */
+function initHistory(){
+  $('h-date').value=isoToday();
+  $('h-line').innerHTML='<option value="">All lines</option>'+LINES.map(l=>`<option>${l}</option>`).join('');
+}
+function range(){
+  const p=$('h-period').value,d=new Date(($('h-date').value||isoToday())+'T12:00:00');
+  let a=new Date(d),b=new Date(d);
+  if(p==='week'){const dow=(d.getDay()+6)%7;a.setDate(d.getDate()-dow);b=new Date(a);b.setDate(a.getDate()+6);}   // Monday–Sunday
+  if(p==='month'){a=new Date(d.getFullYear(),d.getMonth(),1,12);b=new Date(d.getFullYear(),d.getMonth()+1,0,12);}
+  const iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  return [iso(a),iso(b)];
+}
+function filtered(){const [a,b]=range(),line=$('h-line').value;
+  return loadLog().filter(e=>e.date>=a&&e.date<=b&&(!line||e.line===line)).sort((x,y)=>y.date.localeCompare(x.date)||x.line.localeCompare(y.line)||y.ts.localeCompare(x.ts));}
+function renderHistory(){
+  const [a,b]=range(),list=filtered();
+  $('h-range').textContent=(a===b?fmtDate(a):fmtDate(a)+' – '+fmtDate(b))+' · '+list.length+' entr'+(list.length===1?'y':'ies');
+  const sum=t=>list.filter(e=>e.type===t).reduce((s,e)=>s+e.qty,0);
+  $('h-kpis').innerHTML=`<div class="kpi"><b>${list.length}</b><span>Entries</span></div><div class="kpi"><b>${sum('Boxes').toLocaleString()}</b><span>Boxes</span></div><div class="kpi"><b>${sum('Film').toLocaleString()}</b><span>Film</span></div><div class="kpi"><b>${new Set(list.map(e=>e.line)).size}</b><span>Lines</span></div>`;
+  if(!list.length){$('h-table').innerHTML='<div class="empty">No waste recorded for this period.</div>';return;}
+  $('h-table').innerHTML=`<div style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Line</th><th>Item</th><th style="text-align:right">Qty</th><th>Type</th><th>Reason</th><th></th></tr></thead><tbody>${list.map(e=>`
+    <tr><td style="white-space:nowrap">${fmtDate(e.date)}</td><td style="white-space:nowrap">${esc(e.line)}</td>
+    <td><div class="code">${esc(e.item)}</div><div class="desc">${esc(e.description)}</div></td>
+    <td style="text-align:right;font-weight:700">${e.qty.toLocaleString()}</td><td><span class="pill ${e.type.toLowerCase()}">${e.type}</span></td>
+    <td>${esc(e.reason)}</td><td><button class="rm" title="Delete" onclick="delEntry('${e.id}')">✕</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+function delEntry(id){const e=loadLog().find(x=>x.id===id);if(!e)return;
+  if(!confirm('Delete this waste entry?\n\n'+fmtDate(e.date)+' · '+e.line+' · '+e.item+' · '+e.qty+' '+e.type+'\nReason: '+e.reason))return;
+  saveLog(loadLog().filter(x=>x.id!==id));renderHistory();toast('Entry deleted');}
+function exportExcel(){
+  if(typeof XLSX==='undefined'){toast('Excel library not loaded — check the connection','err');return;}
+  const list=filtered();if(!list.length){toast('Nothing to export for this period','err');return;}
+  const [a,b]=range();
+  const rowsX=[['Schweid & Sons · GA · Daily Waste Log'],['Period: '+fmtDate(a)+(a===b?'':' – '+fmtDate(b))+($('h-line').value?'   |   '+$('h-line').value:'   |   All lines')],[],
+    ['Date','Production Line','Item','Description','Quantity','Type','Reason','Recorded at']];
+  list.forEach(e=>rowsX.push([fmtDate(e.date),e.line,e.item,e.description,e.qty,e.type,e.reason,new Date(e.ts).toLocaleString('en-US')]));
+  const ws=XLSX.utils.aoa_to_sheet(rowsX);ws['!cols']=[{wch:11},{wch:14},{wch:14},{wch:42},{wch:9},{wch:8},{wch:40},{wch:20}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Waste');
+  XLSX.writeFile(wb,'Waste_GA_'+a+(a===b?'':'_to_'+b)+'.xlsx');
+}
+
+/* ===== Tabs / start ===== */
+function setTab(t){$('view-rec').classList.toggle('hidden',t!=='rec');$('view-hist').classList.toggle('hidden',t!=='hist');
+  $('tab-rec').classList.toggle('on',t==='rec');$('tab-hist').classList.toggle('on',t==='hist');if(t==='hist')renderHistory();}
+(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}
+  initRecord();initHistory();pushPending();})();
+</script>
+<script>
+/* iPad numeric keypad + basic calculator. iPadOS has no numbers-only keyboard (inputmode=numeric
+   shows the full number/symbol layout), so on iPad numeric fields use this in-app keypad instead.
+   Operators let you type e.g. 24×40 and the field receives 960 (on =, Enter, ⌄ or leaving the field). */
+(function(){
+  const ua=navigator.userAgent;
+  const isIPad=(/iPad/.test(ua)||/Macintosh/.test(ua))&&navigator.maxTouchPoints>1;
+  if(!isIPad)return;
+  const css=`
+  .numpad{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:1000;width:min(520px,calc(100vw - 20px));
+    padding:8px 10px 10px;border-radius:24px;background:rgba(242,242,247,.94);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+    box-shadow:0 12px 40px rgba(0,0,0,.28);display:grid;grid-template-columns:repeat(3,1fr) 1fr 1fr;gap:8px;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
+  .numpad.hidden{display:none;}
+  body .modal input.np-fresh,body input.np-fresh{font-weight:600;color:var(--accent,#007aff)!important;background:color-mix(in srgb,var(--accent,#007aff) 20%,var(--card,#fff))!important;}
+  .numpad .np-hide{height:34px!important;font-size:16px!important;}
+  .numpad .np-zero{grid-column:span 2;}
+  .numpad .np-disp{grid-column:2/-1;align-self:center;min-height:24px;padding:0 6px;text-align:right;font:500 17px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .numpad .np-disp b{color:#000;font-weight:700;}
+  .numpad .np-disp.err b{color:#ff3b30;}
+  .numpad button{height:52px;border:none;border-radius:14px;background:#fff;color:#000;font:600 24px -apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;box-shadow:0 1px 0 rgba(0,0,0,.18);cursor:pointer;}
+  .numpad button:active,.numpad button.np-down{background:#d1d1d6;}
+  .numpad .np-enter.np-down{background:#0062cc;}
+  .numpad .np-op.np-down{background:#ff9500;color:#fff;}
+  .numpad .np-fn{background:#d1d5db;font-size:18px;}
+  .numpad .np-op{background:#e5e7eb;color:#ff9500;font-size:26px;}
+  .numpad .np-op:active{background:#ff9500;color:#fff;}
+  .numpad .np-eq{background:#ff9500;color:#fff;font-size:26px;}
+  .numpad .np-enter{background:#007aff;color:#fff;font-size:18px;}
+  .numpad .np-enter:active{background:#0062cc;}
+  .numpad button:disabled{opacity:.25;pointer-events:none;}
+  .numpad button.np-gone{visibility:hidden;}
+  body.np-open .content,body.np-open{padding-bottom:380px!important;}
+  body.np-open .modal-overlay:not(.hidden),body.np-open .ov:not(.hidden){top:0!important;bottom:0!important;left:0!important;right:0!important;height:auto!important;box-sizing:border-box!important;padding:8px 0 var(--nph,360px)!important;align-items:flex-end!important;}
+  body.np-open .modal-overlay:not(.hidden)>.modal,body.np-open .ov:not(.hidden) .modal{max-height:calc(var(--npavail,60vh) - 16px)!important;overflow-y:auto!important;}
+  html.theme-dark .numpad{background:rgba(28,28,30,.94);}
+  html.theme-dark .numpad button{background:#3a3a3c;color:#fff;box-shadow:none;}
+  html.theme-dark .numpad button.np-down{background:#636366;}
+  html.theme-dark .numpad .np-fn{background:#2c2c2e;}
+  html.theme-dark .numpad .np-op{background:#2c2c2e;color:#ff9f0a;}
+  html.theme-dark .numpad .np-eq{background:#ff9f0a;color:#fff;}
+  html.theme-dark .numpad .np-enter{background:#0a84ff;}
+  html.theme-dark .numpad .np-disp b{color:#fff;}`;
+  const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
+
+  const pad=document.createElement('div');pad.className='numpad hidden';pad.id='numpad';
+  const keys=[
+    ['7'],['8'],['9'],['÷','div','np-op'],['⌫','back','np-fn'],
+    ['4'],['5'],['6'],['×','mul','np-op'],['C','clear','np-fn'],
+    ['1'],['2'],['3'],['−','sub','np-op'],['=','eq','np-eq'],
+    ['0','0','np-zero'],['.','dot'],['+','add','np-op'],['Enter','enter','np-enter']];
+  pad.innerHTML='<button type="button" data-k="hide" class="np-fn np-hide" aria-label="hide keypad">⌄</button><div class="np-disp" id="np-disp"></div>'+keys.map(k=>`<button type="button" data-k="${k[1]||k[0]}" class="${k[2]||''}" aria-label="${k[1]||k[0]}">${k[0]}</button>`).join('');
+  document.body.appendChild(pad);
+  const disp=pad.querySelector('#np-disp');
+  const OPS={add:'+',sub:'−',mul:'×',div:'÷'};
+  const OPCH='+−×÷';
+  let target=null,startVal='',fresh=false;
+  const setFresh=(el,v)=>{fresh=v;if(el)el.classList.toggle('np-fresh',v);};
+
+  // Mark numeric fields: remember their mode and silence the system keyboard.
+  const SEL='input[inputmode="numeric"],input[inputmode="decimal"]';
+  const mark=root=>{(root.querySelectorAll?root:document).querySelectorAll(SEL).forEach(el=>{
+    el.dataset.np=el.getAttribute('inputmode');el.setAttribute('inputmode','none');});};
+  mark(document);
+  new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1){if(n.matches&&n.matches(SEL))mark(n.parentNode||document);else mark(n);}})
+    .observe(document.body,{childList:true,subtree:true});
+
+  // --- calculator ---
+  const hasOp=v=>/[+−×÷]/.test(v.replace(/^−/,''));
+  const calc=v=>{ // returns number, or null if invalid
+    const toks=v.match(/\d*\.?\d+|\d+\.|[+−×÷]/g);
+    if(!toks||toks.join('')!==v.replace(/\s/g,''))return null;
+    if(OPCH.includes(toks[toks.length-1]))toks.pop();          // ignore a trailing operator
+    if(!toks.length||OPCH.includes(toks[0]))return null;
+    const nums=[parseFloat(toks[0])],ops=[];
+    for(let i=1;i<toks.length;i+=2){
+      const op=toks[i],n=parseFloat(toks[i+1]);
+      if(isNaN(n))return null;
+      if(op==='×')nums[nums.length-1]*=n;
+      else if(op==='÷'){if(n===0)return null;nums[nums.length-1]/=n;}
+      else{ops.push(op);nums.push(n);}
+    }
+    let r=nums[0];ops.forEach((op,i)=>{r=op==='+'?r+nums[i+1]:r-nums[i+1];});
+    return isFinite(r)?r:null;
+  };
+  const fmt=(r,el)=>{
+    if(el.dataset.np!=='decimal')return String(Math.round(r));
+    return String(Math.round(r*100)/100);
+  };
+  const showDisp=()=>{
+    if(!target||!hasOp(target.value)){disp.textContent='';disp.classList.remove('err');return;}
+    const r=calc(target.value);
+    disp.classList.toggle('err',r===null);
+    disp.innerHTML=target.value.replace(/[+−×÷]/g,m=>' '+m+' ')+' = <b>'+(r===null?'Error':fmt(r,target))+'</b>';
+  };
+  const resolve=el=>{ // replace an expression in the field by its result
+    if(!el||!hasOp(el.value))return true;
+    const r=calc(el.value);
+    if(r===null){showDisp();return false;}
+    el.value=fmt(r,el);fire(el,'input');showDisp();return true;
+  };
+
+  const fit=()=>{
+    // Space really taken from the bottom (includes the home-indicator safe area) + a visible gap.
+    const GAP=18;
+    const h=Math.max(0,window.innerHeight-pad.getBoundingClientRect().top)+GAP;
+    document.body.classList.add('np-open','kb-open');
+    document.documentElement.style.setProperty('--vvh',(window.innerHeight-h)+'px');
+    document.documentElement.style.setProperty('--vvt','0px');
+    const padTop=pad.getBoundingClientRect().top;
+    document.documentElement.style.setProperty('--nph',(window.innerHeight-padTop+GAP)+'px');
+    document.documentElement.style.setProperty('--npov',Math.max(260,padTop-GAP)+'px');
+    document.documentElement.style.setProperty('--npavail',Math.max(240,padTop-GAP-16)+'px');
+    if(target&&target.closest&&target.closest('.modal,.plan-table,table')){
+      const r=target.getBoundingClientRect();
+      if(r.bottom>window.innerHeight-h-10)setTimeout(()=>target.scrollIntoView({block:'center',behavior:'smooth'}),40);
+    }
+  };
+  const open=el=>{
+    target=el;startVal=el.value;pad.classList.remove('hidden');
+    setFresh(el,el.value!==''&&el.type!=='password');
+    const pw=el.type==='password';
+    pad.querySelector('[data-k="dot"]').classList.toggle('np-gone',el.dataset.np!=='decimal');
+    pad.querySelectorAll('.np-op,.np-eq').forEach(b=>b.disabled=pw);
+    showDisp();fit();if(typeof startWatch==='function')startWatch();
+  };
+  const close=()=>{
+    if(target)target.classList.remove('np-fresh');fresh=false;
+    target=null;pad.classList.add('hidden');disp.textContent='';
+    document.body.classList.remove('np-open','kb-open');
+  };
+  const fire=(el,type)=>el.dispatchEvent(new Event(type,{bubbles:true}));
+  const commit=el=>{
+    if(el&&hasOp(el.value)&&!resolve(el))el.value=startVal;   // invalid expression → keep previous value
+    if(el&&el.value!==startVal){startVal=el.value;fire(el,'change');}
+  };
+  document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);});  // closing is left to focusout (delayed)
+  document.addEventListener('focusout',e=>{const el=e.target;
+    if(el===target&&!leaving&&lastTouch>outsideAt&&Date.now()-lastTouch<700&&!e.relatedTarget&&el.getClientRects().length>0){setTimeout(()=>{if(target===el&&document.activeElement!==el){try{el.focus({preventScroll:true});}catch(_){el.focus();}}},0);return;}
+    if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},350);});
+  window.addEventListener('resize',()=>{if(target)fit();});
+
+  pad.addEventListener('pointerdown',e=>e.preventDefault()); // keep focus in the field
+  /* Touch: handle the key on touchend (fast double taps on iPadOS could drop a key or hide the keypad). */
+  let outsideAt=0,watch=null;
+  // a touch anywhere outside the keypad (Save, Cancel, the map…) means you are done with the field
+  document.addEventListener('touchstart',e=>{if(!pad.contains(e.target))outsideAt=Date.now();},{capture:true,passive:true});
+  document.addEventListener('pointerdown',e=>{if(!pad.contains(e.target))outsideAt=Date.now();},{capture:true,passive:true});
+  // safety net: if the field disappears (window closed) or nobody is typing in it anymore, hide the keypad
+  const startWatch=()=>{clearInterval(watch);watch=setInterval(()=>{
+    if(pad.classList.contains('hidden')){clearInterval(watch);return;}
+    const t=target;
+    if(!t||!t.isConnected||!t.getClientRects().length||(document.activeElement!==t&&Date.now()-lastTouch>700)){close();clearInterval(watch);}
+  },400);};
+  let lastTouch=0,leaving=false;
+  pad.addEventListener('touchstart',e=>{lastTouch=Date.now();e.preventDefault();const b=e.target.closest&&e.target.closest('button');if(b)b.classList.add('np-down');},{passive:false});
+  const upAll=()=>pad.querySelectorAll('.np-down').forEach(x=>x.classList.remove('np-down'));
+  pad.addEventListener('touchend',e=>{lastTouch=Date.now();e.preventDefault();upAll();const t=e.changedTouches&&e.changedTouches[0];if(!t)return;
+    const hit=document.elementFromPoint(t.clientX,t.clientY);const b=hit&&hit.closest&&hit.closest('button');if(b&&pad.contains(b)&&!b.disabled)press(b);},{passive:false});
+  pad.addEventListener('touchcancel',upAll);
+  pad.addEventListener('click',e=>{if(Date.now()-lastTouch<800)return;press(e.target.closest('button'));});
+  function press(b){
+    if(!b||!target)return;
+    const k=b.dataset.k,el=target;
+    let s=el.selectionStart??el.value.length,en=el.selectionEnd??el.value.length;
+    if(k==='hide'||k==='enter'){leaving=true;setTimeout(()=>{leaving=false;},800);}
+    if(k==='hide'){commit(el);el.blur();close();return;}
+    if(k==='eq'){resolve(el);el.setSelectionRange&&el.setSelectionRange(el.value.length,el.value.length);showDisp();return;}
+    if(k==='enter'){
+      if(!resolve(el))return;                                   // fix the expression first
+      commit(el);
+      const ev={key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true};
+      el.dispatchEvent(new KeyboardEvent('keydown',ev));el.dispatchEvent(new KeyboardEvent('keyup',ev));
+      if(document.activeElement===el){el.blur();}
+      close();return;
+    }
+    if(fresh){                                   // value highlighted: digits replace it, operators continue it
+      setFresh(el,false);
+      if(k==='back'||(!OPS[k])){el.value='';s=en=0;if(k==='back'){fire(el,'input');showDisp();return;}}
+      else{s=en=el.value.length;el.setSelectionRange&&el.setSelectionRange(s,s);}
+    }
+    if(k==='clear'){el.value='';}
+    else if(k==='back'){
+      if(s===en&&s>0)s--;
+      el.setRangeText('',s,en,'end');
+    } else if(OPS[k]){
+      const op=OPS[k];
+      if(s!==en){el.setRangeText('',s,en,'end');s=en=el.selectionStart;}
+      const prev=el.value.slice(0,s).slice(-1);
+      if(!prev)return;                                          // no operator at the start
+      if(OPCH.includes(prev))el.setRangeText(op,s-1,s,'end');   // swap operator
+      else el.setRangeText(op,s,en,'end');
+    } else {
+      const ch=k==='dot'?'.':k;
+      if(el.maxLength>0&&s===en&&el.value.length>=el.maxLength&&!hasOp(el.value))return;
+      if(ch==='.'){const seg=el.value.slice(0,s).split(/[+−×÷]/).pop();if(seg.includes('.'))return;}
+      el.setRangeText(ch,s,en,'end');
+    }
+    fire(el,'input');showDisp();
+  }
+})();
+
+</script>
+</body>
+</html>

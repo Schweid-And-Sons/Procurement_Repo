@@ -61,6 +61,13 @@
   .plant-btn .pb-code{font-size:40px;font-weight:900;color:var(--pc);line-height:1;}
   .plant-btn .pb-name{font-size:16px;font-weight:800;letter-spacing:.15em;}
   .plant-btn .pb-sum{font-size:10px;color:var(--text3);line-height:1.5;}
+  .rcv-tile{cursor:default;}
+  .rcv-pick{display:flex;gap:8px;justify-content:center;margin-top:6px;}
+  .rcv-pick button{border:none;border-radius:10px;padding:8px 18px;font-weight:800;font-size:15px;cursor:pointer;background:var(--pc,#0369a1);color:#fff;}
+  .rcv-pick button:last-child{background:#15803d;}
+  /* Receiving-only mode (from the start screen): just the Yooz POs screen, no access to the inventory */
+  body.rcv-only .sidebar,body.rcv-only .bottom-nav,body.rcv-only .hamburger,body.rcv-only #mode-tabs,body.rcv-only .sidebar-overlay{display:none!important;}
+  body:not(.rcv-only) .nav-btn[onclick="setView('po')"],body:not(.rcv-only) #bnav-po{display:none!important;}
   .plant-batch{display:flex;flex-direction:column;gap:2px;margin-top:6px;padding:14px;border-radius:12px;border:2px dashed var(--border);color:var(--text);text-decoration:none;font-weight:800;letter-spacing:.12em;font-size:13px;}
   .plant-batch span{font-size:9px;color:var(--text3);letter-spacing:.08em;font-weight:400;}
   .plant-batch:hover{border-color:var(--accent2);}
@@ -821,7 +828,7 @@
   #plant-overlay{align-items:flex-start!important;overflow-y:auto;padding:16px 0;box-sizing:border-box;}
   .plant-box{margin:auto;}
   @media(min-width:760px) and (max-height:900px){
-    .plant-box{width:min(880px,94vw);display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+    .plant-box{width:min(1200px,96vw);display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
     .plant-box>.plant-brand,.plant-box>.plant-q,.plant-box>.plant-rem,.plant-box>.app-ver{grid-column:1/-1;}
     .plant-btn{padding:22px 12px!important;}
   }
@@ -1066,6 +1073,13 @@ try{
     </button>
     <button class="plant-btn" style="--pc:#b91c1c" onclick="location.href='batch.html'">
       <span class="pb-code">BATCH</span><span class="pb-name">🥩 BATCH SHEETS</span><span class="pb-sum" id="plant-sum-BATCH"></span>
+    </button>
+    <div class="plant-btn rcv-tile" style="--pc:#0369a1">
+      <span class="pb-code">RECEIVING</span><span class="pb-name">🚚 YOOZ POs</span>
+      <span class="rcv-pick"><button type="button" onclick="openReceiving('NJ')">NJ</button><button type="button" onclick="openReceiving('GA')">GA</button></span>
+    </div>
+    <button class="plant-btn" style="--pc:#6b7280" onclick="location.href='waste.html'">
+      <span class="pb-code">WASTE</span><span class="pb-name">🗑 GA DAILY WASTE</span><span class="pb-sum" id="plant-sum-WASTE"></span>
     </button>
     <label class="plant-rem"><input type="checkbox" id="plant-remember"> Remember this plant on this device</label>
     <div class="app-ver">v <span class="app-ver-num"></span></div>
@@ -2569,6 +2583,8 @@ function clearLocation(){
 }
 
 function setView(v){
+  if(RCV_ONLY&&v!=='po')v='po';
+  if(!RCV_ONLY&&v==='po')v='map';   // Receiving lives outside the plants now (start screen → RECEIVING)
   if(v!=='map'&&currentMode==='count'){
     currentMode='browse';
   }
@@ -2605,6 +2621,7 @@ function setMode(m){
 const VIEW_STATE_KEY='wms_view_state';
 let _renderedView=null,_vsTimer=null;
 function saveViewState(){
+  if(RCV_ONLY)return;
   const mc=document.getElementById('main-content');if(!mc||!currentPlant)return;
   let all={};try{all=JSON.parse(localStorage.getItem(VIEW_STATE_KEY)||'{}')||{};}catch(e){}
   const st=all[currentPlant]||{scroll:{}};st.view=currentView;st.scroll=st.scroll||{};st.scroll[currentView]=Math.round(mc.scrollTop);st.ts=Date.now();
@@ -3022,6 +3039,10 @@ function showPlantSelector(){
     const nj=day('batch_sheets_nj'),ga=day('batch_sheets_ga');
     bs.innerHTML='Production · Today: '+txt('NJ',nj)+' &nbsp;|&nbsp; '+txt('GA',ga);
   }
+  const ws=document.getElementById('plant-sum-WASTE');
+  if(ws){const d=new Date(),iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    let n=0,lines=new Set();try{(JSON.parse(localStorage.getItem('waste_log_ga')||'[]')||[]).forEach(e=>{if(e.date===iso){n++;lines.add(e.line);}});}catch(e){}
+    ws.innerHTML='Today: '+(n?n+' entr'+(n===1?'y':'ies')+' · '+lines.size+' line(s)':'nothing recorded yet');}
   let rem=null; try{rem=localStorage.getItem(PLANT_REMEMBER_KEY);}catch(e){}
   const cb=document.getElementById('plant-remember'); if(cb)cb.checked=!!rem;
   document.querySelectorAll('.plant-btn').forEach(b=>b.classList.toggle('current',b.dataset.plant===currentPlant));
@@ -3034,7 +3055,10 @@ function choosePlant(p){
   if(p!==currentPlant)applyPlant(p);
   try{history.pushState({wmsPlant:p},'');}catch(e){}
 }
+let RCV_ONLY=false;
+function openReceiving(p){location.href='index.html?receiving='+encodeURIComponent(p);}
 function requestPlantSwitch(){
+  if(RCV_ONLY){location.href='index.html?menu=1';return;}
   if(!confirm('Switch plant? Everything in '+PLANTS[currentPlant].name+' stays saved exactly as it is.'))return;
   showPlantSelector();
 }
@@ -5972,7 +5996,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.28d';
+const APP_VERSION='2026.10.28f';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -5998,11 +6022,22 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
 (function initPlant(){
   let rem=null; try{rem=localStorage.getItem(PLANT_REMEMBER_KEY);}catch(e){}
   try{history.replaceState({wmsSelector:true},'');}catch(e){}
+  const qs=new URLSearchParams(location.search);
+  const rp=(qs.get('receiving')||'').toUpperCase();
+  if(PLANTS[rp]){                                   // Receiving-only: anyone can receive a truck without entering the inventory
+    RCV_ONLY=true;document.body.classList.add('rcv-only');
+    applyPlant(rp);setView('po');
+    const nm=document.getElementById('plant-strip-name');if(nm)nm.textContent='🚚 RECEIVING · '+PLANTS[rp].name;
+    const sw=document.querySelector('.plant-strip .ps-switch');if(sw)sw.textContent='⌂ Menu';
+    document.title='Schweid & Sons · Receiving '+rp;
+    return;
+  }
+  if(qs.get('menu')){showPlantSelector();return;}
   if(rem&&PLANTS[rem]){
     const vs=loadViewState(rem);   // read before applyPlant() renders
     applyPlant(rem);
     try{history.pushState({wmsPlant:rem},'');}catch(e){}
-    if(vs){if(vs.view&&vs.view!==currentView&&['map','items','stats','plan','po','log'].includes(vs.view))setView(vs.view);
+    if(vs){if(vs.view&&vs.view!==currentView&&['map','items','stats','plan','log'].includes(vs.view))setView(vs.view);
       restoreScroll((vs.scroll||{})[currentView]);}
   }else{
     showPlantSelector();
