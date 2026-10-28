@@ -1565,7 +1565,7 @@ let ITEMS = [
   {code:'F1300-1',name:'Non-Forming 635 L2&4 1219M',cat:'FILM'},
   {code:'F1300ABX-1',name:'Non-Forming 635 L2&4 (ABX)',cat:'FILM'},
   {code:'F1400-1',name:'361 Forming L3&6&7 457M',cat:'FILM'},
-  {code:'F1400-4',name:'361 Forming L3&6&7 457M (Atlanta)',cat:'FILM'},
+  {code:'F1400-4',name:'REMOVED from NJ — GA film (361 Forming, Atlanta). Clear it; NJ uses F1400-1',cat:'FILM',disc:true},   // Oct-28: GA code, not used in NJ; hidden once out of stock
   {code:'F1750-1',name:'Non-Forming 345 L3&6&7 914M',cat:'FILM'},
   {code:'F1850-1',name:'Non-Forming 345 Black L3',cat:'FILM'},
   {code:'F1900-1',name:'362 Forming L3 457M',cat:'FILM'},
@@ -5006,26 +5006,8 @@ async function syncExport(){
   // The flow's date+Shift filter then keeps each plant's copy separate — no flow change needed.
   const turnoLabel=(currentPlant==='NJ'?'':currentPlant+' · ')+SYNC_TURNO_LABELS[turnoSel];
   const d=today();
-  // Confirm first (like Import): a new/empty browser could otherwise overwrite today's good copy by mistake.
-  const nPos=Object.keys(inventory).length;
-  const nUnits=Object.values(inventory).reduce((a,o)=>a+occTotalQty(o),0);
-  const where=syncMode()==='sharepoint'?'SharePoint':'this device';
-  const nd=x=>{x=String(x||'').trim();let m=x.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return (+m[2])+'/'+(+m[3])+'/'+m[1];m=x.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?(+m[1])+'/'+(+m[2])+'/'+m[3]:x;};
-  const prev=(_syncHistoryCache||[]).find(h=>h&&h.plant===currentPlant&&h.turno===turnoSel&&nd(h.date)===nd(d));
-  const prevN=prev&&prev.data?Object.keys(prev.data).length:null;
-  let msg='Upload this inventory to '+where+'?\n\n'+currentPlant+' · '+SYNC_TURNO_LABELS[turnoSel]+' · '+d+'\n'+
-    nPos+' position(s) · '+nUnits.toLocaleString()+' units on this device.';
-  if(prevN!==null)msg+='\n\nThis REPLACES the copy already saved for this shift today ('+prevN+' positions).';
-  else msg+='\n\nIf a copy for this shift already exists today, it will be replaced.';
-  const lc=lastLocalChange(),age=lc?Date.now()-lc:null;
-  msg+='\n\nLast change on this device: '+(lc?new Date(lc).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+agoText(age)+' ago)':'unknown');
-  if(!confirm(msg))return;
-  const warn=[];
-  if(nPos===0)warn.push('This device has NO inventory.');
-  else if(prevN&&nPos<prevN*0.5)warn.push('This device has far fewer positions ('+nPos+') than the saved copy ('+prevN+').');
-  if(nPos>0&&(lc===null||age>8*3600e3||new Date(lc).toDateString()!==new Date().toDateString()))
-    warn.push('The inventory on this device was '+(lc?'last changed '+agoText(age)+' ago':'never changed here')+' — it may be OLD. If someone counted on another device since then, this would overwrite their work.');
-  if(warn.length&&!confirm('⚠ Careful:\n\n• '+warn.join('\n• ')+'\n\nTip: Import → Load the latest copy first, then count and upload.\n\nUpload anyway?'))return;
+  // One simple confirmation, like Import.
+  if(!confirm('Upload this inventory to SharePoint?\n\n'+currentPlant+' · '+SYNC_TURNO_LABELS[turnoSel]+' · '+d+'\n\nThis replaces the copy saved for this shift today.'))return;
   const payload={date:d,turno:turnoSel,turnoLabel:turnoLabel,plant:currentPlant,ts:new Date().toISOString(),data:inventory};
   const statusEl=document.getElementById('sync-export-status');
   if(syncMode()==='sharepoint'){
@@ -5886,7 +5868,7 @@ async function autoLoadIfEmpty(){
     const pw=el.type==='password';
     pad.querySelector('[data-k="dot"]').classList.toggle('np-gone',el.dataset.np!=='decimal');
     pad.querySelectorAll('.np-op,.np-eq').forEach(b=>b.disabled=pw);
-    showDisp();fit();
+    showDisp();fit();if(typeof startWatch==='function')startWatch();
   };
   const close=()=>{
     if(target)target.classList.remove('np-fresh');fresh=false;
@@ -5901,13 +5883,23 @@ async function autoLoadIfEmpty(){
   document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-np]'))open(el);});  // closing is left to focusout (delayed)
   document.addEventListener('focusout',e=>{const el=e.target;
     // focus slipped away because of a fast tap on the keypad itself → put it back, keep the keypad open
-    if(el===target&&!leaving&&Date.now()-lastTouch<700){setTimeout(()=>{if(target===el&&document.activeElement!==el){try{el.focus({preventScroll:true});}catch(_){el.focus();}}},0);return;}
+    if(el===target&&!leaving&&lastTouch>outsideAt&&Date.now()-lastTouch<700&&!e.relatedTarget&&el.getClientRects().length>0){setTimeout(()=>{if(target===el&&document.activeElement!==el){try{el.focus({preventScroll:true});}catch(_){el.focus();}}},0);return;}
     if(el&&el.matches&&el.matches('input[data-np]')&&el===target)commit(el);setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches('input[data-np]')))close();},350);});
   window.addEventListener('resize',()=>{if(target)fit();});
 
   pad.addEventListener('pointerdown',e=>e.preventDefault()); // keep focus in the field
   /* Touch: handle the key ourselves on touchend. iPadOS treats two quick taps as a double-tap and may drop the
      2nd click or move focus off the field (which used to hide the keypad). Cancelling touchstart avoids both. */
+  let outsideAt=0,watch=null;
+  // a touch anywhere outside the keypad (Save, Cancel, the map…) means you are done with the field
+  document.addEventListener('touchstart',e=>{if(!pad.contains(e.target))outsideAt=Date.now();},{capture:true,passive:true});
+  document.addEventListener('pointerdown',e=>{if(!pad.contains(e.target))outsideAt=Date.now();},{capture:true,passive:true});
+  // safety net: if the field disappears (window closed) or nobody is typing in it anymore, hide the keypad
+  const startWatch=()=>{clearInterval(watch);watch=setInterval(()=>{
+    if(pad.classList.contains('hidden')){clearInterval(watch);return;}
+    const t=target;
+    if(!t||!t.isConnected||!t.getClientRects().length||(document.activeElement!==t&&Date.now()-lastTouch>700)){close();clearInterval(watch);}
+  },400);};
   let lastTouch=0,leaving=false;   // leaving = ⌄ / Enter closed it on purpose
   pad.addEventListener('touchstart',e=>{
     lastTouch=Date.now();e.preventDefault();
@@ -5980,7 +5972,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.10.27f';
+const APP_VERSION='2026.10.28d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
