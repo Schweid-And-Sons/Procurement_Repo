@@ -188,7 +188,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.29b</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.29c</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Export day</button>
@@ -586,8 +586,8 @@ function assigned(name,line,d,exceptId){
    Every change is uploaded automatically (it is the shared work list of the batching room, not a message).
    Each tablet pulls the last 14 days when the module opens, when the day changes and every 45 s while it is open.
    Paste the two flow URLs here when the flows exist; until then everything stays on this tablet. */
-const BATCH_SAVE_URL='';
-const BATCH_READ_URL='';
+const BATCH_SAVE_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/64f9e48a1da04901964ad07b46eb1867/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=vsL7mk6KDI_J6jCHMx1mRp_kGQPGKaCqwsMS7DvzwPQ';
+const BATCH_READ_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/16/workflows/46a2d54450a74c9497ad222166e75829/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=LcUblIatOWv256jDaU8N60EdaFf7e94ESoWUw3bu6nA';
 let sync={at:0,busy:false,err:'',pushT:null,pushing:false};
 const syncOn=()=>!!(BATCH_SAVE_URL&&BATCH_READ_URL);
 function stripLocal(o){const c=Object.assign({},o);delete c._dirty;return c;}
