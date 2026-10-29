@@ -188,7 +188,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.28a</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.29b</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Export day</button>
@@ -253,7 +253,7 @@
         <button class="btn" onclick="addManual()">+ Manual</button>
       </div>
       <div class="tbl-wrap"><table class="rm-tbl">
-        <thead><tr><th>#</th><th>RM Code</th><th>Lot / Serial</th><th class="hide-sm">Pack date</th><th class="hide-sm">EST #</th><th class="hide-sm">Temp °F</th><th class="hide-sm">Supplier</th><th>Current lbs</th><th>Used lbs</th><th>Left</th><th class="no-print"></th></tr></thead>
+        <thead><tr><th>#</th><th>RM Code</th><th>Lot / Serial</th><th class="hide-sm">Pack date</th><th class="hide-sm">EST #</th><th class="hide-sm">Temp °F</th><th class="hide-sm">Supplier</th><th class="hide-sm">PO #</th><th>Current lbs</th><th>Used lbs</th><th>Left</th><th class="no-print"></th></tr></thead>
         <tbody id="rm-body"></tbody>
       </table></div>
       <div class="tot">Boxes: <span id="tot-count">0</span> &nbsp; Batch amount (used): <span id="tot-lbs">0</span> lbs</div>
@@ -313,6 +313,7 @@
       <div><label>EST #</label><input id="cf-est"></div>
       <div><label>Temp °F</label><input type="text" inputmode="decimal" autocomplete="off" id="cf-temp"></div>
       <div style="grid-column:1/-1"><label>Supplier</label><select id="cf-supplier" onchange="if(this.value===ADD_NEW){const v=askNew(SUPPLIER_KEY,supplierList(),'supplier');this.innerHTML=listOptions(supplierList(),v,'— Supplier —','+ Add new supplier…');}"></select></div>
+      <div style="grid-column:1/-1"><label>PO # (Yooz)</label><input id="cf-po" inputmode="numeric" autocomplete="off" placeholder="e.g. 27647"></div>
       <div><label>Current weight (lbs)</label><input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" id="cf-cur" oninput="cfSyncUsed()"></div>
       <div><label>Weight used (lbs)</label><input type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" id="cf-used"></div>
     </div>
@@ -870,10 +871,11 @@ function renderEditor(light){
     <td class="hide-sm"><input value="${esc(x.est)}" onchange="setItem(${i},'est',this.value)" style="min-width:60px"></td>
     <td class="hide-sm"><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.temp||'')}" onchange="setItem(${i},'temp',this.value)" style="min-width:52px"></td>
     <td class="hide-sm"><select onchange="pickItemSupplier(${i},this)" style="min-width:110px">${listOptions(supplierList(),x.supplier||'','—','+ Add new…')}</select></td>
+    <td class="hide-sm"><input value="${esc(x.po||'')}" inputmode="numeric" onchange="setItem(${i},'po',this.value)" style="min-width:70px"></td>
     <td><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.cur)}" onchange="setItem(${i},'cur',this.value)" style="min-width:70px"></td>
     <td><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.used)}" onchange="setItem(${i},'used',this.value)" style="min-width:70px"></td>
     <td class="left${left?'':' zero'}">${fmtLbs(left)}</td>
-    <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">Scan the first box label or add it manually.</td></tr>';
+    <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="12" class="empty">Scan the first box label or add it manually.</td></tr>';
 }
 function pickItemSupplier(i,sel){let v=sel.value;if(v===ADD_NEW)v=askNew(SUPPLIER_KEY,supplierList(),'supplier');cur.items[i].supplier=v;touch(cur);renderEditor();}
 function setItem(i,k,v){
@@ -917,7 +919,7 @@ function onScanInput(){const el=document.getElementById('scan-input');const v=el
 function lotLeft(lotKey,exceptItemId){
   if(!lotKey)return null;let best=null;
   liveBatches().forEach(b=>b.items.forEach(x=>{if(x.id===exceptItemId)return;if((x.serial||x.lot)!==lotKey)return;if(!best||String(x.at)>String(best.x.at))best={x,b};}));
-  return best?{left:Math.max(0,(+best.x.cur||0)-(+best.x.used||0)),batchNo:best.b.batchNo,date:best.b.date}:null;
+  return best?{left:Math.max(0,(+best.x.cur||0)-(+best.x.used||0)),batchNo:best.b.batchNo,date:best.b.date,po:best.x.po||''}:null;
 }
 function handleScan(text){
   if(!cur)return;
@@ -933,7 +935,7 @@ function handleScan(text){
   if(known&&known.rm&&net!==''&&!prev){pending.used=pending.cur;addPending();toast('✓ '+pending.rm+' · '+fmtLbs(pending.cur)+' lbs added');pending=null;return;}
   openConfirm(p);
 }
-function addManual(){pending={key:'',raw:'',gtin:'',serial:'',lot:'',packDate:'',est:'',supplier:'',netLbs:'',cur:'',used:'',temp:'',rm:''};openConfirm(null);}
+function addManual(){pending={key:'',raw:'',gtin:'',serial:'',lot:'',packDate:'',est:'',supplier:'',po:'',netLbs:'',cur:'',used:'',temp:'',rm:''};openConfirm(null);}
 function cfSyncUsed(){const u=document.getElementById('cf-used');if(!u.dataset.touched)u.value=document.getElementById('cf-cur').value;}
 function openConfirm(p){
   document.getElementById('cf-raw').textContent=p?('Scanned: '+p.raw.replace(/\x1d/g,'␝')+(p.isGS1?'  ·  GS1 label read':'  ·  plain code')):'Manual entry';
@@ -946,6 +948,7 @@ function openConfirm(p){
   document.getElementById('cf-est').value=pending.est;
   document.getElementById('cf-temp').value=pending.temp;
   document.getElementById('cf-supplier').innerHTML=listOptions(supplierList(),pending.supplier,'— Supplier —','+ Add new supplier…');
+  document.getElementById('cf-po').value=pending.po||(pending.prev&&pending.prev.po)||'';
   document.getElementById('cf-cur').value=pending.cur;
   const u=document.getElementById('cf-used');u.value=pending.cur;delete u.dataset.touched;u.oninput=()=>{u.dataset.touched='1';};
   document.getElementById('cf-remember-wrap').style.display=pending.key?'':'none';
@@ -961,6 +964,7 @@ function confirmAdd(){
   pending.temp=document.getElementById('cf-temp').value.trim();
   pending.supplier=document.getElementById('cf-supplier').value===ADD_NEW?'':document.getElementById('cf-supplier').value;
   if(!pending.supplier){const r=rmByCode(pending.rm);if(r&&r.vendor)pending.supplier=r.vendor;}
+  pending.po=document.getElementById('cf-po').value.trim();
   pending.cur=document.getElementById('cf-cur').value.trim();
   pending.used=document.getElementById('cf-used').value.trim();
   if(!pending.rm){toast('Select the RM code.',true);return;}
@@ -973,7 +977,7 @@ function confirmAdd(){
 }
 function addPending(){
   const at=new Date().toISOString();
-  cur.items.push({id:cur.id+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),rm:pending.rm,lot:pending.lot,serial:pending.serial,packDate:pending.packDate,est:pending.est,temp:pending.temp||'',supplier:pending.supplier||'',
+  cur.items.push({id:cur.id+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),rm:pending.rm,lot:pending.lot,serial:pending.serial,packDate:pending.packDate,est:pending.est,temp:pending.temp||'',supplier:pending.supplier||'',po:pending.po||'',
     netLbs:pending.netLbs,cur:pending.cur,used:pending.used,left:Math.max(0,(+pending.cur||0)-(+pending.used||0)),key:pending.key,gtin:pending.gtin,raw:pending.raw,at});
   touch(cur);renderEditor();
 }
@@ -1022,9 +1026,9 @@ function batchRows(b){
     ['Meat block',b.product],['Mixer',b.line],['Batch #',b.batchNo],['Date',b.date],['Start time',b.startTime],['End time',b.endTime||''],['Mixer operator',b.operator],['Status',ST_TXT[b.status]||b.status],[],
     ['Production line','LBS']];
   b.lines.filter(l=>l.line).forEach(l=>rows.push([l.line,lineLbs(b,l)]));
-  rows.push([],['#','RM Code','Description','Supplier','Lot / Serial','Pack date','EST #','Temp °F','Current LBS','Used LBS','Left LBS']);
-  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);rows.push([i+1,x.rm,r?r.name:'',x.supplier||'',x.lot,x.packDate,x.est,x.temp||'',+x.cur||0,+x.used||0,Math.max(0,(+x.cur||0)-(+x.used||0))]);});
-  rows.push(['','','','','','','','','','TOTAL USED',Math.round(batchAmount(b)*100)/100],[],
+  rows.push([],['#','RM Code','Description','Supplier','PO #','Lot / Serial','Pack date','EST #','Temp °F','Current LBS','Used LBS','Left LBS']);
+  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);rows.push([i+1,x.rm,r?r.name:'',x.supplier||'',x.po||'',x.lot,x.packDate,x.est,x.temp||'',+x.cur||0,+x.used||0,Math.max(0,(+x.cur||0)-(+x.used||0))]);});
+  rows.push(['','','','','','','','','','','TOTAL USED',Math.round(batchAmount(b)*100)/100],[],
     ['Seasoning',b.seasoning==='yes'?'Yes':b.seasoning==='no'?'No':''],
     ...(b.seasoning==='yes'?[['Seasoning type',b.seasType],['Seasoning lbs',b.seasLbs],['Seasoning lot #',b.seasLot],['Seasoning supplier',b.seasSupplier],['Water',(b.water||'')+' '+(b.waterUnit||'')]]:[]),
     [],['Initial fat test (%)',b.fatTest],['Fat test OK',b.fatOk==='yes'?'Yes':b.fatOk==='no'?'No':''],['Final fat test (%)',b.fatFinal||''],['Final grind temp (°F)',b.grindTemp],['Notes',b.notes],[],
