@@ -165,6 +165,12 @@
   .modal-actions.np-nudge{animation:npNudge .45s ease;}
   @keyframes npNudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
   .sp-clear{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;}
+  .sp-mark-btn{background:var(--success,#16a34a);color:#fff;border:none;border-radius:10px;padding:9px 14px;font:700 13px inherit;cursor:pointer;margin-right:auto;}
+  .sp-mark-btn span{font-weight:500;opacity:.85;}
+  .sp-mark-done{color:var(--success,#16a34a);font-weight:700;font-size:13px;margin-right:auto;}
+  /* the in-app keypad must not cover the section panel (PIN field) */
+  body.np-open .sec-panel-overlay:not(.hidden){align-items:flex-start;padding-top:12px;padding-bottom:var(--nph,360px);box-sizing:border-box;}
+  body.np-open .sec-panel{max-height:calc(var(--npavail,60vh) - 12px)!important;}
   .sp-clear-btn{background:transparent;border:1px solid var(--danger,#dc2626);color:var(--danger,#dc2626);border-radius:10px;padding:8px 14px;font:600 13px inherit;cursor:pointer;}
   .sp-clear-msg{flex:1 1 100%;font-size:12px;color:var(--danger,#dc2626);font-weight:600;}
   .sp-clear-pin{flex:1;min-width:110px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:8px 10px;font-size:16px;letter-spacing:.3em;}
@@ -3795,6 +3801,20 @@ let planData = null;
 
 /* Codes the production plan still uses that we now receive under another code (Oct-30: Sonic BX7700 discontinued → PCA). */
 const PLAN_CODE_ALIAS={'BX7700-1':'BX7700PCA-1'};
+/* Plan codes that can be filled by any of several box codes (depends on who packs). Stock = sum of all. */
+const PLAN_STOCK_GROUP={'SAMPLE BOX':['BX5LBS-1','BXFSSPLAIN-1','BX5LBS-4']};
+function planStockCodes(code){
+  const g=PLAN_STOCK_GROUP[String(code).toUpperCase()];
+  if(g)return g.filter(c=>ITEMS.some(i=>i.code===c));
+  const eq=vendorEquivCode(code);return eq?[code,eq]:[code];
+}
+function planStock(code,summary){
+  const parts=planStockCodes(code).map(c=>({code:c,st:summary[c]})).filter(x=>x.st);
+  const qty=parts.reduce((a,x)=>a+x.st.qty,0);
+  const locs=[].concat(...parts.map(x=>x.st.locs.map(l=>locAbbrevMix(l,x.st))));
+  const other=parts.filter(x=>x.code!==code).map(x=>x.code);
+  return {qty,locs,note:other.length?'incl. '+other.join(' + '):''};
+}
 function aliasPlanItems(p){
   if(!p||!Array.isArray(p.items))return p;
   const out=[];p.items.forEach(it=>{const c=PLAN_CODE_ALIAS[it.code];if(!c){out.push(it);return;}
@@ -4047,10 +4067,7 @@ function exportPlanWorkFile(){
   const summary=getItemSummary();
   const rows=[['Code','Description','Needed','Delivered','Remaining','Stock (at export time)','Stock After (at export time)','Ready']];
   planData.items.forEach(it=>{
-    const stock=summary[it.code];
-    const equivCode=vendorEquivCode(it.code);
-    const equivStock=equivCode?summary[equivCode]:null;
-    const stockQty=(stock?stock.qty:0)+(equivStock?equivStock.qty:0);
+    const stockQty=planStock(it.code,summary).qty;
     rows.push([it.code,it.desc,it.needed,it.delivered,it.needed-it.delivered,stockQty,stockQty-it.needed,it.done?'YES':'']);
   });
   const wb=XLSX.utils.book_new();
@@ -4143,18 +4160,15 @@ function renderPlanView(){
   const rowsHtml=items.map(it=>{
     totalNeeded+=it.needed;totalDelivered+=it.delivered;
     const remaining=it.needed-it.delivered;
-    const stock=summary[it.code];
-    const equivCode=vendorEquivCode(it.code);
-    const equivStock=equivCode?summary[equivCode]:null;
-    const stockQty=(stock?stock.qty:0)+(equivStock?equivStock.qty:0);
+    const ps=planStock(it.code,summary);
+    const stockQty=ps.qty;
     const stockAfter=stockQty-it.needed;
-    const allLocs=[...(stock?stock.locs:[]),...(equivStock?equivStock.locs:[])];
-    const locTxt=allLocs.length?[...(stock?stock.locs.map(l=>locAbbrevMix(l,stock)):[]),...(equivStock?equivStock.locs.map(l=>locAbbrevMix(l,equivStock)):[])].join(', '):'<span style="color:var(--danger)">No stock</span>';
-    if(!allLocs.length)noStockCount++;
+    const locTxt=ps.locs.length?ps.locs.join(', '):'<span style="color:var(--danger)">No stock</span>';
+    if(!ps.locs.length)noStockCount++;
     if(stockAfter<0)shortCount++;
     const remCls=remaining<0?'plan-rem-over':remaining===0?'plan-rem-ok':'plan-rem-pending';
     const stockAfterCls=stockAfter<0?'plan-rem-pending':'plan-rem-ok';
-    const equivNote=equivStock?`<div style="font-size:9px;color:var(--warn)">incl. ${equivCode}</div>`:'';
+    const equivNote=ps.note?`<div style="font-size:9px;color:var(--warn)">${ps.note}</div>`:'';
     if(it.done)doneCount++;
     return `<tr class="${it.done?'plan-row-done':''}">
       <td><button class="plan-check${it.done?' on':''}" onclick="togglePlanDone('b','${it.code}')" title="Mark ready">${it.done?'✓':''}</button></td>
@@ -4219,10 +4233,8 @@ function renderPlanByLine(summary){
     const codes=Object.entries(bl[l]).sort((a,b)=>b[1]-a[1]);
     const tot=codes.reduce((a,[,q])=>a+q,0);
     const rows=codes.map(([c,q])=>{
-      const it=ITEMS.find(x=>x.code===c);const st=summary[c];
-      const eq=vendorEquivCode(c);const est=eq?summary[eq]:null;
-      const sq=(st?st.qty:0)+(est?est.qty:0);
-      const locs=[...(st?st.locs.map(x=>locAbbrevMix(x,st)):[]),...(est?est.locs.map(x=>locAbbrevMix(x,est)):[])];
+      const it=ITEMS.find(x=>x.code===c);const ps=planStock(c,summary);
+      const sq=ps.qty,locs=ps.locs;
       return `<tr><td style="font-weight:700;color:var(--accent2);white-space:nowrap">${c}</td><td style="color:var(--text2);font-size:11px">${it?it.name:''}</td>
         <td style="text-align:right;font-weight:700">${Math.round(q).toLocaleString()}</td><td style="text-align:right">${sq.toLocaleString()}</td>
         <td style="font-size:10px;color:var(--text3)">${locs.length?locs.join(', '):'<span style="color:var(--danger)">No stock</span>'}</td></tr>`;}).join('');
@@ -5650,14 +5662,38 @@ function openSecPanel(areaName, sec){
     });
   }
   _spCtx={area:areaName,sec:+sec};
-  if(rows.length)html+=spClearFooter('section');
+  html+=spClearFooter('section',rows.length);
   document.getElementById('sec-panel-body').innerHTML=html;
   document.getElementById('sec-panel-overlay').classList.remove('hidden');
 }
 /* Clear one section (or one floor area) right from its panel — asks for the PIN, logged with Undo. */
 let _spCtx=null;
-function spClearFooter(kind){
-  return `<div class="sp-clear" id="sp-clear"><button class="sp-clear-btn" onclick="spClearAsk('${kind}')">🗑 Clear this ${kind}</button></div>`;
+function spAllIds(){
+  if(!_spCtx)return [];const aDef=AREAS[_spCtx.area];if(!aDef)return [];const ids=[];
+  if(aDef.type==='rack'){const tiers=aDef.sections[_spCtx.sec]||{};Object.entries(tiers).forEach(([t,ps])=>ps.forEach(pos=>ids.push(locId(_spCtx.area,_spCtx.sec,+t,pos))));}
+  else for(let i=1;i<=aDef.slots;i++)ids.push(locId(_spCtx.area,null,null,i));
+  return ids;
+}
+function spClearFooter(kind,hasItems){
+  const cs=countSession&&countSession.active;
+  const pend=cs?spAllIds().filter(id=>countSession.unreviewed.has(id)).length:0;
+  const markBtn=cs?(pend?`<button class="sp-mark-btn" onclick="spMarkCounted('${kind}')">✓ Mark this ${kind} counted <span>(${pend} pending)</span></button>`
+    :`<span class="sp-mark-done">✓ This ${kind} is counted</span>`):'';
+  const clearBtn=hasItems?`<button class="sp-clear-btn" onclick="spClearAsk('${kind}')">🗑 Clear this ${kind}</button>`:'';
+  if(!markBtn&&!clearBtn)return '';
+  return `<div class="sp-clear" id="sp-clear">${markBtn}${clearBtn}</div>`;
+}
+/* Count Mode: a section/area that hasn't changed can be marked as counted in one tap (nothing in it is edited). */
+function spMarkCounted(kind){
+  if(!(countSession&&countSession.active))return;
+  const ids=spAllIds().filter(id=>countSession.unreviewed.has(id));if(!ids.length)return;
+  ids.forEach(id=>countSession.unreviewed.delete(id));
+  saveCountSessionState();updateCountSessionUI();
+  const where=_spCtx.sec?`${_spCtx.area} S${_spCtx.sec}`:_spCtx.area;
+  addLog('COUNT REVIEW',where+' — '+ids.length+' position(s) marked as counted (no changes)');
+  render();
+  if(_spCtx.sec)openSecPanel(_spCtx.area,_spCtx.sec);else openFloorPanel(_spCtx.area);
+  showToast('✓ '+where+' marked as counted ('+ids.length+')','success');
 }
 function spClearIds(){
   if(!_spCtx)return [];
@@ -5676,11 +5712,12 @@ function spClearAsk(kind){
     <input type="password" class="sp-clear-pin" id="sp-clear-pin" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" maxlength="8" placeholder="PIN" onkeydown="if(event.key==='Enter')spClearConfirm('${kind}')">
     <button class="sp-clear-ok" onclick="spClearConfirm('${kind}')">Clear</button>
     <button class="sp-clear-no" onclick="spClearCancel('${kind}')">Cancel</button>`;
-  setTimeout(()=>{const i=document.getElementById('sp-clear-pin');if(i)i.focus();},60);
+  setTimeout(()=>{const i=document.getElementById('sp-clear-pin');if(i){i.focus();setTimeout(()=>i.scrollIntoView({block:'center',behavior:'smooth'}),120);}},60);
 }
-function spClearCancel(kind){const box=document.getElementById('sp-clear');if(box)box.outerHTML=spClearFooter(kind);}
+function spClearCancel(kind){const box=document.getElementById('sp-clear');if(box)box.outerHTML=spClearFooter(kind,true);}
 function spClearConfirm(kind){
   const inp=document.getElementById('sp-clear-pin');if(!inp)return;
+  if(!inp.value){showToast('Type your PIN first, then tap Clear.','error');inp.focus();return;}
   if(inp.value!==getPin()){inp.value='';inp.style.borderColor='var(--danger,#dc2626)';showToast('Incorrect PIN.','error');inp.focus();return;}
   const ids=spClearIds();if(!ids.length)return;
   const before=JSON.stringify(inventory);
@@ -5734,7 +5771,7 @@ function openFloorPanel(areaName){
     });
   }
   _spCtx={area:areaName,sec:null};
-  if(rows.length)html+=spClearFooter('area');
+  html+=spClearFooter('area',rows.length);
   document.getElementById('sec-panel-body').innerHTML=html;
   document.getElementById('sec-panel-overlay').classList.remove('hidden');
 }
@@ -6054,7 +6091,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.02a';
+const APP_VERSION='2026.11.03b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
