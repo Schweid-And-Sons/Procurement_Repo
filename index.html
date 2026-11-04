@@ -5704,6 +5704,7 @@ function openRoModal(id){
   if(mixEl)mixEl.innerHTML=nMix?`<div class="ro-mix"><div class="ro-mix-title">📦 Mixed pallet · ${1+nMix} items in this position</div>${occItems(data).map(x=>{const d=ITEMS.find(i2=>i2.code===x.item);return `<div class="ro-mix-row"><span><b style="color:var(--accent2)">${x.item}</b> <span style="color:var(--text3);font-size:10px">${d?d.name:''}</span>${x.extra?'':' <span style="font-size:9px;color:var(--text3)">(main)</span>'}</span><b>${x.qty.toLocaleString()}</b></div>`;}).join('')}</div>`:'';
   document.getElementById('ro-overlay').classList.remove('hidden');
 }
+
 function closeRoModal(e){
   if(!e||e.target===document.getElementById('ro-overlay'))
     document.getElementById('ro-overlay').classList.add('hidden');
@@ -5715,6 +5716,7 @@ function toggleSidebar(){
     var d=document.getElementById('actions-drawer-overlay');
     if(d) d.classList.toggle('hidden');
     
+
     syncDrawerCountType();
     return;
   }
