@@ -67,6 +67,8 @@
   .rcv-pick button:last-child{background:#15803d;}
   /* Receiving-only mode (from the start screen): just the Yooz POs screen, no access to the inventory */
   body.rcv-only .sidebar,body.rcv-only .bottom-nav,body.rcv-only .hamburger,body.rcv-only #mode-tabs,body.rcv-only .sidebar-overlay{display:none!important;}
+  body.plan-only .sidebar,body.plan-only .bottom-nav,body.plan-only .hamburger,body.plan-only #mode-tabs,body.plan-only .sidebar-overlay{display:none!important;}
+  body.plan-only .plan-inv-only{display:none!important;}
   body:not(.rcv-only) .nav-btn[onclick="setView('po')"],body:not(.rcv-only) #bnav-po{display:none!important;}
   .plant-batch{display:flex;flex-direction:column;gap:2px;margin-top:6px;padding:14px;border-radius:12px;border:2px dashed var(--border);color:var(--text);text-decoration:none;font-weight:800;letter-spacing:.12em;font-size:13px;}
   .plant-batch span{font-size:9px;color:var(--text3);letter-spacing:.08em;font-weight:400;}
@@ -834,7 +836,7 @@
   #plant-overlay{align-items:flex-start!important;overflow-y:auto;padding:16px 0;box-sizing:border-box;}
   .plant-box{margin:auto;}
   @media(min-width:760px) and (max-height:900px){
-    .plant-box{width:min(1200px,96vw);display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+    .plant-box{width:min(1240px,96vw);display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
     .plant-box>.plant-brand,.plant-box>.plant-q,.plant-box>.plant-rem,.plant-box>.app-ver{grid-column:1/-1;}
     .plant-btn{padding:22px 12px!important;}
   }
@@ -1083,6 +1085,10 @@ try{
     <div class="plant-btn rcv-tile" style="--pc:#0369a1">
       <span class="pb-code">RECEIVING</span><span class="pb-name">🚚 YOOZ POs</span>
       <span class="rcv-pick"><button type="button" onclick="openReceiving('NJ')">NJ</button><button type="button" onclick="openReceiving('GA')">GA</button></span>
+    </div>
+    <div class="plant-btn rcv-tile" style="--pc:#7c3aed">
+      <span class="pb-code">PLANNING</span><span class="pb-name">📅 DAILY PLAN</span>
+      <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="openPlanning('NJ')">NJ</button><button type="button" onclick="openPlanning('GA')">GA</button></span>
     </div>
     <button class="plant-btn" style="--pc:#6b7280" onclick="location.href='waste.html'">
       <span class="pb-code">WASTE</span><span class="pb-name">🗑 GA DAILY WASTE</span><span class="pb-sum" id="plant-sum-WASTE"></span>
@@ -2591,7 +2597,9 @@ function clearLocation(){
 
 function setView(v){
   if(RCV_ONLY&&v!=='po')v='po';
-  if(!RCV_ONLY&&v==='po')v='map';   // Receiving lives outside the plants now (start screen → RECEIVING)
+  if(PLAN_ONLY&&v!=='plan')v='plan';
+  if(!RCV_ONLY&&v==='po')v='map';
+  if(v==='plan')setTimeout(()=>pullSharedPlan(false),50);   // Receiving lives outside the plants now (start screen → RECEIVING)
   if(v!=='map'&&currentMode==='count'){
     currentMode='browse';
   }
@@ -3079,7 +3087,7 @@ function choosePlant(p){
 let RCV_ONLY=false;
 function openReceiving(p){location.href='index.html?receiving='+encodeURIComponent(p);}
 function requestPlantSwitch(){
-  if(RCV_ONLY){location.href='index.html?menu=1';return;}
+  if(RCV_ONLY||PLAN_ONLY){location.href='index.html?menu=1';return;}
   if(!confirm('Switch plant? Everything in '+PLANTS[currentPlant].name+' stays saved exactly as it is.'))return;
   showPlantSelector();
 }
@@ -3831,6 +3839,138 @@ function loadPlanDia(){
     return p&&p.type==='dm'?null:p;   // plans saved by the short-lived films/bags version are dropped
   }catch(e){return null;}
 }
+
+/* ================= SHARED DAILY PLAN (PLANNING module) =================
+   The plan is loaded ONCE in Start → PLANNING → NJ / GA. It is saved to SharePoint (list WMS_Batches, same two flows
+   as Batch) as two records: kind "wmsplan" (boxes/sleeves for the inventory Daily Plan) and kind "plan" (meat blocks
+   for Batch). Every device of that plant picks it up; Delivered / Ready marks are shared too (newest mark wins per item). */
+const PLAN_SAVE_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/64f9e48a1da04901964ad07b46eb1867/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=vsL7mk6KDI_J6jCHMx1mRp_kGQPGKaCqwsMS7DvzwPQ';
+const PLAN_READ_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/16/workflows/46a2d54450a74c9497ad222166e75829/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=LcUblIatOWv256jDaU8N60EdaFf7e94ESoWUw3bu6nA';
+let PLAN_ONLY=false;
+const planSync={at:0,busy:false,err:'',pushT:null};
+function isoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function planDevice(){try{return localStorage.getItem('wms_receiver_name')||poDevice();}catch(e){return 'device';}}
+function bp_cleanNum(v){const n=+String(v).replace(/,/g,'');return isFinite(n)?n:0;}
+function bp_parsePlanWB(wb){
+  const gaS=wb.SheetNames.find(n=>/grind prod with meat/i.test(n));
+  const njS=wb.SheetNames.find(n=>/grind production\s*\(today/i.test(n));
+  if(gaS)return bp_parseGA(wb.Sheets[gaS],gaS);
+  if(njS)return bp_parseNJ(wb.Sheets[njS],njS);
+  throw new Error('No "Grind Prod with Meat" (GA) or "Grind Production (Today - CO)" (NJ) sheet in this file');
+}
+function bp_addEntry(map,mb,name,line,lbs,rms){
+  const k=name+'|'+line;const e=map[k]||(map[k]={mb,name,line,lbs:0,rms:{}});
+  e.lbs+=lbs;if(!e.mb&&mb)e.mb=mb;
+  Object.entries(rms||{}).forEach(([c,v])=>{e.rms[c]=(e.rms[c]||0)+v;});
+}
+function bp_parseGA(ws,sheet){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const dayRow=rows.find(r=>r.some((c,i)=>String(c).trim()==='Day'&&i<4));
+  const day=dayRow?String(dayRow[dayRow.findIndex(c=>String(c).trim()==='Day')+1]||'').trim():'';
+  const hi=rows.findIndex(r=>r.some(c=>String(c).trim()==='Meat Block')&&r.some(c=>/open lbs/i.test(String(c))));
+  if(hi<0)throw new Error('Header row (Meat Block … Open Lbs) not found in '+sheet);
+  const h=rows[hi].map(c=>String(c).trim());const ci=n=>h.findIndex(x=>x.toLowerCase()===n.toLowerCase());
+  const cMB=ci('MB'),cName=ci('Meat Block'),cLine=ci('Line'),cOpen=h.findIndex(x=>/open lbs/i.test(x));
+  const pairs=[['Meat 1','M1%'],['Meat 2','M2%'],['Meat 3','M3%'],['Block 1','B1%'],['Block 2','B2%']].map(([a,b])=>[ci(a),ci(b)]).filter(p=>p[0]>=0&&p[1]>=0);
+  const map={};
+  rows.slice(hi+1).forEach(r=>{
+    const line=String(r[cLine]).trim();if(!/^line\s/i.test(line))return;
+    const name=String(r[cName]).trim();if(!name||/^meat block/i.test(name)||/total$/i.test(name))return;
+    if(!(bp_cleanNum(r[cOpen])>0))return;
+    const rms={};pairs.forEach(([a,b])=>{const c=String(r[a]).trim();const v=bp_cleanNum(r[b]);if(c&&c!=='0'&&/^[A-Z]{2}\d/i.test(c)&&v>0)rms[c.toUpperCase()]=(rms[c.toUpperCase()]||0)+v;});
+    bp_addEntry(map,String(r[cMB]).trim(),name,line,bp_cleanNum(r[cOpen]),rms);
+  });
+  return {plant:'GA',sheet,day,entries:Object.values(map)};
+}
+function bp_parseNJ(ws,sheet){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const hi=rows.findIndex(r=>r.some(c=>String(c).trim()==='Meat Block'));
+  if(hi<0)throw new Error('Header row (Meat Block) not found in '+sheet);
+  const h=rows[hi];const nameCol=h.findIndex(c=>String(c).trim()==='Meat Block');const mbCol=Math.max(0,nameCol-1);
+  const cols=[];for(let j=nameCol+1;j<h.length;j++){const t=String(h[j]).trim();if(!t)continue;if(/grand total/i.test(t))break;cols.push([j,t]);}
+  const map={};
+  for(const r of rows.slice(hi+1)){
+    if(/grand total/i.test(String(r[mbCol])+' '+String(r[nameCol])))break;
+    const name=String(r[nameCol]).trim();if(!name)continue;
+    cols.forEach(([j,t])=>{const v=bp_cleanNum(r[j]);if(v>0)bp_addEntry(map,String(r[mbCol]).trim(),name,t,v,null);});
+  }
+  return {plant:'NJ',sheet,day:'',entries:Object.values(map)};
+}
+
+async function planPost(rec){
+  const res=await fetch(PLAN_SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+}
+/* publish the inventory plan (and, on a fresh import, the batch plan from the same workbook) */
+async function sharePlan(wb,fileName){
+  if(!PLAN_SAVE_URL||!planData)return;
+  const day=planData.day||isoToday();planData.day=day;planData.plant=currentPlant;
+  planData.updatedAt=new Date().toISOString();planData.by=planData.by||planDevice();
+  savePlanDia();
+  const tasks=[planPost({key:currentPlant+'|wmsplan|'+day,plant:currentPlant,kind:'wmsplan',day,status:'',batchNo:'',meatBlock:'',
+    updatedAt:planData.updatedAt,updatedBy:planDevice(),json:JSON.stringify(planData)})];
+  let batchMsg='';
+  if(wb){
+    try{
+      const bp=bp_parsePlanWB(wb);
+      if(bp.plant===currentPlant){
+        const now=new Date().toISOString();
+        Object.assign(bp,{date:day,file:fileName||'',loadedAt:now,by:planDevice(),updatedAt:now,total:bp.entries.reduce((a,x)=>a+x.lbs,0)});
+        tasks.push(planPost({key:bp.plant+'|plan|'+day,plant:bp.plant,kind:'plan',day,status:'',batchNo:'',meatBlock:'',updatedAt:now,updatedBy:bp.by,json:JSON.stringify(bp)}));
+        batchMsg=' · Batch: '+bp.entries.length+' meat block/line rows';
+      }else batchMsg=' · Batch: this file is the '+bp.plant+' plan, not sent to '+currentPlant+' Batch';
+    }catch(e){batchMsg=' · Batch: '+e.message;}
+  }
+  try{await Promise.all(tasks);planSync.err='';planData._pending=false;savePlanDia();
+    if(wb)showToast('☁ Plan shared with every '+currentPlant+' device'+batchMsg,'success');}
+  catch(e){planSync.err=e.message;planData._pending=true;savePlanDia();showToast('⚠ Plan saved on this device only — SharePoint not reachable ('+e.message+')','error');}
+  renderPlanSyncLine();
+}
+function schedulePlanPush(){clearTimeout(planSync.pushT);planSync.pushT=setTimeout(()=>sharePlan(null),900);}
+/* merge a plan coming from SharePoint into this device's copy */
+function mergeRemotePlan(r){
+  if(!r||!Array.isArray(r.items))return false;
+  const l=planData;
+  if(!l||l.day!==r.day||String(r.importedAt)>String(l.importedAt||'')){planData=r;delete planData._pending;savePlanDia();return true;}   // new import
+  if(String(r.importedAt)<String(l.importedAt))return false;                                    // older import: ignore
+  let changed=false;                                                                            // same import: newest mark wins per code
+  ['items','sleeves'].forEach(lk=>(r[lk]||[]).forEach(ri=>{const li=(l[lk]||[]).find(x=>x.code===ri.code);if(!li)return;
+    if(String(ri.ts||'')>String(li.ts||'')){li.delivered=ri.delivered;li.done=ri.done;li.ts=ri.ts;changed=true;}}));
+  if(changed)savePlanDia();
+  return changed;
+}
+async function pullSharedPlan(force){
+  if(!PLAN_READ_URL||planSync.busy)return;
+  if(!force&&Date.now()-planSync.at<25000)return;
+  planSync.busy=true;
+  const p0=currentPlant,d=isoToday();
+  try{
+    const z=new Date(d+'T12:00');z.setDate(z.getDate()+1);
+    const iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+    const res=await fetch(PLAN_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:p0,from:d,to:iso(z)})});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const js=await res.json();const rows=Array.isArray(js)?js:(js.value||[]);
+    if(p0!==currentPlant)return;
+    let best=null;
+    rows.forEach(x=>{if((x.Kind||x.kind)!=='wmsplan')return;let o;try{o=JSON.parse(x.JsonData||x.jsonData||'null');}catch(e){o=null;}
+      if(o&&o.day===d&&(!best||String(o.updatedAt)>String(best.updatedAt)))best=o;});
+    planSync.at=Date.now();planSync.err='';
+    if(best){const was=JSON.stringify(planData);if(mergeRemotePlan(aliasPlanItems(best))&&currentView==='plan'&&JSON.stringify(planData)!==was)renderPlanView();}
+    if(planData&&planData._pending)schedulePlanPush();
+  }catch(e){planSync.err=e.message;planSync.at=Date.now();}
+  finally{planSync.busy=false;renderPlanSyncLine();}
+}
+function planSyncText(){
+  if(!PLAN_READ_URL)return '';
+  if(planSync.err)return '⚠ SharePoint not reachable — showing this device\'s copy · <a href="#" onclick="pullSharedPlan(true);return false">Retry</a>';
+  const who=planData&&planData.by?' · loaded by '+planData.by:'';
+  return '☁ Shared plan'+who+(planSync.at?' · checked '+new Date(planSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'')+' · <a href="#" onclick="pullSharedPlan(true);return false">⟳ Refresh</a>';
+}
+function renderPlanSyncLine(){const el=document.getElementById('plan-sync-line');if(el)el.innerHTML=planSyncText();}
+setInterval(()=>{if(currentView==='plan'&&document.visibilityState==='visible')pullSharedPlan(false);},30000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentView==='plan')pullSharedPlan(true);});
+function openPlanning(p){location.href='index.html?planning='+encodeURIComponent(p);}
+
 function savePlanDia(){
   try{
     if(planData)localStorage.setItem(PLAN_DIA_KEY,JSON.stringify(planData));
@@ -4022,7 +4162,9 @@ function importPlanFile(input){
       meta.sleeveLines=currentPlant==='GA'?sleeveLines:['Line 22','Line 23'];   // NJ keeps its two fixed columns
       if(currentPlant==='GA'&&skippedPhys.size)meta.sleeveSkipped=[...skippedPhys];
       planData={importedAt:new Date().toISOString(),source:file.name,meta,items,sleeves,byLine:sched?sched.byLine:null};
+      planData.day=isoToday();planData.by=planDevice();planData.updatedAt=new Date().toISOString();
       savePlanDia();
+      sharePlan(wb,file.name);
       addLog('PLAN IMPORT','Planning imported from "'+file.name+'" ('+sheetName+') — '+items.length+' box codes'+(sleeves.length?', '+sleeves.length+' sleeve codes':''));
       render();
       showToast('Daily Plan imported: '+items.length+' boxes'+(sleeves.length?', '+sleeves.length+' sleeves':'')+'.','success');
@@ -4038,8 +4180,8 @@ function updatePlanDelivered(code,val){
   if(!planData)return;
   const it=planData.items.find(i=>i.code===code);
   if(!it)return;
-  it.delivered=Math.max(0,Number(val)||0);
-  savePlanDia();
+  it.delivered=Math.max(0,Number(val)||0);it.ts=new Date().toISOString();
+  savePlanDia();schedulePlanPush();
   renderPlanView();
 }
 
@@ -4048,8 +4190,8 @@ function togglePlanDone(kind,code){
   const list=kind==='s'?(planData.sleeves||[]):planData.items;
   const it=list.find(i=>i.code===code);
   if(!it)return;
-  it.done=!it.done;
-  savePlanDia();
+  it.done=!it.done;it.ts=new Date().toISOString();
+  savePlanDia();schedulePlanPush();
   renderPlanView();
 }
 
@@ -4151,7 +4293,9 @@ function renderPlanView(){
         <input type="file" id="plan-import-input" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="importPlanFile(this)">
         <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
       </div>
-      <div class="log-empty">No Daily Plan loaded.<br>Upload the production planning file — NJ (with a "Boxes (Total)" sheet) or GA daily file (.xlsb with a "Box Total" sheet) — or reload a saved work file.</div>`;
+      ${PLAN_ONLY
+        ?`<div class="log-empty" style="font-size:14px;line-height:1.6">📅 Load today's <b>${currentPlant}</b> production planning file.<br>Tap <b>⬆ Import Planning</b> and pick the file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}).<br>It is shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).</div>`
+        :`<div class="log-empty">No Daily Plan for today yet.<br>It is loaded once in <b>Start → PLANNING → ${currentPlant}</b> and appears here on every device.<br><a href="#" onclick="pullSharedPlan(true);return false">⟳ Check now</a><div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
     return;
   }
   const summary=getItemSummary();
@@ -4196,6 +4340,7 @@ function renderPlanView(){
       <input type="file" id="plan-import-input" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="importPlanFile(this)">
       <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
     </div>
+    <div class="plan-meta" id="plan-sync-line" style="color:var(--accent)">${planSyncText()}</div>
     <div class="plan-meta">Source: ${planData.source} · Loaded: ${importedDate}${planData.meta&&planData.meta.day?' · Day: '+planData.meta.day:''}${planData.meta&&planData.meta.linePriority?' · Line Priority: '+planData.meta.linePriority:''}</div>
     ${planData.meta&&planData.meta.source==='schedule'?`<div class="plan-meta" style="color:var(--accent)">ℹ︎ Box totals calculated from the schedule data ("${planData.meta.scheduleSheet}": orders with a Line Priority) because the Box Total pivot was empty — same rule as the pivot.</div>`:''}
     ${planData.meta&&planData.meta.crossCheck?`<div class="plan-alert">⚠ ${planData.meta.crossCheck}</div>`:''}
@@ -6091,7 +6236,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.03b';
+const APP_VERSION='2026.11.04a';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -6125,6 +6270,16 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     const nm=document.getElementById('plant-strip-name');if(nm)nm.textContent='🚚 RECEIVING · '+PLANTS[rp].name;
     const sw=document.querySelector('.plant-strip .ps-switch');if(sw)sw.textContent='⌂ Menu';
     document.title='Schweid & Sons · Receiving '+rp;
+    return;
+  }
+  const pp=(qs.get('planning')||'').toUpperCase();
+  if(PLANTS[pp]){                                   // Planning-only: load the day's plan once for the whole plant
+    PLAN_ONLY=true;document.body.classList.add('plan-only');
+    applyPlant(pp);setView('plan');
+    const nm=document.getElementById('plant-strip-name');if(nm)nm.textContent='📅 PLANNING · '+PLANTS[pp].name;
+    const sw=document.querySelector('.plant-strip .ps-switch');if(sw)sw.textContent='⌂ Menu';
+    document.title='Schweid & Sons · Planning '+pp;
+    pullSharedPlan(true);
     return;
   }
   if(qs.get('menu')){showPlantSelector();return;}

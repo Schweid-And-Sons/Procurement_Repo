@@ -188,7 +188,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.10.29c</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.04a</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Export day</button>
@@ -559,7 +559,7 @@ function onPlanFile(input){
 }
 function planLineHtml(){
   const p=loadPlan();
-  if(!p)return `No ${plant} plan for ${listDate()} — <a onclick="document.getElementById('plan-file').click()">⬆ load the Daily Production Plan</a> (the supervisor does it once; every tablet gets it).`;
+  if(!p)return `No ${plant} plan for ${listDate()} yet — it is loaded once in <b>Start → PLANNING → ${plant}</b> and appears here on every tablet · <a onclick="pullRemote(true)">⟳ Check now</a> · <a onclick="document.getElementById('plan-file').click()">load here instead</a>`;
   return `📋 Plan ${esc(p.file)} · ${fmt0(p.total)} lb${p.day?' · Day = <b>'+esc(p.day)+'</b>':''} · loaded ${new Date(p.loadedAt).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${p._dirty?' · <span style="color:#c76a00">not published yet</span>':''} · <a onclick="document.getElementById('plan-file').click()">replace</a>`;
 }
 /* meat blocks offered in the editor: today's plan first, then the full catalogue */
