@@ -5703,6 +5703,8 @@ async function renderSyncHistory(){
   if(_calSelKey)_calYear=+_calSelKey.slice(0,4);
   renderSyncCalendar();
 }
+
+
 const CAL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 let _syncByDay={},_syncUndated=[],_calYear=null,_calMonth=null,_calSelKey=null;
 function syncDateParts(str){
