@@ -46,12 +46,21 @@
   body{min-height:0;}
   .app{height:100%;height:100dvh;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);}
   :root{--plant:#1d4ed8;}
-  .plant-strip{background:var(--plant);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 14px;font-size:12px;letter-spacing:.08em;cursor:pointer;user-select:none;flex-shrink:0;}
+  .plant-strip{background:var(--plant);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 14px;font-size:12px;letter-spacing:.08em;cursor:default;user-select:none;flex-shrink:0;}
   .plant-strip b{font-size:14px;letter-spacing:.12em;}
   .plant-strip .ps-switch{font-size:10px;font-weight:700;border:1px solid rgba(255,255,255,.7);border-radius:5px;padding:3px 8px;white-space:nowrap;}
   @media(max-width:679px){.plant-strip .ps-sub{display:none;}}
   #plant-overlay{background:var(--bg);align-items:center;justify-content:center;}
-  .plant-box{width:min(460px,92vw);display:flex;flex-direction:column;gap:14px;text-align:center;}
+  .plant-box{width:min(460px,92vw);display:flex;flex-direction:column;gap:14px;text-align:center;position:relative;}
+  .theme-mini{border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:999px;width:32px;height:28px;font-size:14px;line-height:1;cursor:pointer;flex:none;}
+  /* top bar buttons — the same in Inventory, Receiving, Batch and Waste: 🌙 · ⇄ other plant · ⌂ Menu */
+  .tb-right{display:flex;gap:6px;align-items:center;flex:none;}
+  .tb-btn{display:inline-flex;align-items:center;justify-content:center;height:30px;min-width:34px;padding:0 12px;border:none!important;border-radius:999px!important;background:rgba(255,255,255,.22)!important;color:#fff!important;font:inherit;font-size:12px!important;font-weight:700!important;letter-spacing:0!important;white-space:nowrap;text-decoration:none!important;cursor:pointer;}
+  .tb-btn:active{background:rgba(255,255,255,.35)!important;}
+  .tb-btn.theme-mini{padding:0;width:34px;font-size:15px!important;}
+  .tb-right .tb-btn{padding:0 12px!important;height:30px!important;line-height:30px;}
+  .tb-right .tb-btn.theme-mini{padding:0!important;width:34px!important;}
+  .theme-mini-start{position:absolute;top:0;right:0;background:var(--surface2);color:var(--text);border:1px solid var(--border);width:38px;height:34px;font-size:16px;z-index:2;}
   .plant-brand{font-size:15px;font-weight:800;letter-spacing:.12em;color:var(--accent2);text-transform:uppercase;}
   .plant-q{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.15em;margin-bottom:4px;}
   .plant-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 16px;border-radius:14px;border:3px solid var(--pc);background:var(--surface);color:var(--text);cursor:pointer;font-family:inherit;transition:transform .1s,background .15s;}
@@ -841,7 +850,9 @@
   #plant-overlay{align-items:flex-start!important;overflow-y:auto;padding:16px 0;box-sizing:border-box;}
   .plant-box{margin:auto;}
   @media(min-width:760px) and (max-height:900px){
-    .plant-box{width:min(1240px,96vw);display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    .plant-box{width:min(1240px,96vw);display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+    .plant-box>.plant-btn{grid-column:span 3;}            /* NJ | GA on top */
+    .plant-box>.plant-btn.tool{grid-column:span 2;}       /* RECEIVING | BATCH | WASTE below */
     .plant-box>.plant-brand,.plant-box>.plant-q,.plant-box>.plant-rem,.plant-box>.app-ver{grid-column:1/-1;}
     .plant-btn{padding:22px 12px!important;}
   }
@@ -979,6 +990,8 @@
   .po-date{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:12px;padding:4px;box-shadow:var(--shadow);}
   .po-date button{border:none;background:none;font-size:18px;width:34px;height:34px;border-radius:9px;cursor:pointer;color:var(--accent);}
   .po-date input{border:none;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--text);padding:4px;}
+  .po-date button.po-date-lbl{width:auto;height:34px;padding:0 10px;font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;}
+  .po-date button.po-date-lbl.on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);}
   .po-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
   .po-kpi{background:var(--surface);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);}
   .po-kpi b{display:block;font-size:22px;}
@@ -1108,6 +1121,7 @@ try{
 <body>
 <div class="modal-overlay hidden" id="plant-overlay" style="z-index:10000">
   <div class="plant-box">
+    <button class="theme-mini theme-mini-start" onclick="toggleThemeMini(event)" title="Night mode">🌙</button>
     <div class="plant-brand">Schweid &amp; Sons · WMS</div>
     <div class="plant-q">Select plant</div>
     <button class="plant-btn" data-plant="NJ" style="--pc:#1d4ed8" onclick="choosePlant('NJ')">
@@ -1116,14 +1130,16 @@ try{
     <button class="plant-btn" data-plant="GA" style="--pc:#15803d" onclick="choosePlant('GA')">
       <span class="pb-code">GA</span><span class="pb-name">GEORGIA</span><span class="pb-sum" id="plant-sum-GA"></span>
     </button>
-    <button class="plant-btn" style="--pc:#b91c1c" onclick="location.href='batch.html'">
-      <span class="pb-code">BATCH</span><span class="pb-name">🥩 BATCH SHEETS</span><span class="pb-sum" id="plant-sum-BATCH"></span>
-    </button>
-    <div class="plant-btn rcv-tile" style="--pc:#0369a1">
+    <div class="plant-btn rcv-tile tool" style="--pc:#0369a1">
       <span class="pb-code">RECEIVING</span><span class="pb-name">🚚 YOOZ POs</span>
-      <span class="rcv-pick"><button type="button" onclick="openReceiving('NJ')">NJ</button><button type="button" onclick="openReceiving('GA')">GA</button></span>
+      <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="openReceiving('NJ')">NJ</button><button type="button" onclick="openReceiving('GA')">GA</button></span>
     </div>
-    <div class="plant-btn rcv-tile" style="--pc:#6b7280">
+    <div class="plant-btn rcv-tile tool" style="--pc:#b91c1c">
+      <span class="pb-code">BATCH</span><span class="pb-name">🥩 BATCH SHEETS</span>
+      <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="location.href='batch.html?plant=NJ'">NJ</button><button type="button" onclick="location.href='batch.html?plant=GA'">GA</button></span>
+      <span class="pb-sum" id="plant-sum-BATCH"></span>
+    </div>
+    <div class="plant-btn rcv-tile tool" style="--pc:#6b7280">
       <span class="pb-code">WASTE</span><span class="pb-name">🗑 DAILY WASTE</span>
       <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="location.href='waste.html?plant=NJ'">NJ</button><button type="button" onclick="location.href='waste.html?plant=GA'">GA</button></span>
       <span class="pb-sum" id="plant-sum-WASTE"></span>
@@ -1186,9 +1202,9 @@ try{
 
   
   <div class="main">
-    <div class="plant-strip" onclick="requestPlantSwitch()" title="Switch plant">
-      <span>📍 <b id="plant-strip-name">—</b> <span class="ps-sub">· Direct Materials</span></span>
-      <span class="ps-switch">⇄ Switch plant</span>
+    <div class="plant-strip">
+      <span><span id="ps-icon">📍</span> <b id="plant-strip-name">—</b> <span class="ps-sub" id="ps-tool">· Inventory</span></span>
+      <span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><button class="tb-btn" id="ps-swap" onclick="stripSwap()" title="Switch plant">⇄</button><button class="tb-btn ps-switch" onclick="requestPlantSwitch()" title="Main menu">⌂ Menu</button></span>
     </div>
     <div class="topbar">
       <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
@@ -3086,6 +3102,7 @@ function applyPlant(p){
   document.querySelectorAll('.modal-overlay').forEach(o=>o.classList.add('hidden'));
   document.documentElement.style.setProperty('--plant',cfg.color);
   const strip=document.getElementById('plant-strip-name'); if(strip)strip.textContent=cfg.name;
+  {const sw=document.getElementById('ps-swap');if(sw)sw.textContent='⇄ '+(p==='NJ'?'GA':'NJ');}
   const sub=document.querySelector('.logo .sub'); if(sub)sub.textContent=p+' · Direct Materials Inventory';
   document.title='Schweid & Sons WMS · '+p+' Direct Materials';
   document.querySelectorAll('.nj-only').forEach(el=>el.style.display=cfg.boxRoom?'':'none');
@@ -3112,7 +3129,7 @@ function showPlantSelector(){
     const day=k=>{try{return (JSON.parse(localStorage.getItem(k)||'[]')||[]).filter(b=>b.date===iso&&b.status!=='deleted');}catch(e){return [];}};
     const txt=(p,l)=>{const open=l.filter(b=>b.status!=='done'&&!(b.status==null&&b.completedAt)).length;return p+' '+l.length+(open?' · '+open+' open':'');};
     const nj=day('batch_sheets_nj'),ga=day('batch_sheets_ga');
-    bs.innerHTML='Production · Today: '+txt('NJ',nj)+' &nbsp;|&nbsp; '+txt('GA',ga);
+    bs.innerHTML='Today: '+txt('NJ',nj)+' &nbsp;|&nbsp; '+txt('GA',ga);
   }
   const ws=document.getElementById('plant-sum-WASTE');
   if(ws){const d=new Date(),iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -3132,9 +3149,16 @@ function choosePlant(p){
 }
 let RCV_ONLY=false;
 function openReceiving(p){location.href='index.html?receiving='+encodeURIComponent(p);}
+/* ⇄ in the top bar: straight to the other plant (same tool) */
+function stripSwap(){
+  const o=currentPlant==='NJ'?'GA':'NJ';
+  if(RCV_ONLY){location.href='index.html?receiving='+o;return;}
+  if(PLAN_ONLY){location.href='index.html?planning='+o;return;}
+  if(!confirm('Switch to '+PLANTS[o].name+'? Everything in '+PLANTS[currentPlant].name+' stays saved exactly as it is.'))return;
+  choosePlant(o);
+}
 function requestPlantSwitch(){
   if(RCV_ONLY||PLAN_ONLY){location.href='index.html?menu=1';return;}
-  if(!confirm('Switch plant? Everything in '+PLANTS[currentPlant].name+' stays saved exactly as it is.'))return;
   showPlantSelector();
 }
 window.addEventListener('popstate',function(){
@@ -5048,9 +5072,8 @@ function renderPoView(noSync){
   loadSpCache();
   const pend=Object.values(loadReceipts()).filter(isPending);
   let h=`<div class="po-bar">
-    <div class="po-date"><button onclick="poShiftDay(-1)" aria-label="Previous day">‹</button><input type="date" value="${poDate}" onchange="poDate=this.value||poDate;renderPoView()"><button onclick="poShiftDay(1)" aria-label="Next day">›</button></div>
+    <div class="po-date"><button onclick="poShiftDay(-1)" aria-label="Previous day">‹</button><button class="po-date-lbl${poCalOpen?' on':''}" onclick="togglePoCal()" title="Open the calendar">📅 ${new Date(poDate+'T12:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</button><button onclick="poShiftDay(1)" aria-label="Next day">›</button></div>
     <button class="po-btn" onclick="poDate=ymd(new Date());poCalOpen=false;renderPoView()">Today</button>
-    <button class="po-btn${poCalOpen?' pri':''}" onclick="togglePoCal()">📅 Calendar</button>
     ${YOOZ_FLOW_URL?`<button class="po-btn pri" onclick="loadYoozFromFlow(true)" ${yoozFetch.busy?'disabled':''}>${yoozFetch.busy?'⏳ Loading POs…':'⟳ Refresh POs'}</button>
     <button class="po-btn" onclick="document.getElementById('po-file-input').click()" title="Use a Yooz export instead">⬆ File</button>`
     :`<button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>`}
@@ -5183,7 +5206,7 @@ function poFindAndHistoryHtml(){
     +(hist.length?hist.map(r=>poReportCard(r)).join(''):`<div class="po-empty">No receiving reports in the last 35 days.</div>`);
   return h;
 }
-function poShiftDay(n){const d=new Date(poDate+'T12:00');d.setDate(d.getDate()+n);poDate=ymd(d);renderPoView();}
+function poShiftDay(n){if(poCalOpen){poCalShift(n);return;}const d=new Date(poDate+'T12:00');d.setDate(d.getDate()+n);poDate=ymd(d);renderPoView();}
 function closePoModal(e){if(!e||e.target===document.getElementById('po-overlay'))document.getElementById('po-overlay').classList.add('hidden');}
 
 /* ---------- Receive form ----------
@@ -6111,13 +6134,25 @@ function closeSidebar(){
   document.getElementById('sidebar-overlay').classList.remove('active');
 }
 
-function toggleTheme(){
+function toggleTheme(){toggleThemeMini();}
+function toggleThemeOld(){
   const isDark=document.body.classList.toggle('theme-dark');
   document.documentElement.classList.toggle('theme-dark',isDark);
   const btn=document.getElementById('theme-btn');
   btn.textContent=isDark?'☀ Day Mode':'🌙 Night Mode';
   try{localStorage.setItem('wms_theme',isDark?'dark':'light');}catch(e){}
 }
+
+/* 🌙 / ☀ small button: same night mode for the whole WMS (saved as wms_theme) */
+function themeIsDark(){return document.documentElement.classList.contains('theme-dark');}
+function paintThemeMini(){const d=themeIsDark();document.querySelectorAll('.theme-mini').forEach(b=>{b.textContent=d?'☀':'🌙';b.title=d?'Day mode':'Night mode';});}
+function toggleThemeMini(ev){if(ev)ev.stopPropagation();const d=!themeIsDark();
+  document.documentElement.classList.toggle('theme-dark',d);document.body.classList.toggle('theme-dark',d);
+  try{localStorage.setItem('wms_theme',d?'dark':'light');}catch(e){}
+  const b=document.getElementById('theme-btn');if(b)b.textContent=d?'☀ Day Mode':'🌙 Night Mode';
+  const b2=document.getElementById('theme-btn-drawer');if(b2)b2.textContent=d?'☀ Day Mode':'🌙 Night Mode';
+  paintThemeMini();}
+document.addEventListener('DOMContentLoaded',paintThemeMini);setTimeout(paintThemeMini,0);
 function loadTheme(){
   try{
     const t=localStorage.getItem('wms_theme');
@@ -6605,7 +6640,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.05h';
+const APP_VERSION='2026.11.05m';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -6636,8 +6671,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
   if(PLANTS[rp]){                                   // Receiving-only: anyone can receive a truck without entering the inventory
     RCV_ONLY=true;document.body.classList.add('rcv-only');
     applyPlant(rp);setView('po');
-    const nm=document.getElementById('plant-strip-name');if(nm)nm.textContent='🚚 RECEIVING · '+PLANTS[rp].name;
-    const sw=document.querySelector('.plant-strip .ps-switch');if(sw)sw.textContent='⌂ Menu';
+    document.getElementById('ps-icon').textContent='🚚';document.getElementById('ps-tool').textContent='· Receiving';
     document.title='Schweid & Sons · Receiving '+rp;
     return;
   }
@@ -6663,8 +6697,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
   if(PLANTS[pp]){                                   // Planning-only: load the day's plan once for the whole plant
     PLAN_ONLY=true;document.body.classList.add('plan-only');
     applyPlant(pp);setView('plan');
-    const nm=document.getElementById('plant-strip-name');if(nm)nm.textContent='📅 PLANNING · '+PLANTS[pp].name;
-    const sw=document.querySelector('.plant-strip .ps-switch');if(sw)sw.textContent='⌂ Menu';
+    document.getElementById('ps-icon').textContent='📅';document.getElementById('ps-tool').textContent='· Planning';
     document.title='Schweid & Sons · Planning '+pp;
     pullSharedPlan(true);
     return;

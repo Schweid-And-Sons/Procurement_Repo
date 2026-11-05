@@ -24,7 +24,21 @@
   button,input,select,textarea{font-family:inherit;}
   .strip{background:var(--plant);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 14px;position:sticky;top:0;z-index:50;}
   .strip b{font-size:14px;letter-spacing:.12em;}
+  .theme-mini{border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:999px;width:32px;height:28px;font-size:14px;line-height:1;cursor:pointer;flex:none;}
   .strip a{color:#fff;text-decoration:none;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,.7);border-radius:5px;padding:3px 8px;white-space:nowrap;}
+  /* top bar: same look as the WMS (floating capsule in the plant color) */
+  .strip{margin:8px 12px 0!important;border-radius:16px!important;top:8px!important;padding:9px 14px!important;font-size:14px!important;letter-spacing:0!important;
+    background:linear-gradient(135deg,var(--plant),color-mix(in srgb,var(--plant) 75%,#000))!important;box-shadow:0 6px 20px color-mix(in srgb,var(--plant) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.25)!important;}
+  .strip b{font-size:15px!important;letter-spacing:.02em!important;}
+  .strip .sub{font-size:14px;opacity:1;margin-left:4px;font-weight:400;}
+  @media(max-width:679px){.strip .sub{display:none;}}
+  /* top bar buttons — the same in Inventory, Receiving, Batch and Waste: 🌙 · ⇄ other plant · ⌂ Menu */
+  .tb-right{display:flex;gap:6px;align-items:center;flex:none;}
+  .tb-btn{display:inline-flex;align-items:center;justify-content:center;height:30px;min-width:34px;padding:0 12px;border:none!important;border-radius:999px!important;background:rgba(255,255,255,.22)!important;color:#fff!important;font:inherit;font-size:12px!important;font-weight:700!important;letter-spacing:0!important;white-space:nowrap;text-decoration:none!important;cursor:pointer;}
+  .tb-btn:active{background:rgba(255,255,255,.35)!important;}
+  .tb-btn.theme-mini{padding:0;width:34px;font-size:15px!important;}
+  .tb-right .tb-btn{padding:0 12px!important;height:30px!important;line-height:30px;}
+  .tb-right .tb-btn.theme-mini{padding:0!important;width:34px!important;}
   .plant-tg{display:flex;gap:4px;}
   .plant-tg button{background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;border-radius:5px;padding:3px 9px;font-weight:800;cursor:pointer;font-size:11px;}
   .plant-tg button.on{background:#fff;color:var(--plant);}
@@ -177,10 +191,11 @@
 </head>
 <body>
 <div class="strip">
-  <span>🥩 <b id="plant-name">—</b> · Batch Sheets</span>
-  <span style="display:flex;gap:8px;align-items:center">
-    <span class="plant-tg"><button id="pt-NJ" onclick="setPlant('NJ')">NJ</button><button id="pt-GA" onclick="setPlant('GA')">GA</button></span>
-    <a href="index.html">← WMS</a>
+  <span>🥩 <b id="plant-name">—</b><span class="sub">· Batch Sheets</span></span>
+  <span class="tb-right">
+    <button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button>
+    <button class="tb-btn" id="pt-swap" onclick="setPlant(plant==='NJ'?'GA':'NJ')" title="Switch plant">⇄</button>
+    <a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a>
   </span>
 </div>
 
@@ -188,7 +203,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.04c</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.05c</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Export day</button>
@@ -711,7 +726,7 @@ function setPlant(p,keepView){
   try{localStorage.setItem('batch_last_plant',p);}catch(e){}
   document.documentElement.style.setProperty('--plant',PLANT_COLORS[p]);
   document.getElementById('plant-name').textContent=PLANT_NAMES[p];
-  ['NJ','GA'].forEach(x=>document.getElementById('pt-'+x).classList.toggle('on',x===p));
+  document.getElementById('pt-swap').textContent='⇄ '+(p==='NJ'?'GA':'NJ');
   loadBatches();sync.at=0;
   if(!keepView)showList();
   pullRemote(true);
@@ -1277,10 +1292,23 @@ function exportDay(){
 /* ---------- start ---------- */
 (function(){
   try{if(localStorage.getItem('wms_theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch(e){}
+  paintThemeMini();
   document.getElementById('list-date').value=isoToday();
   let p='NJ';try{p=localStorage.getItem('batch_last_plant')||localStorage.getItem('wms_plant_remember')||'NJ';}catch(e){}
+  {const q=(new URLSearchParams(location.search).get('plant')||'').toUpperCase();if(q==='NJ'||q==='GA')p=q;}   // Start → BATCH → NJ / GA
   setPlant(PLANT_COLORS[p]?p:'NJ');
 })();
+
+/* 🌙 / ☀ small button: same night mode for the whole WMS (saved as wms_theme) */
+function themeIsDark(){return document.documentElement.classList.contains('theme-dark');}
+function paintThemeMini(){const d=themeIsDark();document.querySelectorAll('.theme-mini').forEach(b=>{b.textContent=d?'☀':'🌙';b.title=d?'Day mode':'Night mode';});}
+function toggleThemeMini(ev){if(ev)ev.stopPropagation();const d=!themeIsDark();
+  document.documentElement.classList.toggle('theme-dark',d);document.body.classList.toggle('theme-dark',d);
+  try{localStorage.setItem('wms_theme',d?'dark':'light');}catch(e){}
+  const b=document.getElementById('theme-btn');if(b)b.textContent=d?'☀ Day Mode':'🌙 Night Mode';
+  const b2=document.getElementById('theme-btn-drawer');if(b2)b2.textContent=d?'☀ Day Mode':'🌙 Night Mode';
+  paintThemeMini();}
+document.addEventListener('DOMContentLoaded',paintThemeMini);setTimeout(paintThemeMini,0);
 </script>
 </body>
 </html>
