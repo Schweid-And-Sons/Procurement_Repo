@@ -798,7 +798,7 @@
 
   /* — bottom tab bar → floating glass capsule — */
   @media(max-width:679px){
-    .bottom-nav{left:10px!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;padding:5px 4px!important;border-radius:26px!important;border:.5px solid var(--glass-edge)!important;
+    .bottom-nav{left:10px!important;right:10px!important;bottom:max(6px,calc(env(safe-area-inset-bottom) - 20px))!important;padding:5px 4px!important;border-radius:26px!important;border:.5px solid var(--glass-edge)!important;
       background:var(--glass)!important;-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);box-shadow:0 10px 30px rgba(0,0,0,.15);}
     .bnav-btn{font-size:10px!important;text-transform:none!important;letter-spacing:0!important;font-weight:500;border-radius:20px;padding:6px 2px!important;}
     .bnav-btn.active{color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 12%,transparent);}
@@ -6533,7 +6533,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.05f';
+const APP_VERSION='2026.11.05g';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
