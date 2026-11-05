@@ -5005,6 +5005,7 @@ async function syncReceiptsFromSP(force){
     const keep={};Object.values(_spRec||{}).forEach(r=>{if(String(r.ts)<a.toISOString())keep[r.key]=r;}); // older ones found by search stay cached
     list.forEach(r=>{keep[r.key]=r;});
     _spRec=keep;_spSync.at=Date.now();_spSync.plant=plant;saveSpCache();
+    _spSync.keys=new Set(list.map(r=>r.key));_spSync.from=a.toISOString();   // what SharePoint really has right now
   }catch(e){_spSync.err=e.message;_spSync.at=Date.now();}
   finally{_spSync.busy=false;}
   if(currentView==='po'&&document.getElementById('po-overlay').classList.contains('hidden'))renderPoView(true);else renderPoSyncLine();
@@ -5063,7 +5064,7 @@ function renderPoView(noSync){
   }
   {const gk=new Set(poGroups().map(g=>g.key));
    const manual=Object.values(allReceipts()).filter(r=>r.due===poDate&&!gk.has(baseKeyOf(r.key))).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
-   if(manual.length)h+=`<div class="po-sec">Received ${fmtDay(poDate)} — not on the list</div>`+manual.map(r=>poReportCard(r,isPending(r))).join('');}
+   if(manual.length)h+=`<div class="po-sec">Received ${fmtDay(poDate)} — not on the list</div>`+manual.map(r=>poReportCard(r,isPending(r)||isGhost(r))).join('');}
   h+=`<button class="po-manual-btn" onclick="openPoManual()">＋ A truck arrived that is <u>not</u> on this list</button>`;
   h+=`<button class="po-earlier-btn po-past-btn${poPastOpen?' open':''}" onclick="poPastOpen=!poPastOpen;renderPoView(true)"><span>📁 Past receiving reports</span><span class="po-sub">search by PO, vendor or day</span><span class="chev">${poPastOpen?'▴':'▾'}</span></button>`;
   if(poPastOpen)h+=`<div class="po-past">${poFindAndHistoryHtml()}</div>`;
@@ -5112,16 +5113,23 @@ async function poFind(mode){
   renderPoFind();
 }
 function renderPoFind(){const el=document.getElementById('po-find-res');if(el)el.innerHTML=poFindResultsHtml();}
+/* a copy kept on this device that SharePoint no longer has (e.g. a test deleted from the list) */
+function isGhost(r){
+  if(!_spSync.keys||_spSync.plant!==currentPlant||_spSync.keys.has(r.key))return false;
+  const L=loadReceipts()[r.key],S=(_spRec||{})[r.key],x=L||S;
+  return !!x&&!isPending(x)&&String(x.ts)>=_spSync.from;
+}
 function discardLocalReceipt(key){
-  const r=loadReceipts()[key];if(!r)return;
-  if(!confirm('Discard this report from this device?\n\n'+r.po+' · '+r.vendor+'\n\nIt was never uploaded to SharePoint, so it is only deleted here.'))return;
+  const r=allReceipts()[key];if(!r)return;
+  if(!confirm('Discard this report from this device?\n\n'+r.po+' · '+r.vendor+'\n\nIt is not in SharePoint, so it is only deleted here.'))return;
   const all=loadReceipts();delete all[key];saveReceipts(all);
+  if(_spRec&&_spRec[key]){delete _spRec[key];saveSpCache();}
   addLog('RECEIVE','Discarded local report '+r.po+' · '+r.vendor);
   renderPoView(true);showToast('Report discarded.','success');
 }
 function poReportCard(r,canDiscard){
   const s=receiptStatus(r);const dn=deliveryOf(r.key);
-  const src=isPending(r)?'<span class="po-tag warn">⚠ only on this device</span>':'<span class="po-tag">☁ SharePoint</span>';
+  const src=isPending(r)?'<span class="po-tag warn">⚠ only on this device</span>':isGhost(r)?'<span class="po-tag warn">⚠ not in SharePoint anymore</span>':'<span class="po-tag">☁ SharePoint</span>';
   return `<div class="po-card" onclick="openPoReport('${poEsc(r.key)}')"><div class="po-main"><div class="po-t">${poEsc(r.po)} · ${poEsc(r.vendor)}${dn>1?' · delivery '+dn:''}</div>
     <div class="po-l">${src} Checked ${new Date(r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'})}${r.by?' by '+poEsc(r.by):''} · ${r.lines.length} line(s)</div></div>${canDiscard?`<button class="po-btn bad" style="margin-right:6px" onclick="event.stopPropagation();discardLocalReceipt('${poEsc(r.key)}')">🗑 Discard</button>`:''}<span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;
 }
@@ -5145,9 +5153,9 @@ function poFindAndHistoryHtml(){
   // Recent = only what is in SharePoint (last 35 days) → every device shows the same list.
   // Reports that never reached SharePoint (e.g. tests) are listed apart, with Upload / Discard.
   const cut=new Date(Date.now()-35*864e5).toISOString(),all=Object.values(allReceipts());
-  const loc=all.filter(isPending).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  const loc=all.filter(r=>isPending(r)||isGhost(r)).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
   if(loc.length)h+=`<div class="po-sec">⚠ Only on this device <span style="font-weight:500;color:var(--text3);font-size:11px">· not in SharePoint — upload them, or discard tests</span></div>`+loc.map(r=>poReportCard(r,true)).join('');
-  const hist=all.filter(r=>!isPending(r)&&String(r.ts)>=cut).sort((a,b)=>String(b.ts).localeCompare(String(a.ts))).slice(0,20);
+  const hist=all.filter(r=>!isPending(r)&&!isGhost(r)&&(_spSync.keys?_spSync.keys.has(r.key):String(r.ts)>=cut)).sort((a,b)=>String(b.ts).localeCompare(String(a.ts))).slice(0,20);
   h+=`<div class="po-sec">Recent receiving reports <span style="font-weight:500;color:var(--text3);font-size:11px">· SharePoint · last 35 days · same on every device</span></div>`
     +(hist.length?hist.map(r=>poReportCard(r)).join(''):`<div class="po-empty">No receiving reports in the last 35 days.</div>`);
   return h;
@@ -6525,7 +6533,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.05e';
+const APP_VERSION='2026.11.05f';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
