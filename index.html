@@ -984,6 +984,12 @@
   .po-kpi b{display:block;font-size:22px;}
   .po-kpi span{font-size:11px;color:var(--text3);}
   .po-sec{font-size:13px;font-weight:700;color:var(--text2);margin:16px 2px 8px;}
+  .po-earlier-btn{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;width:100%;margin:18px 0 8px;padding:12px 14px;border:1px dashed var(--border);border-radius:12px;background:var(--surface2);color:var(--text2);font:inherit;font-size:13px;font-weight:600;text-align:left;cursor:pointer;}
+  .po-earlier-btn b{display:inline-block;min-width:22px;text-align:center;background:#c76a00;color:#fff;border-radius:999px;padding:1px 7px;margin-left:4px;font-size:12px;}
+  .po-earlier-btn .po-sub{font-weight:500;font-size:11px;color:var(--text3);}
+  .po-earlier-btn .chev{margin-left:auto;font-size:14px;}
+  .po-earlier{border-left:3px solid #c76a00;padding-left:10px;}
+  .po-earlier .po-card{opacity:.92;}
   .po-card{background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;display:flex;gap:12px;align-items:center;}
   .po-card:active{transform:scale(.99);}
   .po-card .po-main{flex:1;min-width:0;}
@@ -4811,10 +4817,10 @@ async function shareBoxRoomMap(){
 /* ---------- Receiving (Yooz POs) ----------
    Each PO line has three numbers: ordered (from Yooz), BOL (what the supplier says it sent) and counted
    (what we actually unloaded). Any difference becomes a short report for Procurement. Yooz is only read, never changed.
-   For now the Yooz file is loaded by hand; later the same data will come from Databricks through Power Automate. */
+   Yooz lines come from Databricks through the flow WMS_Yooz_POs (svc_wms_receiving); the Yooz file can still be loaded by hand. */
 const YOOZ_LINES_KEY='wms_yooz_lines';              // shared by both plants (plant comes from the code suffix)
 const PLANT_SUFFIX={NJ:'1',GA:'4'};
-let poDate=null;
+let poDate=null,poEarlierOpen=false;
 const receiptsKey=()=>'wms_receipts_'+String(currentPlant||'NJ').toLowerCase();
 function loadYooz(){try{return JSON.parse(localStorage.getItem(YOOZ_LINES_KEY))||null;}catch(e){return null;}}
 function loadReceipts(){try{return JSON.parse(localStorage.getItem(receiptsKey()))||{};}catch(e){return {};}}
@@ -4849,7 +4855,7 @@ function yoozRowsToLines(rows){
    Flow WMS_Yooz_POs (account svc_wms_receiving) runs one SQL query on prod_reporting.procurement.yooz_direct_materials_master_data:
    PO lines due from 30 days ago onward, NJ (-1) and GA (-4) codes. Yooz is copied to Databricks every evening, so each device
    asks once a day (when Receiving opens) and on "⟳ Refresh POs". No credentials here: the flow holds the Databricks connection. */
-const YOOZ_FLOW_URL='';
+const YOOZ_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/5f4098bb71a84893893b123b1406d744/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tHJ6sHmveD4ZpcOQY9tX4Y9PKVgJvt-CeAocBqSXI0o';
 let yoozFetch={busy:false,err:''};
 async function loadYoozFromFlow(manual){
   if(!YOOZ_FLOW_URL||yoozFetch.busy)return;
@@ -5028,7 +5034,8 @@ function renderPoView(noSync){
     const groups=poGroups();
     const today=groups.filter(g=>g.due===poDate).sort((a,b)=>a.vendor.localeCompare(b.vendor));
     const lim=new Date(poDate+'T12:00');lim.setDate(lim.getDate()-14);const limS=ymd(lim);
-    const earlier=groups.filter(g=>g.due<poDate&&g.due>=limS&&['pend','late'].includes(groupStatus(g.key))).sort((a,b)=>b.due.localeCompare(a.due));
+    const yoozRecv=g=>g.lines.length&&g.lines.every(l=>l.recv);          // already received in Yooz (by anyone)
+    const earlier=groups.filter(g=>g.due<poDate&&g.due>=limS&&['pend','late'].includes(groupStatus(g.key))&&!yoozRecv(g)).sort((a,b)=>b.due.localeCompare(a.due));
     const st=today.map(g=>groupStatus(g.key));
     h+=`<div class="po-kpis">
       <div class="po-kpi"><b>${today.length}</b><span>PO(s) expected</span></div>
@@ -5039,11 +5046,13 @@ function renderPoView(noSync){
     const card=g=>{const s=groupStatus(g.key);const ds=deliveriesFor(g.key).filter(r=>!r.notArrived);
       return `<div class="po-card" onclick="openPoGroup('${poEsc(g.key)}')"><div class="po-main">
         <div class="po-t">${poEsc(g.po)} <span style="font-weight:500;color:var(--text3);font-size:11px">· due ${fmtDay(g.due)}${ds.length>1?' · '+ds.length+' deliveries':''}</span></div>
-        <div class="po-v">${poEsc(g.vendor)} · ${g.lines.length} line(s)</div>
+        <div class="po-v">${poEsc(g.vendor)} · ${g.lines.length} line(s)${yoozRecv(g)?' · <span style="color:var(--success);font-weight:600">received in Yooz '+fmtDay(g.lines.map(l=>l.recv).sort().pop())+'</span>':''}</div>
         <div class="po-l">${g.lines.map(l=>l.code+' '+(l.ordered!=null?l.ordered.toLocaleString():'')).join(' · ')}</div>
       </div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;};
     h+=`<div class="po-sec">Expected ${fmtDay(poDate)}</div>`+(today.length?today.map(card).join(''):`<div class="po-empty">No DM purchase orders due on ${fmtDay(poDate)}.</div>`);
-    if(earlier.length)h+=`<div class="po-sec">Earlier — still waiting (last 14 days)</div>`+earlier.map(card).join('');
+    if(earlier.length)h+=`<button class="po-earlier-btn${poEarlierOpen?' open':''}" onclick="poEarlierOpen=!poEarlierOpen;renderPoView(true)">
+        <span>⏳ Earlier POs still waiting <b>${earlier.length}</b></span><span class="po-sub">due before ${fmtDay(poDate)} · last 14 days · not received yet</span><span class="chev">${poEarlierOpen?'▴':'▾'}</span></button>`
+      +(poEarlierOpen?`<div class="po-earlier">${earlier.map(card).join('')}</div>`:'');
   }
   h+=poFindAndHistoryHtml();
   el.innerHTML=h;
@@ -6452,7 +6461,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.05a';
+const APP_VERSION='2026.11.05c';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
