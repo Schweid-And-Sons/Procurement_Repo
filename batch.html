@@ -188,7 +188,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.04a</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.04c</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Export day</button>
@@ -259,7 +259,6 @@
       <div class="tot">Boxes: <span id="tot-count">0</span> &nbsp; Batch amount (used): <span id="tot-lbs">0</span> lbs</div>
     </div>
 
-    
     <div class="card">
       <h2>4 · Seasoning</h2>
       <div class="seg" id="seas-yn"><button data-v="no" onclick="setSeason('no')">No seasoning</button><button data-v="yes" onclick="setSeason('yes')">Yes, seasoned</button></div>
@@ -553,14 +552,35 @@ function onPlanFile(input){
       savePlanLocal(p);schedulePush();
       toast(`Plan loaded: ${p.entries.length} meat block/line rows · ${fmt0(p.total)} lb`+(p.day?` · Day = ${p.day}`:''));
       render();
+      if(d===isoToday())sendPlanToInventory(e.target.result,f.name,p.plant);
     }catch(err){toast('Could not read the plan: '+err.message,true);}
     finally{input.value='';}
   };
   rd.readAsArrayBuffer(f);
 }
+/* the same file also feeds the Inventory Daily Plan (boxes + sleeves): index.html is opened hidden and does
+   exactly what Inventory → Plan → ⬆ Import Planning does, so loading here or there gives the same result */
+function sendPlanToInventory(buf,name,pl){
+  const fr=document.createElement('iframe');fr.style.display='none';
+  const id=Date.now()+'';let done=false;
+  const end=(msg,err)=>{if(done)return;done=true;window.removeEventListener('message',on);clearTimeout(t);fr.remove();if(msg)toast(msg,err);};
+  const on=ev=>{
+    if(ev.source!==fr.contentWindow||!ev.data)return;
+    if(ev.data.type==='wms-plan-import-ready')fr.contentWindow.postMessage({type:'wms-plan-import',id,buf,name},'*');
+    else if(ev.data.type==='wms-plan-import-done'&&ev.data.id===id){
+      const r=ev.data;
+      if(r.ok)end(`✓ Plan also sent to Inventory ${pl}: ${r.boxes} boxes`+(r.sleeves?`, ${r.sleeves} sleeves`:''));
+      else end(`⚠ Batch plan loaded, but Inventory ${pl} was not updated (${r.err||'not saved'}). Load it in Inventory → Plan.`,true);
+    }
+  };
+  const t=setTimeout(()=>end(`⚠ Batch plan loaded, but Inventory ${pl} did not answer. Load it in Inventory → Plan.`,true),30000);
+  window.addEventListener('message',on);
+  fr.src='index.html?planimport='+encodeURIComponent(pl);
+  document.body.appendChild(fr);
+}
 function planLineHtml(){
   const p=loadPlan();
-  if(!p)return `No ${plant} plan for ${listDate()} yet — it is loaded once in <b>Start → PLANNING → ${plant}</b> and appears here on every tablet · <a onclick="pullRemote(true)">⟳ Check now</a> · <a onclick="document.getElementById('plan-file').click()">load here instead</a>`;
+  if(!p)return `No ${plant} plan for ${listDate()} yet — load it once here or in <b>Inventory ${plant} → Plan</b> — it goes to both and appears on every tablet · <a onclick="pullRemote(true)">⟳ Check now</a> · <a onclick="document.getElementById('plan-file').click()">⬆ Load plan</a>`;
   return `📋 Plan ${esc(p.file)} · ${fmt0(p.total)} lb${p.day?' · Day = <b>'+esc(p.day)+'</b>':''} · loaded ${new Date(p.loadedAt).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${p._dirty?' · <span style="color:#c76a00">not published yet</span>':''} · <a onclick="document.getElementById('plan-file').click()">replace</a>`;
 }
 /* meat blocks offered in the editor: today's plan first, then the full catalogue */

@@ -7,7 +7,6 @@
 <title>Schweid & Sons · Waste Log</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  
   :root{color-scheme:light;
     --bg:#f2f2f7;--surface:#ffffff;--surface2:#f2f2f7;--border:#e5e5ea;
     --accent:#007aff;--plant:#15803d;--success:#16a34a;--warn:#d97706;--danger:#dc2626;
@@ -22,6 +21,7 @@
   .strip{background:var(--plant);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;position:sticky;top:0;z-index:50;padding-top:max(10px,env(safe-area-inset-top));}
   .strip b{font-size:15px;letter-spacing:.08em;}
   .strip .sub{font-size:12px;opacity:.85;margin-left:6px;}
+  .strip a.sw{font-size:11px;padding:4px 10px;margin-left:8px;}
   .strip a{color:#fff;text-decoration:none;font-size:13px;font-weight:600;background:rgba(255,255,255,.18);border-radius:999px;padding:6px 12px;white-space:nowrap;}
   .wrap{max-width:980px;margin:0 auto;padding:16px;}
   .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
@@ -85,9 +85,9 @@
 </style>
 </head>
 <body>
-<div class="strip"><div><b>WASTE LOG</b><span class="sub">GA · Direct Materials</span></div><a href="index.html">← WMS</a></div>
+<div class="strip"><div><b>WASTE LOG</b><span class="sub" id="plant-sub">GA · Direct Materials</span> <a id="plant-switch" class="sw" href="#"></a></div><a href="index.html?menu=1">← WMS</a></div>
 <div class="wrap">
-  <div class="head"><h1>Daily Waste <span class="ver">v 2026.10.28e</span></h1>
+  <div class="head"><h1>Daily Waste <span class="ver">v 2026.11.05a</span><div class="ver" id="sync-line" style="font-weight:500;margin-top:2px"></div></h1>
     <div class="seg"><button id="tab-rec" class="on" onclick="setTab('rec')">Record</button><button id="tab-hist" onclick="setTab('hist')">History</button></div>
   </div>
 
@@ -134,18 +134,34 @@
 
 <script>
 /* ===== Settings ===== */
-const PLANT='GA';
-const LINES=['Line 70/71','Line 72','Line 73','Line 74','Line 75','Line 76','Line 77','Line 78','Line 79'];
+/* Plant: waste.html?plant=NJ or ?plant=GA (Start → WASTE → NJ / GA). Each plant has its own lines, catalog and log. */
+const PLANT=(()=>{const q=(new URLSearchParams(location.search).get('plant')||'').toUpperCase();
+  if(q==='NJ'||q==='GA'){try{localStorage.setItem('waste_plant',q);}catch(e){}return q;}
+  try{const r=localStorage.getItem('waste_plant');if(r==='NJ'||r==='GA')return r;}catch(e){}return 'GA';})();
+const LINES_BY_PLANT={
+  GA:['Line 70/71','Line 72','Line 73','Line 74','Line 75','Line 76','Line 77','Line 78','Line 79'],
+  NJ:['Line 1','Line 2','Line 3','Line 4','Line 5','Line 6-7','Line 22 (Retail)','Line 23 (Retail)','Line KilCoy','Tower Isle']};
+const LINES=LINES_BY_PLANT[PLANT];
 /* Direct materials used by each line: fill in with the codes Production confirms, e.g.
    'Line 72':['BX6500-4','F1400-4'],   Until a line has its list, use "+ Add material". */
 const LINE_MATERIALS={
-};
+};   // keys are line names of the current plant
 /* GA catalog (boxes + film) — code, description, type */
-const CATALOG=[{"c": "BX1000-4", "n": "SS B-1", "t": "Boxes"}, {"c": "BX1000PCA-4", "n": "SS B-1", "t": "Boxes"}, {"c": "BX1003-4", "n": "Ranchers Select", "t": "Boxes"}, {"c": "BX1050-4", "n": "SS B1-IQF", "t": "Boxes"}, {"c": "BX1075-4", "n": "B-1 IQF Plain", "t": "Boxes"}, {"c": "BX1100-4", "n": "SS B-25", "t": "Boxes"}, {"c": "BX1200-4", "n": "SS CAB 10lb", "t": "Boxes"}, {"c": "BX1300-4", "n": "SS 4/5 Loaf", "t": "Boxes"}, {"c": "BX1350-4", "n": "SS IQF 20LB", "t": "Boxes"}, {"c": "BX1400-4", "n": "SS LRG Fresh 10#", "t": "Boxes"}, {"c": "BX1850-4", "n": "6 PACK Retail Master case", "t": "Boxes"}, {"c": "BX1850PCA-4", "n": "6 PACK Retail Master case", "t": "Boxes"}, {"c": "BX1875-4", "n": "Retail Carton, 6 Bricks", "t": "Boxes"}, {"c": "BX1875PCA-4", "n": "Retail Carton, 6 Bricks", "t": "Boxes"}, {"c": "BX1900-4", "n": "Retail Carton, 4 Trays", "t": "Boxes"}, {"c": "BX2003-4", "n": "Ranchers Select 20lb Loaf", "t": "Boxes"}, {"c": "BX2300-4", "n": "SS Fresh 20LB", "t": "Boxes"}, {"c": "BX2350-4", "n": "Plain 20lbs", "t": "Boxes"}, {"c": "BX3000-4", "n": "CATTLEMAN 10lb", "t": "Boxes"}, {"c": "BX3050-4", "n": "CATTLEMAN 10# IQF", "t": "Boxes"}, {"c": "BX3100-4", "n": "CATTLEMAN 20LB 4/5 loaf", "t": "Boxes"}, {"c": "BX3125-4", "n": "Plain White 4/5 Loaf", "t": "Boxes"}, {"c": "BX3150-4", "n": "CATTLEMAN 10# 2/5 Bulk", "t": "Boxes"}, {"c": "BX3200-4", "n": "Harvest Value IQF", "t": "Boxes"}, {"c": "BX3300-4", "n": "Fresh Stockyard", "t": "Boxes"}, {"c": "BX6500-4", "n": "Prairie Creek Distinctions", "t": "Boxes"}, {"c": "BX7800-4", "n": "FUDDRUCKER", "t": "Boxes"}, {"c": "BX7900-4", "n": "BX7900 BURGERFI 44#", "t": "Boxes"}, {"c": "BX8000-4", "n": "Cattleman Large", "t": "Boxes"}, {"c": "BX8200-4", "n": "Ranchers Select, Large", "t": "Boxes"}, {"c": "BX8300PCA-4", "n": "S&S 48oz/384 pc- small slider", "t": "Boxes"}, {"c": "BX5LBS-4", "n": "5 LB SAMPLE BOX, S&S BRANDED", "t": "Boxes"}, {"c": "F1400-4", "n": "Forming 361 Film (ATL) - Line 72 & 73", "t": "Film"}, {"c": "F1550-4", "n": "Non-Forming 355 Film (ATL) - Line 72 & 73", "t": "Film"}, {"c": "F1500-4", "n": "Forming 363 Film (ATL) - Line 75", "t": "Film"}, {"c": "F1450-4", "n": "Non-Forming 344 Film (ATL) - Line 75", "t": "Film"}, {"c": "F1600B-4", "n": "Non-Forming 344 Film (ATL) Black - Line 75", "t": "Film"}, {"c": "F1650-4", "n": "Forming 421 Film (ATL) - Line 74", "t": "Film"}, {"c": "F1600-4", "n": "Non-Forming 415 Film (ATL) - Line 74", "t": "Film"}, {"c": "F1625-4", "n": "Non-Forming 415 Film Black - Line 74", "t": "Film"}, {"c": "F1800-4", "n": "Forming Clear 469 7 mil Film 366M - Line 79", "t": "Film"}, {"c": "F1825-4", "n": "Non-Forming Black 464 7 mil Film 914M - Line 79", "t": "Film"}, {"c": "BTB1000-4", "n": "Black Top Film 555mm x 3000 - Line 78 3mil", "t": "Film"}, {"c": "HBH1000-4", "n": "High Barrier Bottom Film 563mm x 1500 - Line 78 7mil", "t": "Film"}, {"c": "F1060-4", "n": "LIDDING FILM 1060 - Line 76 & 77", "t": "Film"}, {"c": "E1650060-4", "n": "355mm x 5250 Anti Fog Lidding Film", "t": "Film"}, {"c": "BX1900PCA-4", "n": "Retail Carton, 4 Trays (PCA)", "t": "Boxes"}];
-/* SharePoint: paste the flow URL when the WMS_Waste flow exists. Until then entries stay on this device. */
-const WASTE_SAVE_URL='';
-const LOG_KEY='waste_log_ga';
+const CATALOG_GA=[{"c": "BX1000-4", "n": "SS B-1", "t": "Boxes"}, {"c": "BX1000PCA-4", "n": "SS B-1", "t": "Boxes"}, {"c": "BX1003-4", "n": "Ranchers Select", "t": "Boxes"}, {"c": "BX1050-4", "n": "SS B1-IQF", "t": "Boxes"}, {"c": "BX1075-4", "n": "B-1 IQF Plain", "t": "Boxes"}, {"c": "BX1100-4", "n": "SS B-25", "t": "Boxes"}, {"c": "BX1200-4", "n": "SS CAB 10lb", "t": "Boxes"}, {"c": "BX1300-4", "n": "SS 4/5 Loaf", "t": "Boxes"}, {"c": "BX1350-4", "n": "SS IQF 20LB", "t": "Boxes"}, {"c": "BX1400-4", "n": "SS LRG Fresh 10#", "t": "Boxes"}, {"c": "BX1850-4", "n": "6 PACK Retail Master case", "t": "Boxes"}, {"c": "BX1850PCA-4", "n": "6 PACK Retail Master case", "t": "Boxes"}, {"c": "BX1875-4", "n": "Retail Carton, 6 Bricks", "t": "Boxes"}, {"c": "BX1875PCA-4", "n": "Retail Carton, 6 Bricks", "t": "Boxes"}, {"c": "BX1900-4", "n": "Retail Carton, 4 Trays", "t": "Boxes"}, {"c": "BX2003-4", "n": "Ranchers Select 20lb Loaf", "t": "Boxes"}, {"c": "BX2300-4", "n": "SS Fresh 20LB", "t": "Boxes"}, {"c": "BX2350-4", "n": "Plain 20lbs", "t": "Boxes"}, {"c": "BX3000-4", "n": "CATTLEMAN 10lb", "t": "Boxes"}, {"c": "BX3050-4", "n": "CATTLEMAN 10# IQF", "t": "Boxes"}, {"c": "BX3100-4", "n": "CATTLEMAN 20LB 4/5 loaf", "t": "Boxes"}, {"c": "BX3125-4", "n": "Plain White 4/5 Loaf", "t": "Boxes"}, {"c": "BX3150-4", "n": "CATTLEMAN 10# 2/5 Bulk", "t": "Boxes"}, {"c": "BX3200-4", "n": "Harvest Value IQF", "t": "Boxes"}, {"c": "BX3300-4", "n": "Fresh Stockyard", "t": "Boxes"}, {"c": "BX6500-4", "n": "Prairie Creek Distinctions", "t": "Boxes"}, {"c": "BX7800-4", "n": "FUDDRUCKER", "t": "Boxes"}, {"c": "BX7900-4", "n": "BX7900 BURGERFI 44#", "t": "Boxes"}, {"c": "BX8000-4", "n": "Cattleman Large", "t": "Boxes"}, {"c": "BX8200-4", "n": "Ranchers Select, Large", "t": "Boxes"}, {"c": "BX8300PCA-4", "n": "S&S 48oz/384 pc- small slider", "t": "Boxes"}, {"c": "BX5LBS-4", "n": "5 LB SAMPLE BOX, S&S BRANDED", "t": "Boxes"}, {"c": "F1400-4", "n": "Forming 361 Film (ATL) - Line 72 & 73", "t": "Film"}, {"c": "F1550-4", "n": "Non-Forming 355 Film (ATL) - Line 72 & 73", "t": "Film"}, {"c": "F1500-4", "n": "Forming 363 Film (ATL) - Line 75", "t": "Film"}, {"c": "F1450-4", "n": "Non-Forming 344 Film (ATL) - Line 75", "t": "Film"}, {"c": "F1600B-4", "n": "Non-Forming 344 Film (ATL) Black - Line 75", "t": "Film"}, {"c": "F1650-4", "n": "Forming 421 Film (ATL) - Line 74", "t": "Film"}, {"c": "F1600-4", "n": "Non-Forming 415 Film (ATL) - Line 74", "t": "Film"}, {"c": "F1625-4", "n": "Non-Forming 415 Film Black - Line 74", "t": "Film"}, {"c": "F1800-4", "n": "Forming Clear 469 7 mil Film 366M - Line 79", "t": "Film"}, {"c": "F1825-4", "n": "Non-Forming Black 464 7 mil Film 914M - Line 79", "t": "Film"}, {"c": "BTB1000-4", "n": "Black Top Film 555mm x 3000 - Line 78 3mil", "t": "Film"}, {"c": "HBH1000-4", "n": "High Barrier Bottom Film 563mm x 1500 - Line 78 7mil", "t": "Film"}, {"c": "F1060-4", "n": "LIDDING FILM 1060 - Line 76 & 77", "t": "Film"}, {"c": "E1650060-4", "n": "355mm x 5250 Anti Fog Lidding Film", "t": "Film"}, {"c": "BX1900PCA-4", "n": "Retail Carton, 4 Trays (PCA)", "t": "Boxes"}];
+/* NJ catalog (boxes + film, from the NJ WMS catalog) */
+const CATALOG_NJ=[{"c": "BX1000-1", "n": "SS B-1 Sonic", "t": "Boxes"}, {"c": "BX1000PCA-1", "n": "SS B-1 PCA", "t": "Boxes"}, {"c": "BX1003-1", "n": "Ranchers Select", "t": "Boxes"}, {"c": "BX1025-1", "n": "B-1 Fresh Plain", "t": "Boxes"}, {"c": "BX1050-1", "n": "SS B1-IQF", "t": "Boxes"}, {"c": "BX1075-1", "n": "B-1 IQF Plain", "t": "Boxes"}, {"c": "BX1100-1", "n": "SS B-25", "t": "Boxes"}, {"c": "BX1200-1", "n": "SS CAB 10lb", "t": "Boxes"}, {"c": "BX1300-1", "n": "SS 4/5 Loaf", "t": "Boxes"}, {"c": "BX1350-1", "n": "SS IQF 20LB", "t": "Boxes"}, {"c": "BX1400-1", "n": "SS LRG Fresh 10#", "t": "Boxes"}, {"c": "BX1850-1", "n": "6 PACK Master Sonic", "t": "Boxes"}, {"c": "BX1850PCA-1", "n": "6 PACK Master PCA", "t": "Boxes"}, {"c": "BX1875-1", "n": "Retail Carton 6 Bricks Sonic", "t": "Boxes"}, {"c": "BX1875PCA-1", "n": "Retail Carton 6 Bricks PCA", "t": "Boxes"}, {"c": "BX1900-1", "n": "Retail Carton 4 Trays", "t": "Boxes"}, {"c": "BX2003-1", "n": "Ranchers Select 20lb Loaf", "t": "Boxes"}, {"c": "BX2050-1", "n": "SSB8 IQF", "t": "Boxes"}, {"c": "BX2075-1", "n": "Honor Foods Colony Lane IQF", "t": "Boxes"}, {"c": "BX2300-1", "n": "SS Fresh 20LB", "t": "Boxes"}, {"c": "BX3000-1", "n": "CATTLEMAN 10lb", "t": "Boxes"}, {"c": "BX3050-1", "n": "CATTLEMAN 10# IQF", "t": "Boxes"}, {"c": "BX3100-1", "n": "CATTLEMAN 20LB 4/5 loaf", "t": "Boxes"}, {"c": "BX3150-1", "n": "CATTLEMAN 10# 2/5 Bulk", "t": "Boxes"}, {"c": "BX3125-1", "n": "Plain white 4/5 Loaf", "t": "Boxes"}, {"c": "BX3200-1", "n": "Harvest Value IQF", "t": "Boxes"}, {"c": "BX3300-1", "n": "Fresh Stockyard", "t": "Boxes"}, {"c": "BX5LBS-1", "n": "5 LB Sample Box S&S Branded", "t": "Boxes"}, {"c": "BXFSSPLAIN-1", "n": "20 LB Sample Box S&S Branded", "t": "Boxes"}, {"c": "BX1900PCA-1", "n": "Retail Carton 4 Trays PCA", "t": "Boxes"}, {"c": "BX7500PCA-1", "n": "Five Guys Box PCA", "t": "Boxes"}, {"c": "BX7600PCA-1", "n": "Five Guys FGE Preformed PCA", "t": "Boxes"}, {"c": "BX7700PCA-1", "n": "Five Guys Fresh 3.7oz 1/2 Patty L7", "t": "Boxes"}, {"c": "BX6500-1", "n": "Prairie Creek Distinctions", "t": "Boxes"}, {"c": "BX6550-1", "n": "Prairie Creek Originals", "t": "Boxes"}, {"c": "BX7500-1", "n": "Five Guys Box", "t": "Boxes"}, {"c": "BX7600-1", "n": "Five Guys FGE Preformed", "t": "Boxes"}, {"c": "BX7800-1", "n": "Fuddrucker", "t": "Boxes"}, {"c": "BX7900-1", "n": "Burger Fi", "t": "Boxes"}, {"c": "BX8200-1", "n": "Ranchers Select Large", "t": "Boxes"}, {"c": "F1000-1", "n": "Forming 641 L2&4 366M", "t": "Film"}, {"c": "F1000ABX-1", "n": "Forming 641 L2&4 366M (ABX)", "t": "Film"}, {"c": "F1060-1", "n": "Lidding Film 1060 1332M", "t": "Film"}, {"c": "F1300-1", "n": "Non-Forming 635 L2&4 1219M", "t": "Film"}, {"c": "F1300ABX-1", "n": "Non-Forming 635 L2&4 (ABX)", "t": "Film"}, {"c": "F1400-1", "n": "361 Forming L3&6&7 457M", "t": "Film"}, {"c": "F1750-1", "n": "Non-Forming 345 L3&6&7 914M", "t": "Film"}, {"c": "F1850-1", "n": "Non-Forming 345 Black L3", "t": "Film"}, {"c": "F1900-1", "n": "362 Forming L3 457M", "t": "Film"}, {"c": "E1650060-1", "n": "355mm x5250 Anti Fog Lidding", "t": "Film"}];
+/* SharePoint (list WMS_Waste, one row per entry): paste the two flow URLs. Empty = entries stay on this device. */
+const WASTE_SAVE_URL='';   // flow WMS_Waste_Save
+const WASTE_READ_URL='';   // flow WMS_Waste_Read
+const CATALOG=PLANT==='NJ'?CATALOG_NJ:CATALOG_GA;
+const LOG_KEY='waste_log_'+PLANT.toLowerCase();
+const LAST_LINE_KEY='waste_last_line_'+PLANT.toLowerCase();
 
+/* plant header + switch */
+document.getElementById('plant-sub').textContent=PLANT+' · Direct Materials';
+if(PLANT==='NJ')document.documentElement.style.setProperty('--plant','#1d4ed8');
+(o=>{const a=document.getElementById('plant-switch');a.textContent='⇄ '+o;a.href='waste.html?plant='+o;})(PLANT==='NJ'?'GA':'NJ');
+document.title='Schweid & Sons · Waste Log '+PLANT;
 /* ===== Helpers ===== */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -161,12 +177,12 @@ let rows=[];   // {c,n,t,qty,reason}
 function initRecord(){
   $('w-date').value=isoToday();
   $('w-line').innerHTML='<option value="">— Select line —</option>'+LINES.map(l=>`<option>${l}</option>`).join('');
-  try{const l=localStorage.getItem('waste_last_line');if(l&&LINES.includes(l))$('w-line').value=l;}catch(e){}
+  try{const l=localStorage.getItem(LAST_LINE_KEY);if(l&&LINES.includes(l))$('w-line').value=l;}catch(e){}
   renderRows();
 }
 function renderRows(){
   const line=$('w-line').value;
-  try{if(line)localStorage.setItem('waste_last_line',line);}catch(e){}
+  try{if(line)localStorage.setItem(LAST_LINE_KEY,line);}catch(e){}
   if(!line){$('rows').innerHTML='<div class="empty">Select a production line to see its direct materials.</div>';$('add-btn').classList.add('hidden');$('save-btn').disabled=true;$('rows-title').textContent='Direct materials';rows=[];closePicker();return;}
   $('add-btn').classList.remove('hidden');$('save-btn').disabled=false;
   $('rows-title').textContent='Direct materials · '+line;
@@ -210,7 +226,7 @@ async function saveWaste(){
   if(miss.length){miss.forEach(x=>{const inp=document.querySelector('#row-'+x.i+' .c-reason input');if(inp)inp.classList.add('miss');});
     toast('Reason is required for every row with a quantity','err');const f=document.querySelector('.miss');if(f)f.focus();return;}
   const ts=new Date().toISOString();
-  const entries=filled.map(({r})=>({id:'w'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),plant:PLANT,date,line,item:r.c,description:r.n,qty:parseFloat(r.qty),type:r.t,reason:r.reason.trim(),ts,synced:false}));
+  const entries=filled.map(({r})=>({id:'w'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),plant:PLANT,date,line,item:r.c,description:r.n,qty:parseFloat(r.qty),type:r.t,reason:r.reason.trim(),ts,by:wasteBy(),synced:false}));
   const log=loadLog();log.unshift(...entries);saveLog(log);
   rows.forEach(r=>{r.qty='';r.reason='';});
   rows=rows.filter(r=>(LINE_MATERIALS[line]||[]).includes(r.c));
@@ -218,15 +234,66 @@ async function saveWaste(){
   toast('Saved '+entries.length+' waste line(s) · '+line+' · '+fmtDate(date));
   pushPending();
 }
+/* ===== SharePoint sync =====
+   Each entry = one row in WMS_Waste (Title = entry id). Save = create or update that row; a deleted entry is kept
+   in SharePoint with IsDeleted = Yes (audit trail) and hidden in the app. Every device reads the plant's rows back. */
+const sync={busy:false,at:0,err:''};
+function wasteBy(){try{return localStorage.getItem('wms_receiver_name')||localStorage.getItem('wms_device_name')||'';}catch(e){return '';}}
 async function pushPending(){
-  if(!WASTE_SAVE_URL)return;
-  const log=loadLog();const pend=log.filter(e=>!e.synced);if(!pend.length)return;
+  if(!WASTE_SAVE_URL||sync.pushing)return;
+  const pend=loadLog().filter(e=>!e.synced);if(!pend.length){syncLine();return;}
+  sync.pushing=true;
   try{
-    const res=await fetch(WASTE_SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entries:pend.map(({synced,...e})=>e)})});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const ids=new Set(pend.map(e=>e.id));saveLog(loadLog().map(e=>ids.has(e.id)?{...e,synced:true}:e));
-  }catch(e){/* stays pending; retried on next save / open */}
+    for(const e of pend){
+      const res=await fetch(WASTE_SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        id:e.id,plant:e.plant,date:e.date,line:e.line,item:e.item,description:e.description||'',qty:+e.qty||0,type:e.type,
+        reason:e.reason||'',by:e.by||'',ts:e.ts,deleted:!!e.deleted})});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      saveLog(loadLog().map(x=>x.id===e.id&&x.ts===e.ts?{...x,synced:true}:x));
+    }
+    sync.err='';
+  }catch(err){sync.err=err.message;}   // stays pending; retried on the next save / every minute
+  finally{sync.pushing=false;syncLine();}
 }
+const isoOf=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+async function pullRemote(a,b){
+  if(!WASTE_READ_URL||sync.busy)return;
+  if(!a){const f=new Date();f.setDate(f.getDate()-62);a=isoOf(f);}
+  if(!b){const t=new Date();t.setDate(t.getDate()+1);b=isoOf(t);}
+  sync.busy=true;
+  try{
+    const res=await fetch(WASTE_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:PLANT,from:a,to:b})});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const js=await res.json();const rows=Array.isArray(js)?js:(js.value||[]);
+    const remote=new Map();
+    rows.forEach(r=>{const id=r.Title;if(!id)return;
+      remote.set(id,{id,plant:r.Plant||PLANT,date:String(r.DayDate||'').slice(0,10),line:r.Line||'',item:r.Item||'',description:r.ItemDesc||'',
+        qty:+r.Qty||0,type:r.MatType||'',reason:r.Reason||'',by:r.RecordedBy||'',ts:r.RecordedAt||'',deleted:r.IsDeleted===true||r.IsDeleted==='true',synced:true});});
+    const local=loadLog(),out=[],seen=new Set();
+    local.forEach(e=>{const r=remote.get(e.id);seen.add(e.id);
+      if(!e.synced&&(!r||String(e.ts)>=String(r.ts))){out.push(e);return;}   // my change not uploaded yet
+      if(r){out.push(r);return;}
+      if(e.date>=a&&e.date<=b)return;                                       // removed in SharePoint
+      out.push(e);});                                                        // outside the range read: keep
+    remote.forEach((r,id)=>{if(!seen.has(id))out.push(r);});
+    out.sort((x,y)=>String(y.ts).localeCompare(String(x.ts)));
+    const changed=JSON.stringify(out)!==JSON.stringify(local);
+    saveLog(out);sync.err='';sync.at=Date.now();
+    if(changed&&!$('view-hist').classList.contains('hidden'))renderHistory();
+  }catch(err){sync.err=err.message;sync.at=Date.now();}
+  finally{sync.busy=false;syncLine();}
+}
+function syncLine(){
+  const el=$('sync-line');if(!el)return;
+  if(!WASTE_SAVE_URL){el.textContent='💾 Saved on this device only';return;}
+  const pend=loadLog().filter(e=>!e.synced).length;
+  el.innerHTML=sync.err?`⚠ SharePoint not reachable${pend?' · '+pend+' pending':''} · <a href="#" onclick="syncNow();return false">Retry</a>`
+    :pend?`☁ Uploading ${pend}…`
+    :`☁ Shared with every ${PLANT} device${sync.at?' · '+new Date(sync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):''} · <a href="#" onclick="syncNow();return false">⟳</a>`;
+}
+async function syncNow(){await pushPending();await pullRemote();}
+setInterval(()=>{if(document.visibilityState==='visible')syncNow();},60000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncNow();});
 
 /* ===== History ===== */
 function initHistory(){
@@ -242,9 +309,11 @@ function range(){
   return [iso(a),iso(b)];
 }
 function filtered(){const [a,b]=range(),line=$('h-line').value;
-  return loadLog().filter(e=>e.date>=a&&e.date<=b&&(!line||e.line===line)).sort((x,y)=>y.date.localeCompare(x.date)||x.line.localeCompare(y.line)||y.ts.localeCompare(x.ts));}
+  return loadLog().filter(e=>!e.deleted&&e.date>=a&&e.date<=b&&(!line||e.line===line)).sort((x,y)=>y.date.localeCompare(x.date)||x.line.localeCompare(y.line)||y.ts.localeCompare(x.ts));}
+let pulledFrom='';
 function renderHistory(){
   const [a,b]=range(),list=filtered();
+  {const f=new Date();f.setDate(f.getDate()-62);if(WASTE_READ_URL&&a<isoOf(f)&&pulledFrom!==a){pulledFrom=a;pullRemote(a,b);}}
   $('h-range').textContent=(a===b?fmtDate(a):fmtDate(a)+' – '+fmtDate(b))+' · '+list.length+' entr'+(list.length===1?'y':'ies');
   const sum=t=>list.filter(e=>e.type===t).reduce((s,e)=>s+e.qty,0);
   $('h-kpis').innerHTML=`<div class="kpi"><b>${list.length}</b><span>Entries</span></div><div class="kpi"><b>${sum('Boxes').toLocaleString()}</b><span>Boxes</span></div><div class="kpi"><b>${sum('Film').toLocaleString()}</b><span>Film</span></div><div class="kpi"><b>${new Set(list.map(e=>e.line)).size}</b><span>Lines</span></div>`;
@@ -257,24 +326,26 @@ function renderHistory(){
 }
 function delEntry(id){const e=loadLog().find(x=>x.id===id);if(!e)return;
   if(!confirm('Delete this waste entry?\n\n'+fmtDate(e.date)+' · '+e.line+' · '+e.item+' · '+e.qty+' '+e.type+'\nReason: '+e.reason))return;
-  saveLog(loadLog().filter(x=>x.id!==id));renderHistory();toast('Entry deleted');}
+  if(WASTE_SAVE_URL)saveLog(loadLog().map(x=>x.id===id?{...x,deleted:true,ts:new Date().toISOString(),synced:false}:x));   // kept in SharePoint as deleted
+  else saveLog(loadLog().filter(x=>x.id!==id));
+  renderHistory();toast('Entry deleted');pushPending();}
 function exportExcel(){
   if(typeof XLSX==='undefined'){toast('Excel library not loaded — check the connection','err');return;}
   const list=filtered();if(!list.length){toast('Nothing to export for this period','err');return;}
   const [a,b]=range();
-  const rowsX=[['Schweid & Sons · GA · Daily Waste Log'],['Period: '+fmtDate(a)+(a===b?'':' – '+fmtDate(b))+($('h-line').value?'   |   '+$('h-line').value:'   |   All lines')],[],
-    ['Date','Production Line','Item','Description','Quantity','Type','Reason','Recorded at']];
-  list.forEach(e=>rowsX.push([fmtDate(e.date),e.line,e.item,e.description,e.qty,e.type,e.reason,new Date(e.ts).toLocaleString('en-US')]));
-  const ws=XLSX.utils.aoa_to_sheet(rowsX);ws['!cols']=[{wch:11},{wch:14},{wch:14},{wch:42},{wch:9},{wch:8},{wch:40},{wch:20}];
+  const rowsX=[['Schweid & Sons · '+PLANT+' · Daily Waste Log'],['Period: '+fmtDate(a)+(a===b?'':' – '+fmtDate(b))+($('h-line').value?'   |   '+$('h-line').value:'   |   All lines')],[],
+    ['Date','Production Line','Item','Description','Quantity','Type','Reason','Recorded at','Recorded by']];
+  list.forEach(e=>rowsX.push([fmtDate(e.date),e.line,e.item,e.description,e.qty,e.type,e.reason,new Date(e.ts).toLocaleString('en-US'),e.by||'']));
+  const ws=XLSX.utils.aoa_to_sheet(rowsX);ws['!cols']=[{wch:11},{wch:14},{wch:14},{wch:42},{wch:9},{wch:8},{wch:40},{wch:20},{wch:16}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Waste');
-  XLSX.writeFile(wb,'Waste_GA_'+a+(a===b?'':'_to_'+b)+'.xlsx');
+  XLSX.writeFile(wb,'Waste_'+PLANT+'_'+a+(a===b?'':'_to_'+b)+'.xlsx');
 }
 
 /* ===== Tabs / start ===== */
 function setTab(t){$('view-rec').classList.toggle('hidden',t!=='rec');$('view-hist').classList.toggle('hidden',t!=='hist');
   $('tab-rec').classList.toggle('on',t==='rec');$('tab-hist').classList.toggle('on',t==='hist');if(t==='hist')renderHistory();}
 (function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}
-  initRecord();initHistory();pushPending();})();
+  initRecord();initHistory();syncLine();syncNow();})();
 </script>
 <script>
 /* iPad numeric keypad + basic calculator. iPadOS has no numbers-only keyboard (inputmode=numeric

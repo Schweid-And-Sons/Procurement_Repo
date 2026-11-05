@@ -62,6 +62,11 @@
   .plant-btn .pb-name{font-size:16px;font-weight:800;letter-spacing:.15em;}
   .plant-btn .pb-sum{font-size:10px;color:var(--text3);line-height:1.5;}
   .rcv-tile{cursor:default;}
+  .live-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:12px;color:var(--text3);background:var(--surface2,#f3f4f6);border-radius:12px;padding:8px 12px;margin-bottom:10px;}
+  .live-bar .lv-shift{font-weight:800;color:var(--accent);}
+  .live-bar .lv-warn{color:var(--warn,#d97706);font-weight:600;}
+  .live-bar .lv-btns{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+  .live-bar .lv-btn{border:none;border-radius:9px;padding:6px 10px;font:600 12px inherit;background:var(--surface,#fff);color:var(--accent);cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.08);}
   .rcv-pick{display:flex;gap:8px;justify-content:center;margin-top:6px;}
   .rcv-pick button{border:none;border-radius:10px;padding:8px 18px;font-weight:800;font-size:15px;cursor:pointer;background:var(--pc,#0369a1);color:#fff;}
   .rcv-pick button:last-child{background:#15803d;}
@@ -1086,13 +1091,11 @@ try{
       <span class="pb-code">RECEIVING</span><span class="pb-name">🚚 YOOZ POs</span>
       <span class="rcv-pick"><button type="button" onclick="openReceiving('NJ')">NJ</button><button type="button" onclick="openReceiving('GA')">GA</button></span>
     </div>
-    <div class="plant-btn rcv-tile" style="--pc:#7c3aed">
-      <span class="pb-code">PLANNING</span><span class="pb-name">📅 DAILY PLAN</span>
-      <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="openPlanning('NJ')">NJ</button><button type="button" onclick="openPlanning('GA')">GA</button></span>
+    <div class="plant-btn rcv-tile" style="--pc:#6b7280">
+      <span class="pb-code">WASTE</span><span class="pb-name">🗑 DAILY WASTE</span>
+      <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="location.href='waste.html?plant=NJ'">NJ</button><button type="button" onclick="location.href='waste.html?plant=GA'">GA</button></span>
+      <span class="pb-sum" id="plant-sum-WASTE"></span>
     </div>
-    <button class="plant-btn" style="--pc:#6b7280" onclick="location.href='waste.html'">
-      <span class="pb-code">WASTE</span><span class="pb-name">🗑 GA DAILY WASTE</span><span class="pb-sum" id="plant-sum-WASTE"></span>
-    </button>
     <label class="plant-rem"><input type="checkbox" id="plant-remember"> Remember this plant on this device</label>
     <div class="app-ver">v <span class="app-ver-num"></span></div>
   </div>
@@ -1129,7 +1132,7 @@ try{
       <button class="count-session-btn" id="count-session-btn" onclick="toggleCountSession()">🟡 Start Count Mode</button>
       <button class="sf-toggle" onclick="toggleActions()"><span>⚙️ Actions</span><span class="sf-chev">▾</span></button>
       <div class="sf-body">
-        <select id="count-type-sel" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;">
+        <select id="count-type-sel" onchange="onShiftSelect(this)" title="Shift: changing it starts that shift on every device" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;">
           <option value="pre9">Pre 9am Count</option>
           <option value="post9">Post 9am Count</option>
           <option value="eom">EOM Count</option>
@@ -1181,7 +1184,7 @@ try{
     <div class="actions-drawer-body">
       <button class="theme-toggle-btn" id="theme-btn-drawer" onclick="toggleTheme()">🌙 Night Mode</button>
       <button class="count-session-btn" id="count-session-btn-drawer" onclick="toggleCountSession()">🟡 Start Count Mode</button>
-      <select id="count-type-sel-drawer" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;" onchange="syncCountTypeSel(this)">
+      <select id="count-type-sel-drawer" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;" onchange="onShiftSelect(this)" title="Shift: changing it starts that shift on every device">
         <option value="pre9">Pre 9am Count</option>
         <option value="post9">Post 9am Count</option>
         <option value="eom">EOM Count</option>
@@ -1401,7 +1404,7 @@ try{
 
     <div id="sync-export-body">
       <label>Count shift</label>
-      <select id="sync-turno-sel" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;margin-bottom:12px;">
+      <select id="sync-turno-sel" onchange="onShiftSelect(this)" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;margin-bottom:12px;">
         <option value="pre9">Before 9am (Morning)</option>
         <option value="post9">After 9am (Afternoon)</option>
         <option value="eom">End of Month (EOM)</option>
@@ -1799,6 +1802,7 @@ function saveData(){
     
     const verify=localStorage.getItem(WMS_KEY);
     if(!verify){showToast('⚠ Storage save failed — data may not persist','error');}
+    if(typeof liveOnSave==='function')liveOnSave();
   }catch(e){
     console.error('WMS saveData error:',e);
     showToast('⚠ Could not save: '+e.message,'error');
@@ -1977,7 +1981,7 @@ function selectItem(code){
 
 /* ---------- Map view ---------- */
 function renderMap(){
-  let html=`<div class="legend">
+  let html=liveBarHtml()+`<div class="legend">
     <div class="leg"><div class="leg-dot" style="background:var(--empty-bg);border-color:var(--empty-bd)"></div>Empty rack</div>
     <div class="leg"><div class="leg-dot" style="background:var(--occ);border-color:var(--accent)"></div>Occupied rack</div>
     <div class="leg"><div class="leg-dot" style="background:var(--floor-emp);border-color:var(--border)"></div>Empty floor</div>
@@ -3046,7 +3050,7 @@ function applyPlant(p){
   document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===currentMode));
   refresh();
   updateCountSessionUI();
-  autoLoadIfEmpty();
+  liveInit().then(()=>autoLoadIfEmpty());
 }
 function plantSummary(p){
   const cfg=PLANTS[p], areas=PLANT_DATA[p].areas;
@@ -3070,8 +3074,8 @@ function showPlantSelector(){
   }
   const ws=document.getElementById('plant-sum-WASTE');
   if(ws){const d=new Date(),iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    let n=0,lines=new Set();try{(JSON.parse(localStorage.getItem('waste_log_ga')||'[]')||[]).forEach(e=>{if(e.date===iso){n++;lines.add(e.line);}});}catch(e){}
-    ws.innerHTML='Today: '+(n?n+' entr'+(n===1?'y':'ies')+' · '+lines.size+' line(s)':'nothing recorded yet');}
+    const cnt=k=>{let n=0;try{(JSON.parse(localStorage.getItem(k)||'[]')||[]).forEach(e=>{if(e.date===iso)n++;});}catch(e){}return n;};
+    ws.innerHTML='Today: NJ '+cnt('waste_log_nj')+' &nbsp;|&nbsp; GA '+cnt('waste_log_ga');}
   let rem=null; try{rem=localStorage.getItem(PLANT_REMEMBER_KEY);}catch(e){}
   const cb=document.getElementById('plant-remember'); if(cb)cb.checked=!!rem;
   document.querySelectorAll('.plant-btn').forEach(b=>b.classList.toggle('current',b.dataset.plant===currentPlant));
@@ -3841,12 +3845,12 @@ function loadPlanDia(){
 }
 
 /* ================= SHARED DAILY PLAN (PLANNING module) =================
-   The plan is loaded ONCE in Start → PLANNING → NJ / GA. It is saved to SharePoint (list WMS_Batches, same two flows
+   The plan is loaded ONCE, in Inventory → Plan (⬆ Import Planning) or in Batch (⬆ Load plan), for NJ / GA. It is saved to SharePoint (list WMS_Batches, same two flows
    as Batch) as two records: kind "wmsplan" (boxes/sleeves for the inventory Daily Plan) and kind "plan" (meat blocks
    for Batch). Every device of that plant picks it up; Delivered / Ready marks are shared too (newest mark wins per item). */
 const PLAN_SAVE_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/64f9e48a1da04901964ad07b46eb1867/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=vsL7mk6KDI_J6jCHMx1mRp_kGQPGKaCqwsMS7DvzwPQ';
 const PLAN_READ_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/16/workflows/46a2d54450a74c9497ad222166e75829/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=LcUblIatOWv256jDaU8N60EdaFf7e94ESoWUw3bu6nA';
-let PLAN_ONLY=false;
+let PLAN_ONLY=false,PLAN_HELPER=false;
 const planSync={at:0,busy:false,err:'',pushT:null};
 function isoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function planDevice(){try{return localStorage.getItem('wms_receiver_name')||poDevice();}catch(e){return 'device';}}
@@ -3971,6 +3975,157 @@ setInterval(()=>{if(currentView==='plan'&&document.visibilityState==='visible')p
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentView==='plan')pullSharedPlan(true);});
 function openPlanning(p){location.href='index.html?planning='+encodeURIComponent(p);}
 
+
+/* ================= LIVE INVENTORY (shared by every device of the plant) =================
+   One SharePoint record per plant + day + shift (Pre 9am / Post 9am / EOM) in the list WMS_Batches (kind "inv"),
+   through the same two flows as Batch and Planning. Every Save / Clear is stamped per position and uploaded;
+   each device pulls every 30 s and merges position by position (newest change wins, cleared positions included).
+   Starting a new shift freezes the previous one (it is also saved to the calendar copies) and the new shift
+   starts from it. A new day starts its Pre 9am from the last shift of the previous day. */
+const LIVE_TURNOS=['pre9','post9','eom'];
+let live={rec:null,ts:{},del:{},snap:{},on:false,busy:false,err:'',at:0,pushT:null,applying:false,pending:false};
+const liveKey=()=>WMS_KEY+'_live';
+const liveDayLabel=d=>{const [y,m,dd]=d.split('-');return (+m)+'/'+(+dd)+'/'+y;};
+function liveEnabled(){return !!(PLAN_SAVE_URL&&PLAN_READ_URL)&&!RCV_ONLY&&!PLAN_ONLY;}
+function liveSave(){try{localStorage.setItem(liveKey(),JSON.stringify({rec:live.rec,ts:live.ts,del:live.del,pending:live.pending}));}catch(e){}}
+function liveLoad(){try{const o=JSON.parse(localStorage.getItem(liveKey())||'null');if(o){live.rec=o.rec||null;live.ts=o.ts||{};live.del=o.del||{};live.pending=!!o.pending;return true;}}catch(e){}live.rec=null;live.ts={};live.del={};live.pending=false;return false;}
+function liveResnap(){live.snap={};for(const[id,o]of Object.entries(inventory))live.snap[id]=JSON.stringify(o);}
+/* called by saveData(): stamp what changed since the last save */
+function liveOnSave(){
+  if(!live.on||live.applying)return;
+  const now=new Date().toISOString();let changed=false;
+  for(const[id,o]of Object.entries(inventory)){const j=JSON.stringify(o);if(live.snap[id]!==j){live.ts[id]=now;delete live.del[id];live.snap[id]=j;changed=true;}}
+  for(const id of Object.keys(live.snap))if(!(id in inventory)){delete live.snap[id];delete live.ts[id];live.del[id]=now;changed=true;}
+  if(changed){live.pending=true;liveSave();scheduleLivePush();renderLiveBar();}
+}
+function liveRecord(){
+  return {plant:currentPlant,day:live.rec.day,turno:live.rec.turno,startedAt:live.rec.startedAt,updatedAt:new Date().toISOString(),by:planDevice(),
+    inv:inventory,ts:live.ts,del:live.del};
+}
+async function livePostRec(){
+  const r=liveRecord();
+  await planPost({key:currentPlant+'|inv|'+r.day+'|'+r.turno,plant:currentPlant,kind:'inv',day:r.day,status:r.turno,batchNo:'',meatBlock:'',
+    updatedAt:r.updatedAt,updatedBy:r.by,json:JSON.stringify(r)});
+}
+function scheduleLivePush(){clearTimeout(live.pushT);live.pushT=setTimeout(()=>livePull(true,true),1200);}
+function liveApply(fn){live.applying=true;try{fn();saveData();}finally{live.applying=false;}liveResnap();}
+async function liveFetch(){
+  const t=new Date();t.setDate(t.getDate()+1);const f=new Date();f.setDate(f.getDate()-10);
+  const iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  const res=await fetch(PLAN_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:currentPlant,from:iso(f),to:iso(t)})});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const js=await res.json();const rows=Array.isArray(js)?js:(js.value||[]);
+  let best=null;
+  rows.forEach(x=>{if((x.Kind||x.kind)!=='inv')return;let o;try{o=JSON.parse(x.JsonData||x.jsonData||'null');}catch(e){o=null;}
+    if(o&&o.plant===currentPlant&&o.inv&&(!best||String(o.startedAt)>String(best.startedAt)))best=o;});
+  return best;
+}
+/* newest change wins, position by position; returns true if this device has changes the remote copy lacks */
+function liveMerge(r){
+  let ahead=false;const ids=new Set([...Object.keys(r.ts||{}),...Object.keys(r.del||{}),...Object.keys(live.ts),...Object.keys(live.del)]);
+  liveApply(()=>{ids.forEach(id=>{
+    const rt=String((r.ts||{})[id]||''),rd=String((r.del||{})[id]||''),lt=String(live.ts[id]||''),ld=String(live.del[id]||'');
+    const rT=rt>rd?rt:rd,lT=lt>ld?lt:ld;
+    if(rT>lT){if(rt>=rd&&r.inv[id]){inventory[id]=r.inv[id];live.ts[id]=rt;delete live.del[id];}else{delete inventory[id];live.del[id]=rd;delete live.ts[id];}}
+    else if(lT>rT)ahead=true;
+  });});
+  return ahead;
+}
+/* adopt another shift record as the base, then replay this device's changes made after it started */
+function liveAdopt(r){
+  const mine=[];const since=String(r.startedAt);
+  if(live.rec)Object.keys(live.ts).forEach(id=>{if(String(live.ts[id])>since)mine.push([id,inventory[id],live.ts[id]]);});
+  if(live.rec)Object.keys(live.del).forEach(id=>{if(String(live.del[id])>since)mine.push([id,null,live.del[id]]);});
+  liveApply(()=>{inventory=JSON.parse(JSON.stringify(r.inv||{}));live.ts=Object.assign({},r.ts||{});live.del=Object.assign({},r.del||{});
+    live.rec={day:r.day,turno:r.turno,startedAt:r.startedAt};
+    mine.forEach(([id,o,t])=>{if(o){inventory[id]=o;live.ts[id]=t;delete live.del[id];}else{delete inventory[id];live.del[id]=t;delete live.ts[id];}});});
+  live.pending=mine.length>0;liveSave();syncTurnoSelects();
+  return mine.length>0;
+}
+async function livePull(force,push){
+  if(!live.on||live.busy)return;
+  if(!force&&Date.now()-live.at<25000)return;
+  live.busy=true;const p0=currentPlant;
+  try{
+    const r=await liveFetch();if(p0!==currentPlant)return;
+    let needPush=!!push&&live.pending;
+    if(!r){                                            // first device ever: this device's inventory becomes the base
+      if(!live.rec)live.rec={day:isoToday(),turno:currentTurnoSel(),startedAt:new Date().toISOString()};
+      const now=live.rec.startedAt;Object.keys(inventory).forEach(id=>{if(!live.ts[id])live.ts[id]=now;});needPush=true;
+    }else if(!live.rec||String(r.startedAt)>String(live.rec.startedAt)){
+      const had=!!live.rec;const ahead=liveAdopt(r);needPush=needPush||ahead;
+      if(had)showToast('☁ Now on '+PLANTS[currentPlant].code+' · '+SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day),'success');
+      refresh();
+    }else if(String(r.startedAt)<String(live.rec.startedAt)){needPush=true;}   // this device started a newer shift
+    else{const before=JSON.stringify(inventory);const ahead=liveMerge(r);needPush=needPush||ahead;if(JSON.stringify(inventory)!==before)refresh();}
+    if(live.rec&&live.rec.day<isoToday()){await liveStartShift('pre9',true);needPush=false;}      // a new day starts from yesterday's last shift
+    if(needPush){await livePostRec();live.pending=false;}
+    live.err='';live.at=Date.now();liveSave();
+  }catch(e){live.err=e.message;live.at=Date.now();}
+  finally{live.busy=false;renderLiveBar();}
+}
+function currentTurnoSel(){const s=document.getElementById('sync-turno-sel');return s&&LIVE_TURNOS.includes(s.value)?s.value:'pre9';}
+const SHIFT_SEL_IDS=['sync-turno-sel','count-type-sel','count-type-sel-drawer'];
+function setShiftSelects(v){SHIFT_SEL_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&[...el.options].some(o=>o.value===v))el.value=v;});}
+/* one shift for everything: the Actions selector, the drawer and Sync → Export are the same control.
+   With live sync on, choosing a shift really starts it (same as the ▶ buttons); cancel puts it back. */
+async function onShiftSelect(el){
+  const v=el.value;
+  if(live.on&&live.rec){
+    if(live.rec.day===isoToday()&&live.rec.turno===v){setShiftSelects(v);return;}
+    await liveStartShift(v);
+    setShiftSelects(live.rec.turno);   // started → new shift; cancelled → back to the current one
+  }else setShiftSelects(v);
+}
+function syncTurnoSelects(){if(!live.rec)return;SHIFT_SEL_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&[...el.options].some(o=>o.value===live.rec.turno))el.value=live.rec.turno;});}
+/* freeze the current shift (also saved as a calendar copy) and start a new one from it */
+async function liveStartShift(turno,silent){
+  if(!live.on)return;
+  const day=isoToday();
+  if(!silent){
+    const cur=live.rec?SYNC_TURNO_LABELS[live.rec.turno]+' ('+liveDayLabel(live.rec.day)+')':'the current inventory';
+    if(live.rec&&live.rec.day===day&&live.rec.turno===turno){showToast('Already on '+SYNC_TURNO_LABELS[turno]+'.','success');return;}
+    if(!confirm('Start '+SYNC_TURNO_LABELS[turno]+' for '+liveDayLabel(day)+'?\n\n'+cur+' is frozen exactly as it is now and saved in the calendar.\n'+SYNC_TURNO_LABELS[turno]+' starts from it, on every '+currentPlant+' device.'))return;
+    await livePull(true,true);
+  }
+  if(live.rec){try{await liveFreezeCopy();}catch(e){}}
+  const now=new Date().toISOString();
+  live.rec={day,turno,startedAt:now};
+  live.ts={};live.del={};Object.keys(inventory).forEach(id=>live.ts[id]=now);
+  liveSave();syncTurnoSelects();
+  try{await livePostRec();live.pending=false;live.err='';}catch(e){live.pending=true;live.err=e.message;}
+  liveSave();renderLiveBar();
+  if(!silent){addLog('SHIFT START',SYNC_TURNO_LABELS[turno]+' started ('+liveDayLabel(day)+') from the previous shift');refresh();showToast('▶ '+SYNC_TURNO_LABELS[turno]+' started on every '+currentPlant+' device','success');}
+}
+/* the frozen shift is also uploaded as a normal calendar copy (WMS_Backups), so before/after/EOM can be compared */
+async function liveFreezeCopy(){
+  if(syncMode()!=='sharepoint'||!live.rec)return;
+  const turnoLabel=(currentPlant==='NJ'?'':currentPlant+' · ')+SYNC_TURNO_LABELS[live.rec.turno];
+  const payload={action:'export',date:liveDayLabel(live.rec.day),turno:live.rec.turno,turnoLabel,plant:currentPlant,ts:new Date().toISOString(),data:inventory};
+  await fetch(getFlowUrl(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+}
+async function liveInit(){
+  live.on=liveEnabled();live.err='';live.at=0;
+  liveLoad();liveResnap();
+  if(!live.on)return;
+  if(currentView==='map')render();
+  await livePull(true,true);
+}
+function liveBarHtml(){
+  if(!live.on)return '';
+  return `<div class="live-bar" id="live-bar">${liveBarInner()}</div>`;
+}
+function liveBarInner(){
+  const r=live.rec;
+  const st=live.err?`<span class="lv-warn">⚠ Offline — changes stay on this device${live.pending?' and upload when back':''} · <a href="#" onclick="livePull(true,true);return false">Retry</a></span>`
+    :`<span>☁ Live · ${live.pending?'uploading…':'all devices in sync'}${live.at?' · '+new Date(live.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):''}</span>`;
+  const btns=LIVE_TURNOS.filter(t=>!(r&&r.turno===t&&r.day===isoToday())).map(t=>`<button class="lv-btn" onclick="liveStartShift('${t}')">▶ ${SYNC_TURNO_LABELS[t].replace(/ \(.*\)/,'')}</button>`).join('');
+  return `<span class="lv-shift">${r?SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day):'Starting…'}</span>${st}<span class="lv-btns">${btns}</span>`;
+}
+function renderLiveBar(){const el=document.getElementById('live-bar');if(el)el.innerHTML=liveBarInner();syncTurnoSelects();}
+setInterval(()=>{if(live.on&&document.visibilityState==='visible')livePull(false,true);},30000);
+document.addEventListener('visibilitychange',()=>{if(live.on&&document.visibilityState==='visible')livePull(true,true);});
+
 function savePlanDia(){
   try{
     if(planData)localStorage.setItem(PLAN_DIA_KEY,JSON.stringify(planData));
@@ -4045,131 +4200,142 @@ function boxesFromSchedule(wb){
   return {sheet,byCode,total,days:[...days],noCode,byLine};
 }
 
+/* the planning file → inventory Daily Plan (boxes + sleeves). Used by ⬆ Import Planning here AND by Batch
+   (batch.html loads this page hidden with ?planimport=XX and sends it the file), so both give the same result. */
+function planErr(m){const e=new Error(m);e.planMsg=true;return e;}
+function processPlanWorkbook(wb,fileName){
+  const sheetName=wb.SheetNames.find(n=>/boxes.*total/i.test(n))||wb.SheetNames.find(n=>/^box\s*total$/i.test(n.trim()));
+  if(!sheetName){
+    throw planErr('Could not find a "Boxes (Total)" / "Box Total" sheet in that file.');
+  }
+  const ws=wb.Sheets[sheetName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+  let headerRow=-1,colDesc=-1,colCode=-1,colTotal=-1;
+  for(let r=0;r<rows.length;r++){
+    // NJ pivot header = "Box Code"; GA pivot header = "Row Labels" (codes in that column)
+    const idx=rows[r].findIndex(v=>{const t=String(v).trim();return t==='Box Code'||t==='Row Labels';});
+    if(idx>-1){
+      headerRow=r;colCode=idx;
+      colDesc=rows[r].findIndex(v=>String(v).trim()==='Boxes');
+      colTotal=rows[r].findIndex(v=>String(v).trim()==='Grand Total');
+      break;
+    }
+  }
+  if(headerRow<0||colTotal<0){
+    throw planErr('Could not find the "Box Code" / "Grand Total" columns in "'+sheetName+'".');
+  }
+  const meta={};
+  for(let r=0;r<headerRow;r++){
+    const row=rows[r];
+    if(String(row[colDesc]||'').trim()==='Line Priority'){
+      meta.linePriority=String(row[colCode]||'').trim();
+    }
+    const lbl=String(row[0]||'').trim();                      // GA: filters sit in columns A/B
+    if(lbl==='Line Priority'&&!meta.linePriority)meta.linePriority=String(row[1]||'').trim();
+    if(lbl==='Day')meta.day=String(row[1]||'').trim();
+  }
+
+  const byCode={};
+  for(let r=headerRow+1;r<rows.length;r++){
+    const row=rows[r];
+    let code=String(row[colCode]||'').trim();
+    let desc=String(colDesc>-1?row[colDesc]:'').trim();
+    if(!code&&desc&&desc.toLowerCase()!=='grand total'&&Number(row[colTotal])){
+      // pivot row without a Box Code (e.g. "FUDDRUCKERS BOX"): match the box by name, only if it is unambiguous
+      const nrm=t=>String(t).toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/BOX(ES)?$/,'').replace(/S$/,'');
+      const hits=ITEMS.filter(x=>x.cat==='BOXES'&&nrm(x.name)&&nrm(x.name)===nrm(desc));
+      if(hits.length===1){code=hits[0].code;(meta.nameMatched=meta.nameMatched||[]).push(desc+' → '+code);}
+      else{(meta.noCode=meta.noCode||[]).push(desc+' ('+Number(row[colTotal]).toLocaleString()+')');continue;}
+    }
+    if(!code)continue;
+    if(desc.toLowerCase()==='grand total'||code.toLowerCase()==='grand total')continue;
+    if(code==='(blank)')continue;
+    if(currentPlant==='GA'&&!/^[A-Z]{1,4}\d+[A-Z]*-\d+$/i.test(code)&&!/^sample box$/i.test(code))continue;
+    if(!desc){const it=ITEMS.find(x=>x.code===code.toUpperCase());desc=it?it.name:'';}
+    const total=Number(row[colTotal])||0;
+    const key=code.toUpperCase();
+    if(!byCode[key])byCode[key]={code:key,desc,needed:0};
+    byCode[key].needed+=total;
+    if(desc)byCode[key].desc=desc;
+  }
+
+  const sched=boxesFromSchedule(wb);
+  const pivotTotal=Object.values(byCode).reduce((a,b)=>a+b.needed,0);
+  if(!Object.keys(byCode).length){
+    if(sched&&Object.keys(sched.byCode).length){
+      // pivot not refreshed → use the schedule data (same rule as the pivot), and say so
+      Object.keys(byCode).forEach(k=>delete byCode[k]);
+      Object.values(sched.byCode).forEach(v=>byCode[v.code]={...v});
+      meta.source='schedule';meta.scheduleSheet=sched.sheet;
+      if(sched.days.length)meta.day=sched.days.join(', ');
+      const nc=Object.entries(sched.noCode);if(nc.length)meta.noCode=(meta.noCode||[]).concat(nc.map(([d,q])=>d+' ('+q.toLocaleString()+')'));
+    }else{
+      throw planErr('"'+sheetName+'" has no box rows and no schedule data was found. In Excel: open "'+sheetName+'", set the Day filter, Refresh, save — then import again.');
+    }
+  }else if(sched&&Math.round(sched.total)!==Math.round(pivotTotal)){
+    meta.crossCheck='"'+sheetName+'" total '+Math.round(pivotTotal).toLocaleString()+' ≠ schedule data ("'+sched.sheet+'") '+Math.round(sched.total).toLocaleString()+' — the pivot may not be refreshed.';
+  }
+  // re-loading today's plan keeps the Delivered / Ready marks already made today (on any device); a new day starts clean
+  const same=planData&&planData.day===isoToday();
+  const oldItems={},oldSl={};
+  if(same&&planData.items)planData.items.forEach(it=>oldItems[it.code]=it);
+  if(same&&planData.sleeves)planData.sleeves.forEach(it=>oldSl[it.code]=it);
+
+  const items=Object.values(byCode).map(it=>({
+    code:it.code,
+    desc:it.desc,
+    needed:it.needed,
+    delivered:oldItems[it.code]?(+oldItems[it.code].delivered||0):0,
+    ...(oldItems[it.code]&&oldItems[it.code].done?{done:true,ts:oldItems[it.code].ts}:{})
+  })).sort((a,b)=>a.code.localeCompare(b.code));
+
+  // Sleeves needed — NJ: "Line 22/23 Production" sheets · GA: every "Lxx_Prod" sheet (cases × 6 or 4 sleeves)
+  const sleeveTotals={},sleeveLines=[],skippedPhys=new Set();
+  const lineSheets=currentPlant==='GA'
+    ?wb.SheetNames.filter(n=>/^L\d+_Prod$/i.test(n.trim())).map(n=>({sheet:n,line:'Line '+n.match(/\d+/)[0]}))
+    :[22,23].map(num=>({sheet:wb.SheetNames.find(n=>new RegExp('line\\s*'+num,'i').test(n)),line:'Line '+num})).filter(x=>x.sheet);
+  lineSheets.forEach(({sheet,line})=>{
+    const lineRows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
+    const parsed=parseSleeveLineSheet(lineRows,currentPlant==='GA');
+    if(!parsed)return;
+    parsed.skipped.forEach(c=>skippedPhys.add(c));
+    const ent=Object.entries(parsed.bySl);if(!ent.length)return;
+    sleeveLines.push(line);
+    ent.forEach(([sl,qty])=>{
+      if(!sleeveTotals[sl])sleeveTotals[sl]={};
+      sleeveTotals[sl][line]=(sleeveTotals[sl][line]||0)+qty;
+    });
+  });
+  const sleeves=Object.entries(sleeveTotals).map(([sl,byLine])=>{
+    const item=ITEMS.find(i=>i.code===sl);
+    const total=Object.values(byLine).reduce((a,b)=>a+b,0);
+    const o=oldSl[sl]||{};
+    return {code:sl,desc:item?item.name:sl,lines:byLine,line22:byLine['Line 22']||0,line23:byLine['Line 23']||0,total,boxesNeeded:Math.ceil(total/325),
+      ...(o.delivered?{delivered:o.delivered}:{}),...(o.done?{done:true}:{}),...(o.ts?{ts:o.ts}:{})};
+  }).sort((a,b)=>a.code.localeCompare(b.code));
+  meta.sleeveLines=currentPlant==='GA'?sleeveLines:['Line 22','Line 23'];   // NJ keeps its two fixed columns
+  if(currentPlant==='GA'&&skippedPhys.size)meta.sleeveSkipped=[...skippedPhys];
+  planData={importedAt:new Date().toISOString(),source:fileName,meta,items,sleeves,byLine:sched?sched.byLine:null};
+  planData.day=isoToday();planData.by=planDevice();planData.updatedAt=new Date().toISOString();
+  savePlanDia();
+  addLog('PLAN IMPORT','Planning imported from "'+fileName+'" ('+sheetName+') — '+items.length+' box codes'+(sleeves.length?', '+sleeves.length+' sleeve codes':''));
+  return {items,sleeves,msg:'Daily Plan imported: '+items.length+' boxes'+(sleeves.length?', '+sleeves.length+' sleeves':'')+'.'};
+}
 function importPlanFile(input){
   const file=input.files[0];
   if(!file)return;
   const reader=new FileReader();
-  reader.onload=function(e){
+  reader.onload=async function(e){
     try{
+      try{await pullSharedPlan(true);}catch(x){}               // newest marks from other devices first
       const wb=XLSX.read(e.target.result,{type:'array'});
-      const sheetName=wb.SheetNames.find(n=>/boxes.*total/i.test(n))||wb.SheetNames.find(n=>/^box\s*total$/i.test(n.trim()));
-      if(!sheetName){
-        showToast('Could not find a "Boxes (Total)" / "Box Total" sheet in that file.','error');
-        input.value='';return;
-      }
-      const ws=wb.Sheets[sheetName];
-      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-
-      let headerRow=-1,colDesc=-1,colCode=-1,colTotal=-1;
-      for(let r=0;r<rows.length;r++){
-        // NJ pivot header = "Box Code"; GA pivot header = "Row Labels" (codes in that column)
-        const idx=rows[r].findIndex(v=>{const t=String(v).trim();return t==='Box Code'||t==='Row Labels';});
-        if(idx>-1){
-          headerRow=r;colCode=idx;
-          colDesc=rows[r].findIndex(v=>String(v).trim()==='Boxes');
-          colTotal=rows[r].findIndex(v=>String(v).trim()==='Grand Total');
-          break;
-        }
-      }
-      if(headerRow<0||colTotal<0){
-        showToast('Could not find the "Box Code" / "Grand Total" columns in "'+sheetName+'".','error');
-        input.value='';return;
-      }
-      const meta={};
-      for(let r=0;r<headerRow;r++){
-        const row=rows[r];
-        if(String(row[colDesc]||'').trim()==='Line Priority'){
-          meta.linePriority=String(row[colCode]||'').trim();
-        }
-        const lbl=String(row[0]||'').trim();                      // GA: filters sit in columns A/B
-        if(lbl==='Line Priority'&&!meta.linePriority)meta.linePriority=String(row[1]||'').trim();
-        if(lbl==='Day')meta.day=String(row[1]||'').trim();
-      }
-
-      const byCode={};
-      for(let r=headerRow+1;r<rows.length;r++){
-        const row=rows[r];
-        let code=String(row[colCode]||'').trim();
-        let desc=String(colDesc>-1?row[colDesc]:'').trim();
-        if(!code&&desc&&desc.toLowerCase()!=='grand total'&&Number(row[colTotal])){
-          // pivot row without a Box Code (e.g. "FUDDRUCKERS BOX"): match the box by name, only if it is unambiguous
-          const nrm=t=>String(t).toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/BOX(ES)?$/,'').replace(/S$/,'');
-          const hits=ITEMS.filter(x=>x.cat==='BOXES'&&nrm(x.name)&&nrm(x.name)===nrm(desc));
-          if(hits.length===1){code=hits[0].code;(meta.nameMatched=meta.nameMatched||[]).push(desc+' → '+code);}
-          else{(meta.noCode=meta.noCode||[]).push(desc+' ('+Number(row[colTotal]).toLocaleString()+')');continue;}
-        }
-        if(!code)continue;
-        if(desc.toLowerCase()==='grand total'||code.toLowerCase()==='grand total')continue;
-        if(code==='(blank)')continue;
-        if(currentPlant==='GA'&&!/^[A-Z]{1,4}\d+[A-Z]*-\d+$/i.test(code)&&!/^sample box$/i.test(code))continue;
-        if(!desc){const it=ITEMS.find(x=>x.code===code.toUpperCase());desc=it?it.name:'';}
-        const total=Number(row[colTotal])||0;
-        const key=code.toUpperCase();
-        if(!byCode[key])byCode[key]={code:key,desc,needed:0};
-        byCode[key].needed+=total;
-        if(desc)byCode[key].desc=desc;
-      }
-
-      const sched=boxesFromSchedule(wb);
-      const pivotTotal=Object.values(byCode).reduce((a,b)=>a+b.needed,0);
-      if(!Object.keys(byCode).length){
-        if(sched&&Object.keys(sched.byCode).length){
-          // pivot not refreshed → use the schedule data (same rule as the pivot), and say so
-          Object.keys(byCode).forEach(k=>delete byCode[k]);
-          Object.values(sched.byCode).forEach(v=>byCode[v.code]={...v});
-          meta.source='schedule';meta.scheduleSheet=sched.sheet;
-          if(sched.days.length)meta.day=sched.days.join(', ');
-          const nc=Object.entries(sched.noCode);if(nc.length)meta.noCode=(meta.noCode||[]).concat(nc.map(([d,q])=>d+' ('+q.toLocaleString()+')'));
-        }else{
-          showToast('"'+sheetName+'" has no box rows and no schedule data was found. In Excel: open "'+sheetName+'", set the Day filter, Refresh, save — then import again.','error');
-          input.value='';return;
-        }
-      }else if(sched&&Math.round(sched.total)!==Math.round(pivotTotal)){
-        meta.crossCheck='"'+sheetName+'" total '+Math.round(pivotTotal).toLocaleString()+' ≠ schedule data ("'+sched.sheet+'") '+Math.round(sched.total).toLocaleString()+' — the pivot may not be refreshed.';
-      }
-      const oldItems={};
-      if(planData&&planData.items)planData.items.forEach(it=>oldItems[it.code]=it.delivered||0);
-
-      const items=Object.values(byCode).map(it=>({
-        code:it.code,
-        desc:it.desc,
-        needed:it.needed,
-        delivered:oldItems[it.code]||0
-      })).sort((a,b)=>a.code.localeCompare(b.code));
-
-      // Sleeves needed — NJ: "Line 22/23 Production" sheets · GA: every "Lxx_Prod" sheet (cases × 6 or 4 sleeves)
-      const sleeveTotals={},sleeveLines=[],skippedPhys=new Set();
-      const lineSheets=currentPlant==='GA'
-        ?wb.SheetNames.filter(n=>/^L\d+_Prod$/i.test(n.trim())).map(n=>({sheet:n,line:'Line '+n.match(/\d+/)[0]}))
-        :[22,23].map(num=>({sheet:wb.SheetNames.find(n=>new RegExp('line\\s*'+num,'i').test(n)),line:'Line '+num})).filter(x=>x.sheet);
-      lineSheets.forEach(({sheet,line})=>{
-        const lineRows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
-        const parsed=parseSleeveLineSheet(lineRows,currentPlant==='GA');
-        if(!parsed)return;
-        parsed.skipped.forEach(c=>skippedPhys.add(c));
-        const ent=Object.entries(parsed.bySl);if(!ent.length)return;
-        sleeveLines.push(line);
-        ent.forEach(([sl,qty])=>{
-          if(!sleeveTotals[sl])sleeveTotals[sl]={};
-          sleeveTotals[sl][line]=(sleeveTotals[sl][line]||0)+qty;
-        });
-      });
-      const sleeves=Object.entries(sleeveTotals).map(([sl,byLine])=>{
-        const item=ITEMS.find(i=>i.code===sl);
-        const total=Object.values(byLine).reduce((a,b)=>a+b,0);
-        return {code:sl,desc:item?item.name:sl,lines:byLine,line22:byLine['Line 22']||0,line23:byLine['Line 23']||0,total,boxesNeeded:Math.ceil(total/325)};
-      }).sort((a,b)=>a.code.localeCompare(b.code));
-      meta.sleeveLines=currentPlant==='GA'?sleeveLines:['Line 22','Line 23'];   // NJ keeps its two fixed columns
-      if(currentPlant==='GA'&&skippedPhys.size)meta.sleeveSkipped=[...skippedPhys];
-      planData={importedAt:new Date().toISOString(),source:file.name,meta,items,sleeves,byLine:sched?sched.byLine:null};
-      planData.day=isoToday();planData.by=planDevice();planData.updatedAt=new Date().toISOString();
-      savePlanDia();
+      const r=processPlanWorkbook(wb,file.name);
       sharePlan(wb,file.name);
-      addLog('PLAN IMPORT','Planning imported from "'+file.name+'" ('+sheetName+') — '+items.length+' box codes'+(sleeves.length?', '+sleeves.length+' sleeve codes':''));
       render();
-      showToast('Daily Plan imported: '+items.length+' boxes'+(sleeves.length?', '+sleeves.length+' sleeves':'')+'.','success');
+      showToast(r.msg,'success');
     }catch(err){
-      showToast('Error al leer el planning: '+err.message,'error');
+      showToast(err.planMsg?err.message:'Error al leer el planning: '+err.message,'error');
     }
     input.value='';
   };
@@ -4295,7 +4461,7 @@ function renderPlanView(){
       </div>
       ${PLAN_ONLY
         ?`<div class="log-empty" style="font-size:14px;line-height:1.6">📅 Load today's <b>${currentPlant}</b> production planning file.<br>Tap <b>⬆ Import Planning</b> and pick the file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}).<br>It is shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).</div>`
-        :`<div class="log-empty">No Daily Plan for today yet.<br>It is loaded once in <b>Start → PLANNING → ${currentPlant}</b> and appears here on every device.<br><a href="#" onclick="pullSharedPlan(true);return false">⟳ Check now</a><div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
+        :`<div class="log-empty">No Daily Plan for today yet.<br>Tap <b>⬆ Import Planning</b> and pick today's ${currentPlant} file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}) — or load it in Batch, same result.<br>It is loaded once and shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).<br><a href="#" onclick="pullSharedPlan(true);return false">⟳ Check now</a><div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
     return;
   }
   const summary=getItemSummary();
@@ -5704,7 +5870,6 @@ function openRoModal(id){
   if(mixEl)mixEl.innerHTML=nMix?`<div class="ro-mix"><div class="ro-mix-title">📦 Mixed pallet · ${1+nMix} items in this position</div>${occItems(data).map(x=>{const d=ITEMS.find(i2=>i2.code===x.item);return `<div class="ro-mix-row"><span><b style="color:var(--accent2)">${x.item}</b> <span style="color:var(--text3);font-size:10px">${d?d.name:''}</span>${x.extra?'':' <span style="font-size:9px;color:var(--text3)">(main)</span>'}</span><b>${x.qty.toLocaleString()}</b></div>`;}).join('')}</div>`:'';
   document.getElementById('ro-overlay').classList.remove('hidden');
 }
-
 function closeRoModal(e){
   if(!e||e.target===document.getElementById('ro-overlay'))
     document.getElementById('ro-overlay').classList.add('hidden');
@@ -5716,7 +5881,6 @@ function toggleSidebar(){
     var d=document.getElementById('actions-drawer-overlay');
     if(d) d.classList.toggle('hidden');
     
-
     syncDrawerCountType();
     return;
   }
@@ -5988,6 +6152,7 @@ function jumpToItemOnMap(code, locId_){
 }
 
 async function autoLoadIfEmpty(){
+  if(PLAN_HELPER)return;                     // hidden plan helper for Batch: never touches the inventory
   if(Object.keys(inventory).length>0)return; // ya hay datos locales — nunca los toca
   if(syncMode()!=='sharepoint')return; // sin SharePoint conectado, no hay de dónde traer
   try{
@@ -6238,7 +6403,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.04a';
+const APP_VERSION='2026.11.04g';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -6272,6 +6437,24 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     const nm=document.getElementById('plant-strip-name');if(nm)nm.textContent='🚚 RECEIVING · '+PLANTS[rp].name;
     const sw=document.querySelector('.plant-strip .ps-switch');if(sw)sw.textContent='⌂ Menu';
     document.title='Schweid & Sons · Receiving '+rp;
+    return;
+  }
+  const pi=(qs.get('planimport')||'').toUpperCase();
+  if(PLANTS[pi]&&window.parent!==window){          // hidden helper for Batch: same plan import as Inventory → Plan
+    PLAN_ONLY=true;PLAN_HELPER=true;document.body.classList.add('plan-only');
+    applyPlant(pi);
+    window.addEventListener('message',async ev=>{
+      const m=ev.data;if(ev.source!==window.parent||!m||m.type!=='wms-plan-import')return;
+      const reply=o=>window.parent.postMessage(Object.assign({type:'wms-plan-import-done',id:m.id},o),'*');
+      try{
+        try{await pullSharedPlan(true);}catch(x){}             // keep today's Delivered / Ready marks
+        const wb=XLSX.read(m.buf,{type:'array'});
+        const r=processPlanWorkbook(wb,m.name);
+        await sharePlan(wb,m.name);
+        reply({ok:!(planData&&planData._pending),boxes:r.items.length,sleeves:r.sleeves.length,err:planSync.err||''});
+      }catch(err){reply({ok:false,err:err.message});}
+    });
+    window.parent.postMessage({type:'wms-plan-import-ready',plant:pi},'*');
     return;
   }
   const pp=(qs.get('planning')||'').toUpperCase();
