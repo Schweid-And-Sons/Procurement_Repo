@@ -990,6 +990,10 @@
   .po-earlier-btn .chev{margin-left:auto;font-size:14px;}
   .po-earlier{border-left:3px solid #c76a00;padding-left:10px;}
   .po-earlier .po-card{opacity:.92;}
+  .po-past-btn b{background:var(--text3);}
+  .po-past{border-left:3px solid var(--border);padding-left:10px;}
+  .po-manual-btn{display:block;width:100%;margin:14px 0 4px;padding:14px;border:2px dashed var(--accent);border-radius:14px;background:transparent;color:var(--accent);font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+  .po-manual-btn:active{background:var(--surface2);}
   .po-card{background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;display:flex;gap:12px;align-items:center;}
   .po-card:active{transform:scale(.99);}
   .po-card .po-main{flex:1;min-width:0;}
@@ -999,6 +1003,7 @@
   .po-st{flex:none;font-size:11px;font-weight:700;border-radius:20px;padding:5px 10px;white-space:nowrap;}
   .po-st.pend{background:var(--fill,#eee);color:var(--text2);}
   .po-st.ok{background:color-mix(in srgb,var(--success) 16%,transparent);color:var(--success);}
+  .po-st.nolist{background:color-mix(in srgb,#007aff 15%,transparent);color:#0a66c2;}
   .po-st.diff{background:color-mix(in srgb,#ff9500 18%,transparent);color:#c76a00;}
   .po-st.miss{background:color-mix(in srgb,var(--danger,#ff3b30) 14%,transparent);color:var(--danger,#ff3b30);}
   .po-empty{color:var(--text3);font-size:13px;text-align:center;padding:24px 10px;background:var(--surface);border-radius:16px;}
@@ -4820,7 +4825,7 @@ async function shareBoxRoomMap(){
    Yooz lines come from Databricks through the flow WMS_Yooz_POs (svc_wms_receiving); the Yooz file can still be loaded by hand. */
 const YOOZ_LINES_KEY='wms_yooz_lines';              // shared by both plants (plant comes from the code suffix)
 const PLANT_SUFFIX={NJ:'1',GA:'4'};
-let poDate=null,poEarlierOpen=false;
+let poDate=null,poEarlierOpen=false,poPastOpen=false;
 const receiptsKey=()=>'wms_receipts_'+String(currentPlant||'NJ').toLowerCase();
 function loadYooz(){try{return JSON.parse(localStorage.getItem(YOOZ_LINES_KEY))||null;}catch(e){return null;}}
 function loadReceipts(){try{return JSON.parse(localStorage.getItem(receiptsKey()))||{};}catch(e){return {};}}
@@ -4927,13 +4932,15 @@ function lineStatus(l){
   if(l.bol!=null&&l.ordered!=null&&l.bol!==l.ordered)return 'bol';
   return 'ok';
 }
+function st0(r){return r.lines.some(l=>l.bol!=null&&l.counted!==l.bol&&l.bol!==0)?'diff':'nolist';}   // truck that was not in the Yooz list
 function receiptStatus(r){
   if(!r)return 'pend';
   if(r.notArrived)return 'miss';
+  if(r.lines.length&&r.lines.every(l=>l.extra))return st0(r);
   const st=r.lines.map(lineStatus);
   return st.includes('diff')||st.includes('miss')?'diff':(st.includes('bol')||st.includes('extra'))?'bol':'ok';
 }
-const ST_LABEL={pend:'To check',ok:'✓ Received OK',diff:'⚠ Count ≠ BOL',bol:'◐ BOL ≠ PO',miss:'✕ Not arrived',late:'⏳ Not arrived yet'};
+const ST_LABEL={nolist:'＋ Not on Yooz list',pend:'To check',ok:'✓ Received OK',diff:'⚠ Count ≠ BOL',bol:'◐ BOL ≠ PO',miss:'✕ Not arrived',late:'⏳ Not arrived yet'};
 const LINE_TXT={ok:'✓',diff:'Count ≠ BOL',bol:'BOL ≠ PO',miss:'Not received',extra:'Not on PO',pend:''};
 
 /* ---------- One shared database: SharePoint is the source of truth ----------
@@ -5054,7 +5061,12 @@ function renderPoView(noSync){
         <span>⏳ Earlier POs still waiting <b>${earlier.length}</b></span><span class="po-sub">due before ${fmtDay(poDate)} · last 14 days · not received yet</span><span class="chev">${poEarlierOpen?'▴':'▾'}</span></button>`
       +(poEarlierOpen?`<div class="po-earlier">${earlier.map(card).join('')}</div>`:'');
   }
-  h+=poFindAndHistoryHtml();
+  {const gk=new Set(poGroups().map(g=>g.key));
+   const manual=Object.values(allReceipts()).filter(r=>r.due===poDate&&!gk.has(baseKeyOf(r.key))).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+   if(manual.length)h+=`<div class="po-sec">Received ${fmtDay(poDate)} — not on the list</div>`+manual.map(poReportCard).join('');}
+  h+=`<button class="po-manual-btn" onclick="openPoManual()">＋ A truck arrived that is <u>not</u> on this list</button>`;
+  h+=`<button class="po-earlier-btn po-past-btn${poPastOpen?' open':''}" onclick="poPastOpen=!poPastOpen;renderPoView(true)"><span>📁 Past receiving reports</span><span class="po-sub">search by PO, vendor or day</span><span class="chev">${poPastOpen?'▴':'▾'}</span></button>`;
+  if(poPastOpen)h+=`<div class="po-past">${poFindAndHistoryHtml()}</div>`;
   el.innerHTML=h;
   if(!noSync)syncReceiptsFromSP(false);
 }
@@ -5140,9 +5152,10 @@ function openPoReceive(key,opt){
   const prev=poGetR(key);
   if(prev&&!opt.edit){openPoReport(key);return;}
   const g=poGroups().find(x=>x.key===base);
-  const src=g||deliveriesFor(base)[0]||prev;
+  const src=g||deliveriesFor(base)[0]||prev||opt.manual;
   if(!src){showToast('PO not found — load the Yooz file first.','error');return;}
-  const lines=(g?g.lines:src.lines.filter(l=>!l.extra)).map(l=>({code:l.code,raw:l.raw,desc:l.desc,ordered:l.ordered}));
+  const isManual=!g&&!!(opt.manual||(src.lines||[]).every(l=>l.extra));
+  const lines=(g?g.lines:(src.lines||[]).filter(l=>!l.extra)).map(l=>({code:l.code,raw:l.raw,desc:l.desc,ordered:l.ordered}));
   if(prev)prev.lines.filter(l=>l.extra&&!lines.some(x=>x.code===l.code)).forEach(l=>lines.push({code:l.code,desc:l.desc,ordered:null,extra:true}));
   const before={};deliveriesFor(base).filter(r=>deliveryOf(r.key)<dn&&!r.notArrived).forEach(r=>r.lines.forEach(l=>{before[l.code]=(before[l.code]||0)+(l.counted||0);}));
   _poKey=key;_poForm={key,base,dn,po:src.po,vendor:src.vendor,due:src.due,lines,before,prev};
@@ -5152,10 +5165,11 @@ function openPoReceive(key,opt){
   document.getElementById('po-modal-body').innerHTML=`
     <h3>Receive · ${poEsc(src.po)}${dn>1?' · delivery '+dn:''}</h3>
     <div class="modal-loc">${poEsc(src.vendor)} · ${currentPlant} · due ${fmtDay(src.due)}</div>
-    <div class="po-hint"><b>Ordered</b> comes from Yooz. Type the <b>BOL</b> qty (what the supplier says it sent) and what you <b>counted</b>. <b>=</b> copies the BOL into the count.${dn>1?' <b>Already received</b> shows what earlier deliveries brought.':''}</div>
-    <div class="po-quick"><button type="button" class="po-btn ok" onclick="poAllEq()">✓ BOL = ${dn>1?'remaining':'PO'} and count = BOL</button><button type="button" class="po-btn bad" onclick="poNotArrived()">✕ Truck did not arrive</button></div>
+    ${isManual?`<div class="po-hint">This truck is <b>not in the Yooz list</b>. Add each item that came: tap the item box, pick the code, then type the <b>BOL</b> qty (what the paper says) and what you <b>counted</b>.</div>`:''}
+    <div class="po-hint"${isManual?' style="display:none"':''}><b>Ordered</b> comes from Yooz. Type the <b>BOL</b> qty (what the supplier says it sent) and what you <b>counted</b>. <b>=</b> copies the BOL into the count.${dn>1?' <b>Already received</b> shows what earlier deliveries brought.':''}</div>
+    <div class="po-quick"${isManual?' style="display:none"':''}><button type="button" class="po-btn ok" onclick="poAllEq()">✓ BOL = ${dn>1?'remaining':'PO'} and count = BOL</button><button type="button" class="po-btn bad" onclick="poNotArrived()">✕ Truck did not arrive</button></div>
     <div style="overflow-x:auto"><table class="po-lines"><thead><tr><th>Item</th><th>Ordered</th><th>BOL</th><th>Counted</th><th></th></tr></thead><tbody id="po-lines-body">${lines.map((l,i)=>poRowHtml(l,i,pl[l.code])).join('')}</tbody></table></div>
-    <button type="button" class="po-btn" style="margin:4px 0 10px" onclick="poAddExtra()">＋ Item not on the PO</button>${dl}
+    <button type="button" class="po-btn" style="margin:4px 0 10px" onclick="poAddExtra()">${isManual?'＋ Add another item':'＋ Item not on the PO'}</button>${dl}
     <label>Notes (BOL #, damage, short pallets…)</label>
     <textarea class="po-note" id="po-note">${poEsc(prev?prev.notes:'')}</textarea>
     <label>Received by</label>
@@ -5163,6 +5177,43 @@ function openPoReceive(key,opt){
     <div class="modal-actions"><button class="btn-primary" onclick="savePoReceipt()">Save &amp; create report</button><button class="btn-cancel" onclick="closePoModal()">Cancel</button></div>`;
   lines.forEach((l,i)=>poUpdDiff(i));
   document.getElementById('po-overlay').classList.remove('hidden');
+  if(!lines.length)poAddExtra();
+}
+/* ---------- A truck that is not in the list ----------
+   Step 1: PO number (from the paperwork) + vendor. If that PO is in Yooz (any day), it opens normally.
+   Otherwise a report is created with only the items that came ("Not on PO"), so Procurement still gets it. */
+function openPoManual(){
+  const d=loadYooz();const vendors=[...new Set((d?d.lines:[]).filter(l=>l.plant===currentPlant).map(l=>l.vendor).filter(Boolean))].sort();
+  document.getElementById('po-modal-body').innerHTML=`
+    <h3>＋ Truck not on the list</h3>
+    <div class="modal-loc">${currentPlant} · ${fmtDay(poDate)}</div>
+    <div class="po-hint">Look at the truck paperwork (BOL / packing list).</div>
+    <label>1 · PO number <span style="font-weight:400;color:var(--text3)">(if the paper has one)</span></label>
+    <input type="text" id="pm-po" placeholder="e.g. 28175 or YZ-26-28175" autocomplete="off" inputmode="text">
+    <label>2 · Vendor (who sent it)</label>
+    <input type="text" id="pm-vendor" list="pm-vendors" placeholder="e.g. SONIC PACKAGING" autocomplete="off">
+    <datalist id="pm-vendors">${vendors.map(v=>`<option value="${poEsc(v)}">`).join('')}</datalist>
+    <div class="modal-actions"><button class="btn-primary" onclick="poManualNext()">Next → add the items</button><button class="btn-cancel" onclick="closePoModal()">Cancel</button></div>`;
+  document.getElementById('po-overlay').classList.remove('hidden');
+  setTimeout(()=>{const i=document.getElementById('pm-po');if(i)i.focus();},60);
+}
+function poManualNext(){
+  const q=(document.getElementById('pm-po').value||'').trim().toUpperCase();
+  const vendor=(document.getElementById('pm-vendor').value||'').trim();
+  if(q){
+    const cands=poCandidatePOs(q).concat([q]);
+    const gs=poGroups().filter(g=>cands.includes(g.po.toUpperCase()));
+    if(gs.length){                                    // it IS in Yooz, just another day → open it normally
+      const g=gs.sort((a,b)=>Math.abs(new Date(a.due)-new Date(poDate))-Math.abs(new Date(b.due)-new Date(poDate)))[0];
+      showToast('Found '+g.po+' in Yooz (due '+fmtDay(g.due)+') — opening it.','success');
+      closePoModal();openPoGroup(g.key);return;
+    }
+  }
+  if(!vendor){showToast('Type the vendor (who sent it).','error');document.getElementById('pm-vendor').focus();return;}
+  const po=q?(poCandidatePOs(q)[0]||q):'NO PO';
+  const key=(q?po:'NOPO-'+Date.now().toString(36).toUpperCase())+'|'+poDate;
+  closePoModal();
+  openPoReceive(key,{edit:true,manual:{po,vendor,due:poDate,lines:[]}});
 }
 function poRowHtml(l,i,p0){
   p0=p0||{};const it=ITEMS.find(x=>x.code===l.code);
@@ -5243,7 +5294,7 @@ function savePoReceipt(notArrived){
 /* ---------- micro-report (what Procurement receives) ---------- */
 function poReportHtml(r){
   const s=receiptStatus(r);
-  const col={ok:'#1f9d55',diff:'#c76a00',bol:'#c76a00',miss:'#d70015',pend:'#666'}[s];
+  const col={ok:'#1f9d55',diff:'#c76a00',bol:'#c76a00',miss:'#d70015',pend:'#666',nolist:'#0a66c2'}[s];
   const td='padding:7px 8px;border-top:1px solid #e5e5ea;text-align:right';
   const sgn=n=>(n>0?'+':'')+n.toLocaleString();
   const rows=r.lines.map(l=>{const ls=lineStatus(l);const it=ITEMS.find(x=>x.code===l.code);
@@ -6461,7 +6512,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.05c';
+const APP_VERSION='2026.11.05d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
