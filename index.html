@@ -992,6 +992,27 @@
   .po-earlier .po-card{opacity:.92;}
   .po-past-btn b{background:var(--text3);}
   .po-past{border-left:3px solid var(--border);padding-left:10px;}
+  .pc-wrap{background:var(--surface);border-radius:16px;padding:12px;box-shadow:var(--shadow);margin-bottom:14px;}
+  .pc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:16px;}
+  .pc-sum{font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.9;}
+  .pc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .pc-w{font-size:10px;font-weight:700;color:var(--text3);text-align:center;padding:2px 0;}
+  .pc-day{min-height:74px;border-radius:10px;background:var(--surface2);padding:5px;cursor:pointer;display:flex;flex-direction:column;gap:2px;border:2px solid transparent;}
+  .pc-day.empty{background:none;cursor:default;}
+  .pc-day.none{opacity:.55;}
+  .pc-day.today{border-color:var(--accent);}
+  .pc-day.sel{background:color-mix(in srgb,var(--accent) 12%,var(--surface2));}
+  .pc-n{font-size:12px;font-weight:700;}
+  .pc-po{font-size:10px;color:var(--text3);}
+  .pc-chips{display:flex;flex-wrap:wrap;gap:2px;}
+  .pc-c{display:inline-block;font-size:10px;font-weight:700;border-radius:6px;padding:0 4px;line-height:16px;}
+  .pc-c.ok{background:color-mix(in srgb,#34c759 22%,transparent);color:#1f9d55;}
+  .pc-c.diff{background:color-mix(in srgb,#ff9500 22%,transparent);color:#c76a00;}
+  .pc-c.miss{background:color-mix(in srgb,#ff3b30 18%,transparent);color:#d70015;}
+  .pc-c.yooz{background:color-mix(in srgb,#007aff 15%,transparent);color:#0a66c2;}
+  .pc-c.pend{background:var(--surface);color:var(--text2);border:1px solid var(--border);}
+  .pc-c.pend.late{color:#d70015;border-color:color-mix(in srgb,#ff3b30 40%,transparent);}
+  @media(max-width:520px){.pc-day{min-height:58px;padding:3px;}.pc-c{font-size:9px;padding:0 3px;}.pc-w{font-size:9px;}}
   .po-manual-btn{display:block;width:100%;margin:14px 0 4px;padding:14px;border:2px dashed var(--accent);border-radius:14px;background:transparent;color:var(--accent);font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
   .po-manual-btn:active{background:var(--surface2);}
   .po-card{background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;display:flex;gap:12px;align-items:center;}
@@ -4825,7 +4846,7 @@ async function shareBoxRoomMap(){
    Yooz lines come from Databricks through the flow WMS_Yooz_POs (svc_wms_receiving); the Yooz file can still be loaded by hand. */
 const YOOZ_LINES_KEY='wms_yooz_lines';              // shared by both plants (plant comes from the code suffix)
 const PLANT_SUFFIX={NJ:'1',GA:'4'};
-let poDate=null,poEarlierOpen=false,poPastOpen=false;
+let poDate=null,poEarlierOpen=false,poPastOpen=false,poCalOpen=false,poCalMonth=null;
 const receiptsKey=()=>'wms_receipts_'+String(currentPlant||'NJ').toLowerCase();
 function loadYooz(){try{return JSON.parse(localStorage.getItem(YOOZ_LINES_KEY))||null;}catch(e){return null;}}
 function loadReceipts(){try{return JSON.parse(localStorage.getItem(receiptsKey()))||{};}catch(e){return {};}}
@@ -5028,13 +5049,15 @@ function renderPoView(noSync){
   const pend=Object.values(loadReceipts()).filter(isPending);
   let h=`<div class="po-bar">
     <div class="po-date"><button onclick="poShiftDay(-1)" aria-label="Previous day">‹</button><input type="date" value="${poDate}" onchange="poDate=this.value||poDate;renderPoView()"><button onclick="poShiftDay(1)" aria-label="Next day">›</button></div>
-    <button class="po-btn" onclick="poDate=ymd(new Date());renderPoView()">Today</button>
+    <button class="po-btn" onclick="poDate=ymd(new Date());poCalOpen=false;renderPoView()">Today</button>
+    <button class="po-btn${poCalOpen?' pri':''}" onclick="togglePoCal()">📅 Calendar</button>
     ${YOOZ_FLOW_URL?`<button class="po-btn pri" onclick="loadYoozFromFlow(true)" ${yoozFetch.busy?'disabled':''}>${yoozFetch.busy?'⏳ Loading POs…':'⟳ Refresh POs'}</button>
     <button class="po-btn" onclick="document.getElementById('po-file-input').click()" title="Use a Yooz export instead">⬆ File</button>`
     :`<button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>`}
     <span class="po-src">${yoozFetch.err?`<span style="color:var(--danger)">⚠ ${poEsc(yoozFetch.err)}</span> · `:''}${data?`Yooz data: <b>${poEsc(data.file)}</b> · loaded ${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} · ${poLines(data).length} DM line(s) for ${currentPlant}`:'No Yooz data on this device yet — load the daily Yooz export (xlsx / csv).'}</span>
   </div>
   <div class="po-sync" id="po-sync">${poSyncLineHtml()}</div>`;
+  if(poCalOpen){h+=poCalendarHtml();el.innerHTML=h;if(!noSync)syncReceiptsFromSP(false);return;}
   if(pend.length)h+=`<div class="po-pending">⚠ <b>${pend.length}</b> report(s) are only on this device — not in SharePoint yet. <button class="po-btn pri" onclick="uploadPendingPo()">☁ Upload ${pend.length===1?'it':'all'}</button></div>`;
   if(!data){
     h+=`<div class="po-empty">Load the Yooz export to see the POs expected each day.<br>Past receiving reports can still be found below.</div>`;
@@ -5199,6 +5222,55 @@ function openPoReceive(key,opt){
   lines.forEach((l,i)=>poUpdDiff(i));
   document.getElementById('po-overlay').classList.remove('hidden');
   if(!lines.length)poAddExtra();
+}
+/* ---------- Receiving calendar ----------
+   One month at a glance: for each day, the POs that were due and what happened to them
+   (✓ received OK · ⚠ differences · ✕ not arrived · ○ not checked yet). Tap a day to open it.
+   Past months load their receiving reports from SharePoint; Yooz POs cover the last 30 days onward. */
+function togglePoCal(){poCalOpen=!poCalOpen;if(poCalOpen){poCalMonth=(poDate||ymd(new Date())).slice(0,7);poCalLoadMonth();}renderPoView(true);}
+function poCalShift(n){const [y,m]=poCalMonth.split('-').map(Number);const d=new Date(y,m-1+n,1);poCalMonth=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');poCalLoadMonth();renderPoView(true);}
+let _poCalLoaded={};
+async function poCalLoadMonth(){
+  if(!RECEIVING_SEARCH_URL)return;
+  const k=currentPlant+'|'+poCalMonth;if(_poCalLoaded[k])return;_poCalLoaded[k]=1;
+  const [y,m]=poCalMonth.split('-').map(Number);
+  const a=new Date(y,m-1,1),z=new Date(y,m,1);a.setDate(a.getDate()-7);z.setDate(z.getDate()+7);   // reports are saved some days after the due date
+  try{const list=await poQuerySP({mode:'date',plant:currentPlant,from:a.toISOString(),to:z.toISOString()});
+    loadSpCache();list.forEach(r=>{_spRec[r.key]=r;});saveSpCache();}catch(e){delete _poCalLoaded[k];}
+  if(currentView==='po'&&poCalOpen)renderPoView(true);
+}
+function poDayStats(d){
+  const out={ok:0,diff:0,miss:0,pend:0,yooz:0,n:0};
+  const groups=poGroups().filter(g=>g.due===d),gk=new Set(groups.map(g=>g.key));
+  groups.forEach(g=>{out.n++;const s=groupStatus(g.key);
+    if(s==='ok')out.ok++;else if(s==='diff'||s==='bol')out.diff++;else if(s==='late')out.miss++;
+    else if(g.lines.every(l=>l.recv))out.yooz++;else out.pend++;});
+  const seen=new Set();
+  Object.values(allReceipts()).forEach(r=>{const b=baseKeyOf(r.key);if(r.due!==d||gk.has(b)||seen.has(b)||isGhost(r))return;seen.add(b);   // reports whose PO is not in the Yooz window
+    out.n++;const s=receiptStatus(r);if(s==='ok'||s==='nolist')out.ok++;else if(s==='miss')out.miss++;else out.diff++;});
+  return out;
+}
+function poCalendarHtml(){
+  const [y,m]=poCalMonth.split('-').map(Number);
+  const first=new Date(y,m-1,1),days=new Date(y,m,0).getDate(),lead=first.getDay();
+  const today=ymd(new Date());
+  let cells='';for(let i=0;i<lead;i++)cells+='<div class="pc-day empty"></div>';
+  const tot={ok:0,diff:0,miss:0,pend:0,yooz:0,n:0};
+  for(let d=1;d<=days;d++){
+    const iso=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');const st=poDayStats(iso);
+    Object.keys(tot).forEach(k=>tot[k]+=st[k]);
+    const chip=(n,c,t)=>n?`<span class="pc-c ${c}" title="${t}">${c==='ok'?'✓':c==='diff'?'⚠':c==='miss'?'✕':c==='yooz'?'Y':'○'}${n}</span>`:'';
+    const past=iso<today;
+    cells+=`<div class="pc-day${iso===today?' today':''}${iso===poDate?' sel':''}${st.n?'':' none'}" onclick="poDate='${iso}';poCalOpen=false;renderPoView()">
+      <div class="pc-n">${d}</div>${st.n?`<div class="pc-po">${st.n} PO${st.n>1?'s':''}</div>`:''}
+      <div class="pc-chips">${chip(st.ok,'ok','Received OK')}${chip(st.diff,'diff','With differences')}${chip(st.miss,'miss','Did not arrive')}${chip(st.yooz,'yooz','Received in Yooz, no WMS report')}${chip(st.pend,past?'pend late':'pend',past?'Not checked':'Expected')}</div></div>`;
+  }
+  const mName=first.toLocaleString('en-US',{month:'long',year:'numeric'});
+  return `<div class="pc-wrap">
+    <div class="pc-head"><button class="po-btn" onclick="poCalShift(-1)">‹</button><b>${mName}</b><button class="po-btn" onclick="poCalShift(1)">›</button></div>
+    <div class="pc-sum">${tot.n} PO(s) · <span class="pc-c ok">✓${tot.ok}</span> received OK · <span class="pc-c diff">⚠${tot.diff}</span> differences · <span class="pc-c miss">✕${tot.miss}</span> did not arrive · <span class="pc-c yooz">Y${tot.yooz}</span> only in Yooz · <span class="pc-c pend">○${tot.pend}</span> not checked</div>
+    <div class="pc-grid">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(w=>`<div class="pc-w">${w}</div>`).join('')}${cells}</div>
+    <div class="po-hint">Tap a day to open its POs. Yooz POs go back 30 days; older days show the receiving reports saved in SharePoint.</div></div>`;
 }
 /* ---------- A truck that is not in the list ----------
    Step 1: PO number (from the paperwork) + vendor. If that PO is in Yooz (any day), it opens normally.
@@ -6533,7 +6605,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.05g';
+const APP_VERSION='2026.11.05h';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
