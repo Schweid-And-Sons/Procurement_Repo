@@ -1604,9 +1604,11 @@ let ITEMS = [
   {code:'P1000-1',name:'4in Double (Provisur)',cat:'PATTY PAPER'},
   {code:'P1100-1',name:'4.5in Double (Provisur)',cat:'PATTY PAPER'},
   {code:'P2000-1',name:'5x5 Double',cat:'PATTY PAPER'},
+  {code:'P2000H-1',name:'5x5 Double (Holly)',cat:'PATTY PAPER'},
   {code:'P3100-1',name:'5.5x5.5 Double (Provisur)',cat:'PATTY PAPER'},
   {code:'P4100-1',name:'6x6 Double',cat:'PATTY PAPER'},
   {code:'P6000-1',name:'Roll Stock Paper',cat:'PATTY PAPER'},
+  {code:'P6000H-1',name:'Roll Stock Paper Retail (Holly)',cat:'PATTY PAPER'},
   
   {code:'SL1000-1',name:'Chuck Brisket 5.3oz',cat:'SLEEVES'},
   {code:'SL1050-1',name:'Katana Blend 5.3oz',cat:'SLEEVES'},
@@ -1659,6 +1661,7 @@ let ITEMS = [
   {code:'L15918BACK-PLAS-1',name:'Sig Blend CAB Back (Plastic)',cat:'LABELS'},
   {code:'MWHITE-1',name:'Thermal Labels 4x6 White',cat:'LABELS'},
   {code:'MYELLOW-1',name:'Thermal Labels 4x6 Yellow',cat:'LABELS'},
+  {code:'LABELS4X6-1',name:'Pallet Labels 4x6"',cat:'LABELS'},
   
   {code:'S5050-1',name:'Mustard 3931 42 LBS',cat:'SEASONINGS'},
   {code:'F06984-1',name:'Salt & Pepper Burger 40 LB',cat:'SEASONINGS'},
@@ -1670,10 +1673,12 @@ let ITEMS = [
   {code:'M1450-1',name:'Veritiv Foam',cat:'PACKAGING'},
   {code:'M1200-1',name:'Box Tape Hand Roll',cat:'PACKAGING'},
   {code:'M1500-1',name:'Box Tape Machine Roll 1500m',cat:'PACKAGING'},
+  {code:'M2000-1',name:'Pallets',cat:'PACKAGING'},
   {code:'STRWRAP-1',name:'Stretch Wrap',cat:'PACKAGING'},
   
   {code:'H264B/L-1',name:'Hair & Beard Nets Bouffant',cat:'PPE'},
   {code:'GLOVCOT-1',name:'Cotton Gloves',cat:'PPE'},
+  {code:'H134L-1',name:'Blue Gloves Large Nitrile 6mil',cat:'PPE'},
   {code:'H134XL-1',name:'Blue Gloves XL Nitrile 6mil',cat:'PPE'},
   {code:'H242/XL-120C-1',name:'Lab Coats Velcro No Pockets',cat:'PPE'},
   {code:'1809B-1',name:'PE Sleeves Blue 18" 2000/cs',cat:'PPE'},
@@ -2797,6 +2802,7 @@ const GA_ITEMS = [
   {code:'BX1050-4',name:'SS B1-IQF',cat:'BOXES'},
   {code:'BX1075-4',name:'B-1 IQF Plain',cat:'BOXES'},
   {code:'BX1100-4',name:'SS B-25',cat:'BOXES'},
+  {code:'BX1100PCA-4',name:'SS B-25 (PCA)',cat:'BOXES'},
   {code:'BX1200-4',name:'SS CAB 10lb',cat:'BOXES'},
   {code:'BX1300-4',name:'SS 4/5 Loaf',cat:'BOXES'},
   {code:'BX1350-4',name:'SS IQF 20LB',cat:'BOXES'},
@@ -2822,6 +2828,7 @@ const GA_ITEMS = [
   {code:'BX8000-4',name:'Cattleman Large',cat:'BOXES'},
   {code:'BX8200-4',name:'Ranchers Select, Large',cat:'BOXES'},
   {code:'BX8300PCA-4',name:'S&S 48oz/384 pc- small slider',cat:'BOXES'},
+  {code:'BX7700PCA-4',name:'Five Guys Fresh 3.7oz 1/2 Patty (PCA) - Line 5',cat:'BOXES'},
   {code:'BX5LBS-4',name:'5 LB SAMPLE BOX, S&S BRANDED',cat:'BOXES'},
   {code:'F1400-4',name:'Forming 361 Film (ATL) - Line 72 & 73',cat:'FILM'},
   {code:'F1550-4',name:'Non-Forming 355 Film (ATL) - Line 72 & 73',cat:'FILM'},
@@ -2902,6 +2909,7 @@ const GA_ITEMS = [
   {code:'L17112BACK-PLAS-4',name:'The Korean BBQ Blend Label BACK',cat:'LABELS'},
   {code:'MWHITE-4',name:'Thermal Labels 4x6" Zebra Printer ZP505 (White ) 1" core',cat:'LABELS'},
   {code:'MYELLOW-4',name:'Thermal Labels 4x6" Zebra Printer ZP505 (Yellow ) 1" core',cat:'LABELS'},
+  {code:'LABELS4X6-4',name:'Pallet Labels 4x6"',cat:'LABELS'},
   {code:'S5050-4',name:'3931 Mustard 42 LBS @ 4 X 10.5 LBS',cat:'SEASONINGS'},
   {code:'F06984-4',name:'Salt and Pepper Burger Blend 40 LB MWB',cat:'SEASONINGS'},
   {code:'F07190-4',name:'Korean BBQ Type Allergen Free Beef Brick (NEW)',cat:'SEASONINGS'},
@@ -2912,6 +2920,7 @@ const GA_ITEMS = [
   {code:'F07005-4',name:'Korean BBQ blend 25 lb Bulk',cat:'SEASONINGS'},
   {code:'M1150-4',name:'Box Tape - Machine Roll 914m',cat:'PACKAGING'},
   {code:'M1200-4',name:'Box Tape - Hand Roll',cat:'PACKAGING'},
+  {code:'M2000-4',name:'Pallets',cat:'PACKAGING'},
   {code:'STRWRAP-4',name:'Stretch Wrap',cat:'PACKAGING'},
   {code:'GLOVCOT-4',name:'Cotton Gloves',cat:'PPE'},
   {code:'H134/S-4',name:'Blue Gloves, SM nitrile 6 mil',cat:'PPE'},
@@ -3021,6 +3030,7 @@ Object.entries(PHYS_CODES).forEach(([k,v])=>{const g=k.replace(/-1$/,'-4');if(GA
  ['SL15906-4','15906'],['SL1508-4','15908'],['SL2250-4','16505'],['SL1050-4','17805'],['SL2100-4','18105'],['SL4100-4','18605'],['SL2200-4','18905']]
  .forEach(([sl,p])=>{if(!GA_CODES.has(sl))return;const a=GA_PHYS[sl]||(GA_PHYS[sl]=[]);if(!a.includes(p))a.push(p);});
 const GA_EQUIV=VENDOR_EQUIV.map(r=>({a:r.a.replace(/-1$/,'-4'),b:r.b.replace(/-1$/,'-4'),box:r.box})).filter(r=>GA_CODES.has(r.a)&&GA_CODES.has(r.b));
+GA_EQUIV.push({a:'BX1100-4',b:'BX1100PCA-4',box:'SS B-25'});   // GA buys B-25 from Sonic and PCA
 const PLANT_DATA={
   NJ:{areas:AREAS,items:ITEMS,phys:PHYS_CODES,equiv:VENDOR_EQUIV,exportOrder:AREA_EXPORT_ORDER},
   GA:{areas:GA_AREAS,items:GA_ITEMS,phys:GA_PHYS,equiv:GA_EQUIV,exportOrder:GA_EXPORT_ORDER}
@@ -3812,7 +3822,7 @@ let PLAN_DIA_KEY = 'wms_plan_dia';
 let planData = null; 
 
 /* Codes the production plan still uses that we now receive under another code (Oct-30: Sonic BX7700 discontinued → PCA). */
-const PLAN_CODE_ALIAS={'BX7700-1':'BX7700PCA-1'};
+const PLAN_CODE_ALIAS={'BX7700-1':'BX7700PCA-1','BX7700-4':'BX7700PCA-4'};
 /* Plan codes that can be filled by any of several box codes (depends on who packs). Stock = sum of all. */
 const PLAN_STOCK_GROUP={'SAMPLE BOX':['BX5LBS-1','BXFSSPLAIN-1','BX5LBS-4']};
 function planStockCodes(code){
@@ -4827,6 +4837,45 @@ function yoozToWms(code){
   const m=c.match(/-(\d)$/);
   return {code:c,plant:m?(m[1]==='1'?'NJ':m[1]==='4'?'GA':null):null};
 }
+function yoozRowsToLines(rows){
+  return rows.filter(r=>r.purchase_order_number&&r.product_code).map(r=>{
+    const w=yoozToWms(r.product_code);
+    return {po:String(r.purchase_order_number).trim(),yooz:String(r.yooz_number||''),vendor:String(r.vendor_name||'').trim(),
+      raw:String(r.product_code).trim(),code:w.code,plant:w.plant,desc:String(r.line_description||''),
+      ordered:numv(r.ordered_quantity),received:numv(r.received_quantity),due:toYmd(r.delivery_date),recv:toYmd(r.reception_date),unit:String(r.measure_unit||'')};
+  });
+}
+/* ---------- Yooz straight from Databricks ----------
+   Flow WMS_Yooz_POs (account svc_wms_receiving) runs one SQL query on prod_reporting.procurement.yooz_direct_materials_master_data:
+   PO lines due from 30 days ago onward, NJ (-1) and GA (-4) codes. Yooz is copied to Databricks every evening, so each device
+   asks once a day (when Receiving opens) and on "⟳ Refresh POs". No credentials here: the flow holds the Databricks connection. */
+const YOOZ_FLOW_URL='';
+let yoozFetch={busy:false,err:''};
+async function loadYoozFromFlow(manual){
+  if(!YOOZ_FLOW_URL||yoozFetch.busy)return;
+  yoozFetch.busy=true;yoozFetch.err='';if(currentView==='po')renderPoView(true);
+  try{
+    const res=await fetch(YOOZ_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const b=await res.json();
+    const st=b&&b.status&&b.status.state;
+    if(st!=='SUCCEEDED')throw new Error(st==='PENDING'||st==='RUNNING'?'Databricks is starting up — try ⟳ Refresh POs in a minute':(b&&b.status&&b.status.error&&b.status.error.message)||'no data');
+    const cols=b.manifest.schema.columns.map(c=>c.name);
+    const rows=((b.result&&b.result.data_array)||[]).map(a=>{const o={};cols.forEach((c,i)=>o[c]=a[i]);return o;});
+    const data={loaded:new Date().toISOString(),file:'Yooz · Databricks',source:'flow',lines:yoozRowsToLines(rows)};
+    localStorage.setItem(YOOZ_LINES_KEY,JSON.stringify(data));
+    if(manual){addLog('YOOZ LOAD','Databricks — '+data.lines.length+' PO line(s) · '+poLines(data).length+' DM line(s) for '+currentPlant);
+      showToast('POs updated from Yooz: '+poLines(data).length+' line(s) for '+currentPlant+'.','success');}
+  }catch(e){yoozFetch.err=e.message;if(manual)showToast('Could not refresh POs: '+e.message,'error');}
+  finally{yoozFetch.busy=false;if(currentView==='po')renderPoView(true);}
+}
+/* once a day per device: Yooz only changes overnight */
+function yoozAutoRefresh(){
+  if(!YOOZ_FLOW_URL)return;
+  const d=loadYooz();
+  if(Date.now()-(yoozFetch.tried||0)<10*60000)return;            // after a failure, wait 10 min before trying on its own again
+  if(!d||d.source!=='flow'||ymd(new Date(d.loaded))!==ymd(new Date())){yoozFetch.tried=Date.now();loadYoozFromFlow(false);}
+}
 function importYoozFile(input){
   const f=input.files&&input.files[0];if(!f)return;
   const rd=new FileReader();
@@ -4836,12 +4885,7 @@ function importYoozFile(input){
       const name=wb.SheetNames.find(n=>/sample|data|yooz|sheet1/i.test(n)&&!/dictionary/i.test(n))||wb.SheetNames.find(n=>!/dictionary/i.test(n))||wb.SheetNames[0];
       const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{defval:''});
       if(!rows.length||!('purchase_order_number' in rows[0])||!('product_code' in rows[0])){showToast('This file does not look like the Yooz export (needs purchase_order_number and product_code).','error');return;}
-      const lines=rows.filter(r=>r.purchase_order_number&&r.product_code).map(r=>{
-        const w=yoozToWms(r.product_code);
-        return {po:String(r.purchase_order_number).trim(),yooz:String(r.yooz_number||''),vendor:String(r.vendor_name||'').trim(),
-          raw:String(r.product_code).trim(),code:w.code,plant:w.plant,desc:String(r.line_description||''),
-          ordered:numv(r.ordered_quantity),due:toYmd(r.delivery_date),recv:toYmd(r.reception_date),unit:String(r.measure_unit||'')};
-      });
+      const lines=yoozRowsToLines(rows);
       const data={loaded:new Date().toISOString(),file:f.name,lines};
       localStorage.setItem(YOOZ_LINES_KEY,JSON.stringify(data));
       const mine=poLines(data).length;
@@ -4857,8 +4901,10 @@ function importYoozFile(input){
 /* Only direct-material lines of this plant: the code must exist in this plant's WMS catalog. */
 function poLines(data){
   data=data||loadYooz();if(!data)return [];
-  const cat=new Set(ITEMS.map(i=>i.code));
-  return data.lines.filter(l=>l.plant===currentPlant&&cat.has(l.code));
+  // Yooz sometimes writes the same code with or without "/" (H134/XL-1 = H134XL-1, H264BL-1 = H264B/L-1)
+  const nz=c=>String(c).replace(/\//g,'');
+  const cat=new Map(ITEMS.map(i=>[nz(i.code),i.code]));
+  return data.lines.filter(l=>l.plant===currentPlant).map(l=>{const c=cat.get(nz(l.code));return !c?null:c===l.code?l:Object.assign({},l,{code:c});}).filter(Boolean);
 }
 function poGroups(){
   const g={};
@@ -4960,6 +5006,7 @@ function poSyncLineHtml(){
 function renderPoSyncLine(){const el=document.getElementById('po-sync');if(el)el.innerHTML=poSyncLineHtml();}
 
 function renderPoView(noSync){
+  if(!noSync)yoozAutoRefresh();
   const data=loadYooz();
   const el=document.getElementById('main-content');
   if(!poDate)poDate=ymd(new Date());
@@ -4968,8 +5015,10 @@ function renderPoView(noSync){
   let h=`<div class="po-bar">
     <div class="po-date"><button onclick="poShiftDay(-1)" aria-label="Previous day">‹</button><input type="date" value="${poDate}" onchange="poDate=this.value||poDate;renderPoView()"><button onclick="poShiftDay(1)" aria-label="Next day">›</button></div>
     <button class="po-btn" onclick="poDate=ymd(new Date());renderPoView()">Today</button>
-    <button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>
-    <span class="po-src">${data?`Yooz data: <b>${poEsc(data.file)}</b> · loaded ${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} · ${poLines(data).length} DM line(s) for ${currentPlant}`:'No Yooz data on this device yet — load the daily Yooz export (xlsx / csv).'}</span>
+    ${YOOZ_FLOW_URL?`<button class="po-btn pri" onclick="loadYoozFromFlow(true)" ${yoozFetch.busy?'disabled':''}>${yoozFetch.busy?'⏳ Loading POs…':'⟳ Refresh POs'}</button>
+    <button class="po-btn" onclick="document.getElementById('po-file-input').click()" title="Use a Yooz export instead">⬆ File</button>`
+    :`<button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>`}
+    <span class="po-src">${yoozFetch.err?`<span style="color:var(--danger)">⚠ ${poEsc(yoozFetch.err)}</span> · `:''}${data?`Yooz data: <b>${poEsc(data.file)}</b> · loaded ${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} · ${poLines(data).length} DM line(s) for ${currentPlant}`:'No Yooz data on this device yet — load the daily Yooz export (xlsx / csv).'}</span>
   </div>
   <div class="po-sync" id="po-sync">${poSyncLineHtml()}</div>`;
   if(pend.length)h+=`<div class="po-pending">⚠ <b>${pend.length}</b> report(s) are only on this device — not in SharePoint yet. <button class="po-btn pri" onclick="uploadPendingPo()">☁ Upload ${pend.length===1?'it':'all'}</button></div>`;
@@ -6403,7 +6452,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.04g';
+const APP_VERSION='2026.11.05a';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
