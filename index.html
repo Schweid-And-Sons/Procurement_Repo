@@ -4025,7 +4025,7 @@ function mergeRemotePlan(r){
    GA: PRODUCTION SOUTH · Daily Production-ATL). Flow WMS_Plan_File returns the newest file of the plant as base64.
    When a device opens the plant and there is no plan for today yet, it loads it by itself and shares it
    (Inventory + Batch, every device) — the same as ⬆ Load plan file. Tries again every 20 min until today's file appears. */
-const PLAN_FILE_URL='';
+const PLAN_FILE_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/21/workflows/975480232b564635ac91a5f58a8c359b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cdh0M9uLarkKuoMbFDZD9jUPEdC6twIi9vBplJ6--a8';
 const MONTHS=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
 function planFileDay(name){                      // "… 2026 NJ Nov 9th.xlsx" → 2026-11-09 (null if no date in the name)
   const m=String(name||'').toLowerCase().match(/(^|[^a-z])(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[._\s-]*(\d{1,2})(st|nd|rd|th)?(?![0-9])/);
@@ -4042,7 +4042,7 @@ async function planAutoFetch(manual){
     try{await pullSharedPlan(true);}catch(e){}                                      // maybe another device loaded it already
     if(planData&&planData.day===d&&(planData.items||[]).length)return;
   }
-  planAuto.tried[k]=Date.now();planAuto.busy=true;
+  planAuto.tried[k]=Date.now();planAuto.busy=true;if(currentView==='plan')render();
   try{
     const res=await fetch(PLAN_FILE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:p0})});
     if(!res.ok)throw new Error('HTTP '+res.status);
@@ -4058,7 +4058,7 @@ async function planAutoFetch(manual){
     if(currentView==='plan')render();
     showToast('📅 Today\'s plan loaded automatically · '+r.msg.replace('Daily Plan imported: ',''),'success');
   }catch(e){if(manual)showToast('Could not get the planning file: '+e.message,'error');}
-  finally{planAuto.busy=false;}
+  finally{planAuto.busy=false;if(currentView==='plan')render();}
 }
 async function pullSharedPlan(force){
   if(!PLAN_READ_URL||planSync.busy)return;
@@ -4574,6 +4574,7 @@ function renderPlanView(){
   if(!planData||stale){
     document.getElementById('main-content').innerHTML=`
       <div class="plan-toolbar">
+        ${PLAN_FILE_URL?`<button class="sync-btn" onclick="planAutoFetch(true)" ${planAuto.busy?'disabled':''}>${planAuto.busy?'⏳ Getting today\'s plan…':'☁ Get today\'s plan from SharePoint'}</button>`:''}
         <button class="import-btn" onclick="triggerPlanImport()">⬆ Load plan file</button>
         <button class="import-btn" onclick="triggerPlanWorkImport()">⬆ Load Work File</button>
         <input type="file" id="plan-import-input" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="importPlanFile(this)">
@@ -5023,7 +5024,7 @@ function poLines(data){
    it is pulled in or pushed out, and adds a PO the moment it is created — so:
    · a Yooz PO is shown on the planner's day (the Yooz date stays visible as a note);
    · a PO that is only in the planner (not in Databricks yet) is shown too, marked "planner". Items/qty received still come from Yooz. */
-const PLANNER_FLOW_URL='';
+const PLANNER_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/21/workflows/7d0a43d9f6b840bcb408e916e2293794/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=uB6wq1mpkOYvo4IYK55aXPxJcd4semX4Ue49jfBFxWs';
 const PLANNER_KEY='wms_planner_pos';
 let plannerFetch={busy:false,err:'',tried:0};
 function loadPlanner(){try{return JSON.parse(localStorage.getItem(PLANNER_KEY)||'null');}catch(e){return null;}}
@@ -5053,7 +5054,8 @@ function plannerRows(){
   d.rows.filter(r=>r.plant===currentPlant).forEach(r=>{
     const pos=String(r.po).toUpperCase().match(/YZ-\d\d-\d+/g);if(!pos)return;      // skip cells without a real PO number
     const it=cat.get(nz(r.code));if(!it)return;
-    pos.forEach(po=>out.push({po,code:it.code,desc:it.name,vendor:r.vendor,date:r.date,qty:r.qty}));
+    const pu=palletUnits(it.code);const qty=pu&&r.qty&&r.qty<1000?r.qty*pu:r.qty;   // the planner writes trays in pallets (55), Yooz in trays (145,200)
+    pos.forEach(po=>out.push({po,code:it.code,desc:it.name,vendor:r.vendor,date:r.date,qty}));
   });
   return out;
 }
@@ -6788,7 +6790,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.09b';
+const APP_VERSION='2026.11.09d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
