@@ -126,7 +126,10 @@
   .sync-btn{padding:10px;background:transparent;color:#0ea5e9;border:1px solid #0ea5e9;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;}
   .sync-btn:hover{background:#0ea5e9;color:#fff;}
   .boxroom-modal-box{background:#fff;max-width:1000px;margin:0 auto;padding:16px;border-radius:12px;}
-  #boxroom-overlay{overflow-y:auto;align-items:flex-start;padding:20px 0;}
+  #boxroom-overlay{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;align-items:flex-start;padding:20px 0;display:block;}
+  #boxroom-overlay.hidden{display:none;}
+  .boxroom-toolbar button{padding:8px 12px!important;font-size:13px!important;min-height:0!important;height:auto!important;width:auto!important;}
+  .boxroom-modal-box .boxroom-toolbar{position:sticky;top:-16px;z-index:3;background:#fff;padding:8px 0;margin-top:-8px;flex-wrap:wrap;}
   .boxroom-toolbar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px;flex-wrap:wrap;}
   .cal-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 10px;}
   .cal-nav button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;width:34px;height:30px;cursor:pointer;font-size:14px;}
@@ -1029,6 +1032,10 @@
   .pc-c.pend{background:var(--surface);color:var(--text2);border:1px solid var(--border);}
   .pc-c.pend.late{color:#d70015;border-color:color-mix(in srgb,#ff3b30 40%,transparent);}
   @media(max-width:520px){.pc-day{min-height:58px;padding:3px;}.pc-c{font-size:9px;padding:0 3px;}.pc-w{font-size:9px;}}
+  .po-pal{font-size:11px;color:var(--text3);margin-top:4px;white-space:nowrap;}
+  .po-pal input{width:64px!important;min-width:0!important;height:28px!important;display:inline-block!important;margin:0 2px!important;padding:0 6px!important;border-radius:8px;border:1px solid var(--accent);background:var(--surface);color:var(--text);font:inherit;font-size:13px;padding:0 6px;text-align:center;}
+  .po-qbox{display:flex;gap:6px;margin:4px 0 6px;}
+  .po-qbox input{flex:1;min-width:0;height:42px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:15px;padding:0 12px;}
   .po-manual-btn{display:block;width:100%;margin:14px 0 4px;padding:14px;border:2px dashed var(--accent);border-radius:14px;background:transparent;color:var(--accent);font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
   .po-manual-btn:active{background:var(--surface2);}
   .po-card{background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;display:flex;gap:12px;align-items:center;}
@@ -1182,23 +1189,22 @@ try{
       <div id="sidebar-list"></div>
     </div>
     <div class="sidebar-footer sidebar-footer-always" id="sidebar-footer">
-      <button class="count-session-btn" id="count-session-btn" onclick="toggleCountSession()">🟡 Start Count Mode</button>
+      <button class="count-session-btn" id="count-session-btn" onclick="toggleCountSession()" title="Marks every position as 'to review' so nothing is missed in a full count">🟡 Start Full Count</button>
       <button class="sf-toggle" onclick="toggleActions()"><span>⚙️ Actions</span><span class="sf-chev">▾</span></button>
       <div class="sf-body">
         <select id="count-type-sel" onchange="onShiftSelect(this)" title="Shift: changing it starts that shift on every device" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;">
-          <option value="pre9">Pre 9am Count</option>
-          <option value="post9">Post 9am Count</option>
-          <option value="eom">EOM Count</option>
+          <option value="pre9">Before 9am</option>
+          <option value="post9">After 9am</option>
+          <option value="eom">End of Month</option>
         </select>
         <div class="sf-grid">
           <button class="export-btn" onclick="exportExcel()">⬇ Export Excel</button>
           <button class="import-btn" onclick="triggerImport()">⬆ Import Excel</button>
-          <button class="sync-btn" onclick="openSyncModal()">☁ Sync</button>
-          <button class="import-btn nj-only" onclick="openBoxRoomMap()">📦 Box Room</button>
-          <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()">🌙 Night Mode</button>
+          <button class="sync-btn" onclick="openSyncModal()" title="Shift copies saved in SharePoint (calendar) — the live sync is automatic">📅 Saved copies</button>
+          <button class="import-btn nj-only" onclick="openBoxRoomMap()">📦 Box Room Map</button>
           <button class="add-item-btn" onclick="openAddItemModal()">＋ Custom Item</button>
           <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal()">🗑 Clear Section</button>
-          <button class="clear-all-btn" onclick="triggerClearAll()">🗑 Clear All</button>
+          <button class="clear-all-btn" onclick="triggerClearAll()" title="Clear All Inventory">🗑 Clear All</button>
         </div>
         <input type="file" id="import-file-input" accept=".xlsx" style="display:none" onchange="importExcel(this)">
       </div>
@@ -1235,20 +1241,19 @@ try{
       <button onclick="closeActionsDrawer()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
     </div>
     <div class="actions-drawer-body">
-      <button class="theme-toggle-btn" id="theme-btn-drawer" onclick="toggleTheme()">🌙 Night Mode</button>
-      <button class="count-session-btn" id="count-session-btn-drawer" onclick="toggleCountSession()">🟡 Start Count Mode</button>
+      <button class="count-session-btn" id="count-session-btn-drawer" onclick="toggleCountSession()">🟡 Start Full Count</button>
       <select id="count-type-sel-drawer" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;" onchange="onShiftSelect(this)" title="Shift: changing it starts that shift on every device">
-        <option value="pre9">Pre 9am Count</option>
-        <option value="post9">Post 9am Count</option>
-        <option value="eom">EOM Count</option>
+        <option value="pre9">Before 9am</option>
+        <option value="post9">After 9am</option>
+        <option value="eom">End of Month</option>
       </select>
-      <button class="export-btn" onclick="exportExcel();closeActionsDrawer()">⬇ Export to Excel</button>
-      <button class="import-btn" onclick="triggerImport();closeActionsDrawer()">⬆ Import from Excel</button>
-      <button class="sync-btn" onclick="openSyncModal();closeActionsDrawer()">☁ Sync with SharePoint</button>
+      <button class="export-btn" onclick="exportExcel();closeActionsDrawer()">⬇ Export Excel</button>
+      <button class="import-btn" onclick="triggerImport();closeActionsDrawer()">⬆ Import Excel</button>
+      <button class="sync-btn" onclick="openSyncModal();closeActionsDrawer()">📅 Saved copies</button>
       <button class="import-btn nj-only" onclick="openBoxRoomMap();closeActionsDrawer()">📦 Box Room Map</button>
-      <button class="clear-all-btn" onclick="triggerClearAll();closeActionsDrawer()">🗑 Clear All Inventory</button>
+      <button class="clear-all-btn" onclick="triggerClearAll();closeActionsDrawer()">🗑 Clear All</button>
       <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal();closeActionsDrawer()">🗑 Clear Section</button>
-      <button class="add-item-btn" onclick="openAddItemModal();closeActionsDrawer()">＋ Add Custom Item</button>
+      <button class="add-item-btn" onclick="openAddItemModal();closeActionsDrawer()">＋ Custom Item</button>
     </div>
   </div>
 </div>
@@ -1447,7 +1452,8 @@ try{
 
 <div class="modal-overlay hidden" id="sync-overlay" onclick="closeSyncModal(event)">
   <div class="modal" onclick="event.stopPropagation()" style="width:620px;max-width:96vw;max-height:92vh;overflow-y:auto">
-    <h3 style="color:var(--accent2)">☁ SharePoint Sync</h3>
+    <h3 style="color:var(--accent2)">📅 Saved copies</h3>
+    <div style="font-size:11px;color:var(--text2);margin:-4px 0 8px;line-height:1.5">The inventory already syncs by itself on every Save. Use this only to look at or restore an older shift copy.</div>
     <div id="sync-mode-label" style="font-size:10px;color:var(--text3);margin-bottom:14px">💾 Mode: Local (this device)</div>
 
     <div class="stats-subtabs">
@@ -2791,10 +2797,10 @@ function startCountSession(){
   const ids=getAllLocationIds();
   countSession={active:true,unreviewed:new Set(ids),total:ids.length};
   saveCountSessionState();
-  addLog('COUNT SESSION','🟡 Count Mode started — '+ids.length+' positions marked for review');
+  addLog('COUNT SESSION','🟡 Full Count started — '+ids.length+' positions marked for review');
   updateCountSessionUI();
   render();
-  showToast('Modo Conteo iniciado · '+ids.length+' posiciones por revisar','success');
+  showToast('Full Count started · '+ids.length+' positions to review','success');
 }
 function finishCountSession(){
   if(!countSession)return;
@@ -2830,7 +2836,7 @@ function updateCountSessionUI(){
   [document.getElementById('count-session-btn'),document.getElementById('count-session-btn-drawer')].forEach(btn=>{
     if(!btn)return;
     btn.classList.toggle('active',active);
-    btn.textContent=active?('⏹ Finish Count ('+remaining+' not reviewed)'):'🟡 Start Count Mode';
+    btn.textContent=active?('⏹ Finish Full Count ('+remaining+' not reviewed)'):'🟡 Start Full Count';
   });
 }
 
@@ -3114,7 +3120,7 @@ function applyPlant(p){
   document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===currentMode));
   refresh();
   updateCountSessionUI();
-  liveInit().then(()=>autoLoadIfEmpty());
+  liveInit().then(()=>autoLoadIfEmpty()).then(()=>planAutoFetch(false));
 }
 function plantSummary(p){
   const cfg=PLANTS[p], areas=PLANT_DATA[p].areas;
@@ -3916,7 +3922,7 @@ function loadPlanDia(){
 }
 
 /* ================= SHARED DAILY PLAN (PLANNING module) =================
-   The plan is loaded ONCE, in Inventory → Plan (⬆ Import Planning) or in Batch (⬆ Load plan), for NJ / GA. It is saved to SharePoint (list WMS_Batches, same two flows
+   The plan is loaded ONCE, in Inventory → Plan (⬆ Load plan file) or in Batch (⬆ Load plan), for NJ / GA. It is saved to SharePoint (list WMS_Batches, same two flows
    as Batch) as two records: kind "wmsplan" (boxes/sleeves for the inventory Daily Plan) and kind "plan" (meat blocks
    for Batch). Every device of that plant picks it up; Delivered / Ready marks are shared too (newest mark wins per item). */
 const PLAN_SAVE_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/64f9e48a1da04901964ad07b46eb1867/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=vsL7mk6KDI_J6jCHMx1mRp_kGQPGKaCqwsMS7DvzwPQ';
@@ -4013,6 +4019,46 @@ function mergeRemotePlan(r){
     if(String(ri.ts||'')>String(li.ts||'')){li.delivered=ri.delivered;li.done=ri.done;li.ts=ri.ts;changed=true;}}));
   if(changed)savePlanDia();
   return changed;
+}
+/* ---------- Today's planning file, straight from SharePoint ----------
+   The daily file shared in Teams lives in SharePoint (NJ: PRODUCTION NORTH · Daily Production Plan,
+   GA: PRODUCTION SOUTH · Daily Production-ATL). Flow WMS_Plan_File returns the newest file of the plant as base64.
+   When a device opens the plant and there is no plan for today yet, it loads it by itself and shares it
+   (Inventory + Batch, every device) — the same as ⬆ Load plan file. Tries again every 20 min until today's file appears. */
+const PLAN_FILE_URL='';
+const MONTHS=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+function planFileDay(name){                      // "… 2026 NJ Nov 9th.xlsx" → 2026-11-09 (null if no date in the name)
+  const m=String(name||'').toLowerCase().match(/(^|[^a-z])(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[._\s-]*(\d{1,2})(st|nd|rd|th)?(?![0-9])/);
+  if(!m)return null;const y=(String(name).match(/20\d\d/)||[new Date().getFullYear()])[0];
+  return y+'-'+String(MONTHS.indexOf(m[2])+1).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
+}
+let planAuto={busy:false,tried:{}};
+async function planAutoFetch(manual){
+  if(!PLAN_FILE_URL||planAuto.busy||RCV_ONLY)return;
+  const d=isoToday(),p0=currentPlant,k=p0+'|'+d;
+  if(!manual){
+    if(planData&&planData.day===d&&(planData.items||[]).length)return;            // today's plan is already here
+    if(Date.now()-(planAuto.tried[k]||0)<20*60000)return;
+    try{await pullSharedPlan(true);}catch(e){}                                      // maybe another device loaded it already
+    if(planData&&planData.day===d&&(planData.items||[]).length)return;
+  }
+  planAuto.tried[k]=Date.now();planAuto.busy=true;
+  try{
+    const res=await fetch(PLAN_FILE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:p0})});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const f=await res.json();
+    if(p0!==currentPlant)return;
+    const fd=planFileDay(f.name)||String(f.modified||'').slice(0,10);
+    if(fd!==d){if(manual)showToast("Today's planning file is not in SharePoint yet (newest: "+(f.name||'—')+').','error');return;}
+    const bin=atob(f.content);const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
+    const wb=XLSX.read(buf,{type:'array'});
+    const r=processPlanWorkbook(wb,f.name);
+    await sharePlan(wb,f.name);
+    addLog('PLAN AUTO','Loaded from SharePoint: '+f.name);
+    if(currentView==='plan')render();
+    showToast('📅 Today\'s plan loaded automatically · '+r.msg.replace('Daily Plan imported: ',''),'success');
+  }catch(e){if(manual)showToast('Could not get the planning file: '+e.message,'error');}
+  finally{planAuto.busy=false;}
 }
 async function pullSharedPlan(force){
   if(!PLAN_READ_URL||planSync.busy)return;
@@ -4271,7 +4317,7 @@ function boxesFromSchedule(wb){
   return {sheet,byCode,total,days:[...days],noCode,byLine};
 }
 
-/* the planning file → inventory Daily Plan (boxes + sleeves). Used by ⬆ Import Planning here AND by Batch
+/* the planning file → inventory Daily Plan (boxes + sleeves). Used by ⬆ Load plan file here AND by Batch
    (batch.html loads this page hidden with ?planimport=XX and sends it the file), so both give the same result. */
 function planErr(m){const e=new Error(m);e.planMsg=true;return e;}
 function processPlanWorkbook(wb,fileName){
@@ -4525,14 +4571,14 @@ function renderPlanView(){
   if(!planData){
     document.getElementById('main-content').innerHTML=`
       <div class="plan-toolbar">
-        <button class="import-btn" onclick="triggerPlanImport()">⬆ Import Planning</button>
+        <button class="import-btn" onclick="triggerPlanImport()">⬆ Load plan file</button>
         <button class="import-btn" onclick="triggerPlanWorkImport()">⬆ Load Work File</button>
         <input type="file" id="plan-import-input" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="importPlanFile(this)">
         <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
       </div>
       ${PLAN_ONLY
-        ?`<div class="log-empty" style="font-size:14px;line-height:1.6">📅 Load today's <b>${currentPlant}</b> production planning file.<br>Tap <b>⬆ Import Planning</b> and pick the file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}).<br>It is shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).</div>`
-        :`<div class="log-empty">No Daily Plan for today yet.<br>Tap <b>⬆ Import Planning</b> and pick today's ${currentPlant} file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}) — or load it in Batch, same result.<br>It is loaded once and shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).<br><a href="#" onclick="pullSharedPlan(true);return false">⟳ Check now</a><div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
+        ?`<div class="log-empty" style="font-size:14px;line-height:1.6">📅 Load today's <b>${currentPlant}</b> production planning file.<br>Tap <b>⬆ Load plan file</b> and pick the file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}).<br>It is shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).</div>`
+        :`<div class="log-empty">No Daily Plan for today yet.<br>Tap <b>⬆ Load plan file</b> and pick today's ${currentPlant} file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}) — or load it in Batch, same result.<br>It is loaded once and shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).<br><a href="#" onclick="pullSharedPlan(true);return false">⟳ Check now</a><div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
     return;
   }
   const summary=getItemSummary();
@@ -4570,10 +4616,9 @@ function renderPlanView(){
   const importedDate=new Date(planData.importedAt).toLocaleString('en-US',{month:'numeric',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
   document.getElementById('main-content').innerHTML=`
     <div class="plan-toolbar">
-      <button class="import-btn" onclick="triggerPlanImport()">⬆ Re-import Planning</button>
+      <button class="import-btn" onclick="triggerPlanImport()" title="Load a new planning file — it replaces today's plan on every device">⬆ Load plan file</button>
       <button class="import-btn" onclick="triggerPlanWorkImport()">⬆ Load Work File</button>
       <button class="export-btn" onclick="exportPlanWorkFile()">⬇ Export Work File</button>
-      <button class="log-clear-btn" onclick="clearPlanDia()">🗑 Clear Plan</button>
       <input type="file" id="plan-import-input" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="importPlanFile(this)">
       <input type="file" id="plan-workfile-input" accept=".xlsx" style="display:none" onchange="importPlanWorkFile(this)">
     </div>
@@ -4607,7 +4652,7 @@ function setPlanViewMode(m){planViewMode=m;try{localStorage.setItem('wms_plan_vi
 /* Boxes needed per production line, from the schedule data ("Input" sheet: orders with a Line Priority). */
 function renderPlanByLine(summary){
   const bl=planData.byLine;
-  if(!bl||!Object.keys(bl).length)return `<div class="log-empty">The line breakdown comes from the schedule data in the planning file.<br>Re-import the planning file (⬆ Re-import Planning) to see boxes by line.</div>`;
+  if(!bl||!Object.keys(bl).length)return `<div class="log-empty">The line breakdown comes from the schedule data in the planning file.<br>Load the planning file again (⬆ Load plan file) to see boxes by line.</div>`;
   const num=l=>{const m=String(l).match(/\d+/);return m?+m[0]:9999;};
   const lines=Object.keys(bl).sort((a,b)=>num(a)-num(b)||a.localeCompare(b));
   const grand=lines.reduce((t,l)=>t+Object.values(bl[l]).reduce((a,b)=>a+b,0),0);
@@ -4725,7 +4770,9 @@ function fitBoxRoomMap(){
   const box=el.parentElement;const pad=(parseFloat(getComputedStyle(box).paddingLeft)||0)*2;
   const avail=Math.min(window.innerWidth-24,1000)-pad;
   const z=Math.min(1,avail/816);
-  el.style.zoom=z<1?z:'';
+  // scale with transform (CSS zoom broke scrolling on phones): shrink, then give back the space it no longer uses
+  el.style.zoom='';el.style.transform='';el.style.margin='';el.style.width='816px';el.style.transformOrigin='top left';
+  if(z<1){const h=el.offsetHeight;el.style.transform='scale('+z+')';el.style.marginBottom=(-h*(1-z))+'px';el.style.marginRight=(-816*(1-z))+'px';}
 }
 window.addEventListener('resize',()=>{const o=document.getElementById('boxroom-overlay');if(o&&!o.classList.contains('hidden'))fitBoxRoomMap();});
 function closeBoxRoomMap(e){
@@ -4875,7 +4922,7 @@ async function shareBoxRoomMap(){
    Yooz lines come from Databricks through the flow WMS_Yooz_POs (svc_wms_receiving); the Yooz file can still be loaded by hand. */
 const YOOZ_LINES_KEY='wms_yooz_lines';              // shared by both plants (plant comes from the code suffix)
 const PLANT_SUFFIX={NJ:'1',GA:'4'};
-let poDate=null,poEarlierOpen=false,poPastOpen=false,poCalOpen=false,poCalMonth=null;
+let poDate=null,poEarlierOpen=false,poPastOpen=false,poCalOpen=false,poCalMonth=null,poQ='';
 const receiptsKey=()=>'wms_receipts_'+String(currentPlant||'NJ').toLowerCase();
 function loadYooz(){try{return JSON.parse(localStorage.getItem(YOOZ_LINES_KEY))||null;}catch(e){return null;}}
 function loadReceipts(){try{return JSON.parse(localStorage.getItem(receiptsKey()))||{};}catch(e){return {};}}
@@ -4909,7 +4956,7 @@ function yoozRowsToLines(rows){
 /* ---------- Yooz straight from Databricks ----------
    Flow WMS_Yooz_POs (account svc_wms_receiving) runs one SQL query on prod_reporting.procurement.yooz_direct_materials_master_data:
    PO lines due from 30 days ago onward, NJ (-1) and GA (-4) codes. Yooz is copied to Databricks every evening, so each device
-   asks once a day (when Receiving opens) and on "⟳ Refresh POs". No credentials here: the flow holds the Databricks connection. */
+   asks once a day (when Receiving opens) and on "⟳ Refresh". No credentials here: the flow holds the Databricks connection. */
 const YOOZ_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/5f4098bb71a84893893b123b1406d744/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tHJ6sHmveD4ZpcOQY9tX4Y9PKVgJvt-CeAocBqSXI0o';
 let yoozFetch={busy:false,err:''};
 async function loadYoozFromFlow(manual){
@@ -4920,7 +4967,7 @@ async function loadYoozFromFlow(manual){
     if(!res.ok)throw new Error('HTTP '+res.status);
     const b=await res.json();
     const st=b&&b.status&&b.status.state;
-    if(st!=='SUCCEEDED')throw new Error(st==='PENDING'||st==='RUNNING'?'Databricks is starting up — try ⟳ Refresh POs in a minute':(b&&b.status&&b.status.error&&b.status.error.message)||'no data');
+    if(st!=='SUCCEEDED')throw new Error(st==='PENDING'||st==='RUNNING'?'Databricks is starting up — tap ⟳ Refresh in a minute':(b&&b.status&&b.status.error&&b.status.error.message)||'no data');
     const cols=b.manifest.schema.columns.map(c=>c.name);
     const rows=((b.result&&b.result.data_array)||[]).map(a=>{const o={};cols.forEach((c,i)=>o[c]=a[i]);return o;});
     const data={loaded:new Date().toISOString(),file:'Yooz · Databricks',source:'flow',lines:yoozRowsToLines(rows)};
@@ -4967,9 +5014,71 @@ function poLines(data){
   const cat=new Map(ITEMS.map(i=>[nz(i.code),i.code]));
   return data.lines.filter(l=>l.plant===currentPlant).map(l=>{const c=cat.get(nz(l.code));return !c?null:c===l.code?l:Object.assign({},l,{code:c});}).filter(Boolean);
 }
+/* ---------- Jonathan's DM Planning sheet (planner) ----------
+   Flow WMS_Planner_POs (svc_wms_receiving) copies the planning workbook and runs the Office Script WMS_Planner_POs,
+   which returns [{plant,date,code,desc,vendor,po,qty}] for the days around today. The planner moves a delivery when
+   it is pulled in or pushed out, and adds a PO the moment it is created — so:
+   · a Yooz PO is shown on the planner's day (the Yooz date stays visible as a note);
+   · a PO that is only in the planner (not in Databricks yet) is shown too, marked "planner". Items/qty received still come from Yooz. */
+const PLANNER_FLOW_URL='';
+const PLANNER_KEY='wms_planner_pos';
+let plannerFetch={busy:false,err:'',tried:0};
+function loadPlanner(){try{return JSON.parse(localStorage.getItem(PLANNER_KEY)||'null');}catch(e){return null;}}
+async function loadPlannerFromFlow(manual){
+  if(!PLANNER_FLOW_URL||plannerFetch.busy)return;
+  plannerFetch.busy=true;plannerFetch.err='';
+  try{
+    const res=await fetch(PLANNER_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    let b=await res.json();if(b&&!Array.isArray(b))b=b.result||b.value||b.rows||[];
+    const rows=(b||[]).map(r=>({plant:String(r.plant||'').toUpperCase(),date:String(r.date||'').slice(0,10),code:String(r.code||'').trim().toUpperCase(),
+      desc:String(r.desc||''),vendor:String(r.vendor||'').trim(),po:String(r.po||'').trim(),qty:numv(r.qty)})).filter(r=>r.date&&r.code&&r.po);
+    localStorage.setItem(PLANNER_KEY,JSON.stringify({loaded:new Date().toISOString(),rows}));
+  }catch(e){plannerFetch.err=e.message;if(manual)showToast('Planner not updated: '+e.message,'error');}
+  finally{plannerFetch.busy=false;if(currentView==='po')renderPoView(true);}
+}
+/* the planner changes all day (a PO goes in the moment it is created): refresh when older than 1 hour */
+function plannerAutoRefresh(){
+  if(!PLANNER_FLOW_URL||Date.now()-plannerFetch.tried<10*60000)return;
+  const d=loadPlanner();
+  if(!d||Date.now()-new Date(d.loaded)>60*60000){plannerFetch.tried=Date.now();loadPlannerFromFlow(false);}
+}
+function plannerRows(){
+  const d=loadPlanner();if(!d)return [];
+  const nz=c=>String(c).replace(/\//g,'');const cat=new Map(ITEMS.map(i=>[nz(i.code),i]));
+  const out=[];
+  d.rows.filter(r=>r.plant===currentPlant).forEach(r=>{
+    const pos=String(r.po).toUpperCase().match(/YZ-\d\d-\d+/g);if(!pos)return;      // skip cells without a real PO number
+    const it=cat.get(nz(r.code));if(!it)return;
+    pos.forEach(po=>out.push({po,code:it.code,desc:it.name,vendor:r.vendor,date:r.date,qty:r.qty}));
+  });
+  return out;
+}
 function poGroups(){
   const g={};
   poLines().forEach(l=>{const k=l.po+'|'+l.due;(g[k]=g[k]||{key:k,po:l.po,vendor:l.vendor,due:l.due,lines:[]}).lines.push(l);});
+  const pr=plannerRows();
+  if(pr.length){
+    const byPo={};pr.forEach(r=>(byPo[r.po]=byPo[r.po]||[]).push(r));
+    const seenPo=new Set();
+    Object.values(g).forEach(x=>{
+      seenPo.add(x.po);
+      const rs=byPo[x.po];if(!rs)return;
+      const codes=new Set(x.lines.map(l=>l.code));
+      const m=rs.filter(r=>codes.has(r.code));const use=m.length?m:rs;
+      const cnt={};use.forEach(r=>cnt[r.date]=(cnt[r.date]||0)+1);
+      const pd=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a.localeCompare(b))[0];
+      if(pd&&pd!==x.due&&Math.abs(new Date(pd)-new Date(x.due))<=21*864e5){x.ydue=x.due;x.due=pd;}   // the planner's day wins (key stays the same)
+    });
+    const yAll=(loadYooz()||{lines:[]}).lines;
+    Object.keys(byPo).forEach(po=>{                        // POs that are only in the planner yet
+      if(seenPo.has(po))return;
+      const other=yAll.filter(l=>l.po===po);                // the same PO number is in Yooz, but for other items/plant → typo somewhere
+      const note=other.length?'Yooz has '+po+' as '+[...new Set(other.map(l=>l.raw||l.code))].slice(0,3).join(', ')+' ('+[...new Set(other.map(l=>l.plant))].join('/')+', due '+fmtDay(other[0].due)+')':'';
+      byPo[po].forEach(r=>{const k=po+'|'+r.date;
+        (g[k]=g[k]||{key:k,po,vendor:r.vendor||'(planner)',due:r.date,planner:true,pnote:note,lines:[]}).lines.push({po,code:r.code,desc:r.desc,ordered:r.qty,due:r.date,vendor:r.vendor,plant:currentPlant});});
+    });
+  }
   return Object.values(g);
 }
 /* ok = counted matches the BOL and the BOL matches the PO · bol = supplier sent a different qty than ordered
@@ -5060,17 +5169,19 @@ async function syncReceiptsFromSP(force){
   finally{_spSync.busy=false;}
   if(currentView==='po'&&document.getElementById('po-overlay').classList.contains('hidden'))renderPoView(true);else renderPoSyncLine();
 }
+/* one button: latest POs from Yooz (Databricks) + latest receiving reports from SharePoint */
+function poRefreshAll(){if(YOOZ_FLOW_URL)loadYoozFromFlow(true);if(PLANNER_FLOW_URL)loadPlannerFromFlow(true);syncReceiptsFromSP(true);}
 function poSyncLineHtml(){
   if(!RECEIVING_SEARCH_URL)return '';
   if(_spSync.busy)return '☁ Updating from SharePoint…';
   if(_spSync.err)return `⚠ SharePoint not reachable — showing the last saved copy · <a href="#" onclick="syncReceiptsFromSP(true);return false">Retry</a>`;
-  if(_spSync.at)return `☁ Up to date with SharePoint · ${new Date(_spSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} · <a href="#" onclick="syncReceiptsFromSP(true);return false">⟳ Refresh</a>`;
+  if(_spSync.at)return `☁ Reports up to date with SharePoint · ${new Date(_spSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
   return '';
 }
 function renderPoSyncLine(){const el=document.getElementById('po-sync');if(el)el.innerHTML=poSyncLineHtml();}
 
 function renderPoView(noSync){
-  if(!noSync)yoozAutoRefresh();
+  if(!noSync){yoozAutoRefresh();plannerAutoRefresh();}
   const data=loadYooz();
   const el=document.getElementById('main-content');
   if(!poDate)poDate=ymd(new Date());
@@ -5079,12 +5190,14 @@ function renderPoView(noSync){
   let h=`<div class="po-bar">
     <div class="po-date"><button onclick="poShiftDay(-1)" aria-label="Previous day">‹</button><button class="po-date-lbl${poCalOpen?' on':''}" onclick="togglePoCal()" title="Open the calendar">📅 ${new Date(poDate+'T12:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</button><button onclick="poShiftDay(1)" aria-label="Next day">›</button></div>
     <button class="po-btn" onclick="poDate=ymd(new Date());poCalOpen=false;renderPoView()">Today</button>
-    ${YOOZ_FLOW_URL?`<button class="po-btn pri" onclick="loadYoozFromFlow(true)" ${yoozFetch.busy?'disabled':''}>${yoozFetch.busy?'⏳ Loading POs…':'⟳ Refresh POs'}</button>
-    <button class="po-btn" onclick="document.getElementById('po-file-input').click()" title="Use a Yooz export instead">⬆ File</button>`
+    ${YOOZ_FLOW_URL?`<button class="po-btn pri" onclick="poRefreshAll()" ${yoozFetch.busy?'disabled':''} title="Gets the latest POs from Yooz and the latest receiving reports from SharePoint">${yoozFetch.busy?'⏳ Updating…':'⟳ Refresh'}</button>
+    <button class="po-btn" onclick="document.getElementById('po-file-input').click()" title="Use a Yooz export instead">⬆ Yooz file</button>`
     :`<button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>`}
-    <span class="po-src">${yoozFetch.err?`<span style="color:var(--danger)">⚠ ${poEsc(yoozFetch.err)}</span> · `:''}${data?`Yooz data: <b>${poEsc(data.file)}</b> · loaded ${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} · ${poLines(data).length} DM line(s) for ${currentPlant}`:'No Yooz data on this device yet — load the daily Yooz export (xlsx / csv).'}</span>
+    <span class="po-src">${PLANNER_FLOW_URL?(()=>{const pd=loadPlanner();return plannerFetch.err?`<span style="color:var(--danger)">⚠ Planner: ${poEsc(plannerFetch.err)}</span> · `:pd?`Planner: <b>${new Date(pd.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b> · `:'';})():''}${yoozFetch.err?`<span style="color:var(--danger)">⚠ ${poEsc(yoozFetch.err)}</span> · `:''}${data?`Yooz data: <b>${poEsc(data.file)}</b> · loaded ${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} · ${poLines(data).length} DM line(s) for ${currentPlant}`:'No Yooz data on this device yet — load the daily Yooz export (xlsx / csv).'}</span>
   </div>
-  <div class="po-sync" id="po-sync">${poSyncLineHtml()}</div>`;
+  <div class="po-sync" id="po-sync">${poSyncLineHtml()}</div>
+  <div class="po-qbox"><input id="po-q" type="search" placeholder="🔎 Find a PO — type part of the number (28175), the vendor or the item" value="${poEsc(poQ)}" oninput="poQ=this.value;poQRender()" autocomplete="off">${poQ?`<button class="po-btn" onclick="poQ='';renderPoView(true)">✕</button>`:''}</div>
+  <div id="po-q-res">${poQResultsHtml()}</div>`;
   if(poCalOpen){h+=poCalendarHtml();el.innerHTML=h;if(!noSync)syncReceiptsFromSP(false);return;}
   if(pend.length)h+=`<div class="po-pending">⚠ <b>${pend.length}</b> report(s) are only on this device — not in SharePoint yet. <button class="po-btn pri" onclick="uploadPendingPo()">☁ Upload ${pend.length===1?'it':'all'}</button></div>`;
   if(!data){
@@ -5104,8 +5217,8 @@ function renderPoView(noSync){
     </div>`;
     const card=g=>{const s=groupStatus(g.key);const ds=deliveriesFor(g.key).filter(r=>!r.notArrived);
       return `<div class="po-card" onclick="openPoGroup('${poEsc(g.key)}')"><div class="po-main">
-        <div class="po-t">${poEsc(g.po)} <span style="font-weight:500;color:var(--text3);font-size:11px">· due ${fmtDay(g.due)}${ds.length>1?' · '+ds.length+' deliveries':''}</span></div>
-        <div class="po-v">${poEsc(g.vendor)} · ${g.lines.length} line(s)${yoozRecv(g)?' · <span style="color:var(--success);font-weight:600">received in Yooz '+fmtDay(g.lines.map(l=>l.recv).sort().pop())+'</span>':''}</div>
+        <div class="po-t">${poEsc(g.po)} <span style="font-weight:500;color:var(--text3);font-size:11px">· due ${fmtDay(g.due)}${g.ydue?` <span class="po-tag" title="The planner moved this delivery">Yooz date ${fmtDay(g.ydue)}</span>`:''}${g.planner?` <span class="po-tag warn" title="${g.pnote?poEsc(g.pnote):'In the DM Planning sheet, not in Yooz/Databricks yet'}">${g.pnote?'⚠ check PO #':'planner'}</span>`:''}${ds.length>1?' · '+ds.length+' deliveries':''}</span></div>
+        <div class="po-v">${poEsc(g.vendor)} · ${g.lines.length} line(s)${yoozRecv(g)?' · <span style="color:var(--success);font-weight:600">received in Yooz '+fmtDay(g.lines.map(l=>l.recv).sort().pop())+'</span>':''}</div>${g.pnote?`<div class="po-v" style="color:#c76a00">⚠ ${poEsc(g.pnote)} — check the PO # with Procurement</div>`:''}
         <div class="po-l">${g.lines.map(l=>l.code+' '+(l.ordered!=null?l.ordered.toLocaleString():'')).join(' · ')}</div>
       </div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;};
     h+=`<div class="po-sec">Expected ${fmtDay(poDate)}</div>`+(today.length?today.map(card).join(''):`<div class="po-empty">No DM purchase orders due on ${fmtDay(poDate)}.</div>`);
@@ -5136,6 +5249,24 @@ function openPoGroup(gkey){
    Typing only the number (27647) also tries YZ-26-27647 and YZ-25-27647. Partial text is searched in what is already loaded. */
 let RECEIVING_SEARCH_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/5760451ebd1347d096921c205d848df8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IwmA_q1teK0LKgabGSdF9N1DEDOgw0fbGRzl3sBZZak';
 let _poFind={q:'',d:'',mode:'',loading:false,keys:null,note:''};
+/* 🔎 Find a PO: part of the PO number, the vendor or an item code / description — searches every PO in the Yooz data
+   (30 days back and ahead) plus the receiving reports, and opens it on tap whatever its day is. */
+function poQResultsHtml(){
+  const q=(poQ||'').trim().toUpperCase();if(q.length<2)return '';
+  const digits=q.replace(/\D/g,'');
+  const hit=g=>(digits.length>=2&&g.po.replace(/\D/g,'').includes(digits))||g.po.toUpperCase().includes(q)||g.vendor.toUpperCase().includes(q)
+    ||g.lines.some(l=>String(l.code).toUpperCase().includes(q)||String(l.desc||'').toUpperCase().includes(q));
+  const gs=poGroups().filter(hit).sort((a,b)=>Math.abs(new Date(a.due)-new Date(poDate))-Math.abs(new Date(b.due)-new Date(poDate))).slice(0,15);
+  const gk=new Set(poGroups().map(g=>g.key));
+  const reps=Object.values(allReceipts()).filter(r=>!gk.has(baseKeyOf(r.key))&&!isGhost(r)&&((digits.length>=2&&String(r.po).replace(/\D/g,'').includes(digits))||String(r.po).toUpperCase().includes(q)||String(r.vendor).toUpperCase().includes(q))).slice(0,10);
+  if(!gs.length&&!reps.length)return `<div class="po-empty" style="padding:14px">Nothing found for “${poEsc(poQ)}”. Try fewer numbers (e.g. the last 4) or the vendor name.</div>`;
+  const ST={ok:'✓ Received OK',diff:'⚠ Differences',bol:'⚠ BOL ≠ PO',late:'✕ Did not arrive',pend:'To check'};
+  return `<div class="po-sec">Found ${gs.length+reps.length}</div>`+gs.map(g=>{const s=groupStatus(g.key);
+    return `<div class="po-card" onclick="poQ='';poDate='${g.due}';openPoGroup('${poEsc(g.key)}')"><div class="po-main"><div class="po-t">${poEsc(g.po)} <span class="po-due">· due ${fmtDay(g.due)}</span></div>
+      <div class="po-v">${poEsc(g.vendor)} · ${g.lines.length} line(s)</div><div class="po-l">${g.lines.slice(0,6).map(l=>poEsc(l.code)).join(' · ')}${g.lines.length>6?' …':''}</div></div>
+      <span class="po-st ${s==='late'?'miss':s}">${ST[s]||'To check'}</span></div>`;}).join('')+reps.map(r=>poReportCard(r)).join('');
+}
+function poQRender(){const el=document.getElementById('po-q-res');if(el)el.innerHTML=poQResultsHtml();}
 function poCandidatePOs(q){
   q=q.trim().toUpperCase();const yy=new Date().getFullYear()%100;
   if(/^\d{4,6}$/.test(q))return ['YZ-'+yy+'-'+q,'YZ-'+(yy-1)+'-'+q];
@@ -5336,16 +5467,24 @@ function poManualNext(){
   closePoModal();
   openPoReceive(key,{edit:true,manual:{po,vendor,due:poDate,lines:[]}});
 }
+/* items ordered in units that arrive as full pallets: the dock counts pallets, the app turns them into units */
+const PALLET_UNITS={'T2000':2640,'T2100':2640};          // Cryovac trays: 2,640 trays per pallet (same NJ and GA)
+const palletUnits=code=>PALLET_UNITS[String(code||'').toUpperCase().replace(/-[14]$/,'')]||0;
+function poPalletsTxt(code,q){const u=palletUnits(code);if(!u||q==null)return '';const n=q/u;return (Number.isInteger(n)?n:n.toFixed(1))+' pallet'+(n===1?'':'s');}
+function poFromPallets(i){
+  const f=_poForm,l=f.lines[i],u=palletUnits(l.code),pe=document.getElementById('po-pal-'+i),c=document.getElementById('po-cnt-'+i);
+  const n=parseFloat(pe.value);c.value=isNaN(n)?'':Math.round(n*u);c.classList.remove('po-missing');poUpdDiff(i);
+}
 function poRowHtml(l,i,p0){
-  p0=p0||{};const it=ITEMS.find(x=>x.code===l.code);
+  p0=p0||{};const it=ITEMS.find(x=>x.code===l.code);const pu=l.extra?0:palletUnits(l.code);
   const inp=(kind,v,ph)=>`<input type="text" class="po-cnt po-${kind}" id="po-${kind}-${i}" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="${ph}" value="${v!=null?v:''}" oninput="this.classList.remove('po-missing');poUpdDiff(${i})">`;
   const bef=_poForm.before[l.code];
   const item=l.extra?`<input type="text" class="po-xcode" id="po-code-${i}" list="po-items-dl" placeholder="Item code" value="${poEsc(l.code||'')}" autocomplete="off" oninput="_poForm.lines[${i}].code=this.value.trim().toUpperCase()"><span class="po-nm">Not on the PO</span>`
     :`<span class="po-code">${poEsc(l.code)}</span><span class="po-nm">${poEsc(it?it.name:l.desc)}</span>`;
   return `<tr${l.extra?' class="po-extra"':''}><td>${item}</td>
-    <td data-l="Ordered"><b>${l.ordered!=null?l.ordered.toLocaleString():'—'}</b>${bef?`<span class="po-bef">already rec. ${bef.toLocaleString()}</span>`:''}</td>
+    <td data-l="Ordered"><b>${l.ordered!=null?l.ordered.toLocaleString():'—'}</b>${pu&&l.ordered!=null?`<span class="po-bef" style="color:var(--accent)">= ${poPalletsTxt(l.code,l.ordered)}</span>`:''}${bef?`<span class="po-bef">already rec. ${bef.toLocaleString()}</span>`:''}</td>
     <td data-l="BOL">${inp('bol',p0.bol,'BOL')}</td>
-    <td data-l="Counted" style="white-space:nowrap">${inp('cnt',p0.counted,'Count')}<button type="button" class="po-eq" title="Counted = BOL" onclick="poSetEq(${i})">=</button></td>
+    <td data-l="Counted" style="white-space:nowrap">${inp('cnt',p0.counted,'Count')}<button type="button" class="po-eq" title="Counted = BOL" onclick="poSetEq(${i})">=</button>${pu?`<div class="po-pal">or <input type="text" id="po-pal-${i}" inputmode="decimal" placeholder="pallets" value="${p0.counted!=null?(p0.counted/pu):''}" oninput="poFromPallets(${i})"> pallets × ${pu.toLocaleString()}</div>`:''}</td>
     <td><span class="po-d" id="po-d-${i}"></span></td></tr>`;
 }
 function poAddExtra(){
@@ -5363,7 +5502,8 @@ function poUpdDiff(i){
   const x={ordered:exp,extra:l.extra,bol:poVal('po-bol-'+i),counted:poVal('po-cnt-'+i)};
   const s=x.counted==null?'pend':lineStatus(x);
   d.className='po-d '+(s==='bol'||s==='extra'?'diff':s);
-  d.textContent=s==='diff'?((x.counted-x.bol>0?'+':'')+(x.counted-x.bol).toLocaleString()+' vs BOL'):s==='bol'?('BOL '+(x.bol-x.ordered>0?'+':'')+(x.bol-x.ordered).toLocaleString()):LINE_TXT[s];
+  const pTxt=q=>palletUnits(l.code)?' ('+poPalletsTxt(l.code,Math.abs(q))+')':'';
+  d.textContent=s==='diff'?((x.counted-x.bol>0?'+':'')+(x.counted-x.bol).toLocaleString()+pTxt(x.counted-x.bol)+' vs BOL'):s==='bol'?('BOL '+(x.bol-x.ordered>0?'+':'')+(x.bol-x.ordered).toLocaleString()):LINE_TXT[s];
 }
 function poSetEq(i){
   const f=_poForm;const l=f.lines[i];
@@ -6645,7 +6785,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.05n';
+const APP_VERSION='2026.11.09a';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

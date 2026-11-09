@@ -449,8 +449,6 @@ function setTab(t){$('view-rec').classList.toggle('hidden',t!=='rec');$('view-hi
     if(el.dataset.np!=='decimal')return String(Math.round(r));
     return String(Math.round(r*100)/100);
   };
-
-  
   const showDisp=()=>{
     if(!target||!hasOp(target.value)){disp.textContent='';disp.classList.remove('err');return;}
     const r=calc(target.value);

@@ -203,10 +203,10 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.05c</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.05d</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
-      <button class="btn" onclick="exportDay()">⬇ Export day</button>
+      <button class="btn" onclick="exportDay()">⬇ Excel (whole day)</button>
       <button class="btn primary big" onclick="newBatch()">+ New Batch</button>
     </div>
     <div class="sync-line" id="sync-line-list"></div>
@@ -224,7 +224,7 @@
     <div class="bar">
       <button class="btn" onclick="showList()">← Batches</button>
       <h1 id="pg-title">Line progress</h1>
-      <button class="btn" onclick="document.getElementById('plan-file').click()">⬆ Load plan</button>
+      <button class="btn" onclick="document.getElementById('plan-file').click()">⬆ Load plan file</button>
     </div>
     <div class="sync-line" id="sync-line-pg"></div>
     <div class="plan-line" id="plan-line-pg"></div>
@@ -253,8 +253,6 @@
       </div>
     </div>
 
-
-    
     <div class="card">
       <h2>2 · Production lines <span class="h-note">up to 4 · where this meat goes</span></h2>
       <div id="lines-box"></div>
@@ -267,7 +265,7 @@
       <div class="scanrow no-print">
         <input id="scan-input" placeholder="🔫 Scan barcode here (or type it) + Enter" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();onScanInput();}">
         <button class="btn primary" onclick="openCamera()">📷 Camera</button>
-        <button class="btn" onclick="addManual()">+ Manual</button>
+        <button class="btn" onclick="addManual()">⌨ Type it in</button>
       </div>
       <div class="tbl-wrap"><table class="rm-tbl">
         <thead><tr><th>#</th><th>RM Code</th><th>Lot / Serial</th><th class="hide-sm">Pack date</th><th class="hide-sm">EST #</th><th class="hide-sm">Temp °F</th><th class="hide-sm">Supplier</th><th class="hide-sm">PO #</th><th>Current lbs</th><th>Used lbs</th><th>Left</th><th class="no-print"></th></tr></thead>
@@ -308,7 +306,7 @@
       <div class="row-actions no-print">
         <button class="btn ok primary big" id="btn-complete" onclick="completeBatch()">✓ Complete</button>
         <button class="btn warn big" id="btn-need" onclick="needAddBatch()">⏸ Still need add</button>
-        <button class="btn" onclick="exportBatch()">⬇ Excel</button>
+        <button class="btn" onclick="exportBatch()">⬇ Excel (this batch)</button>
         <button class="btn" onclick="window.print()">🖨 Print</button>
         <button class="btn danger" onclick="deleteBatch()">🗑 Delete</button>
       </div>
@@ -576,7 +574,7 @@ function onPlanFile(input){
   rd.readAsArrayBuffer(f);
 }
 /* the same file also feeds the Inventory Daily Plan (boxes + sleeves): index.html is opened hidden and does
-   exactly what Inventory → Plan → ⬆ Import Planning does, so loading here or there gives the same result */
+   exactly what Inventory → Plan → ⬆ Load plan file does, so loading here or there gives the same result */
 function sendPlanToInventory(buf,name,pl){
   const fr=document.createElement('iframe');fr.style.display='none';
   const id=Date.now()+'';let done=false;
