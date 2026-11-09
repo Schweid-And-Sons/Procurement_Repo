@@ -4568,7 +4568,10 @@ function importPlanWorkFile(input){
 }
 
 function renderPlanView(){
-  if(!planData){
+  // a plan from another day is never shown as today's (it stays saved; the empty screen says which one it was)
+  const pDay=planData&&(planData.day||((t=>t?ymd(new Date(t)):'')(planData.importedAt||planData.updatedAt)));
+  const stale=planData&&pDay!==isoToday();
+  if(!planData||stale){
     document.getElementById('main-content').innerHTML=`
       <div class="plan-toolbar">
         <button class="import-btn" onclick="triggerPlanImport()">⬆ Load plan file</button>
@@ -4578,7 +4581,7 @@ function renderPlanView(){
       </div>
       ${PLAN_ONLY
         ?`<div class="log-empty" style="font-size:14px;line-height:1.6">📅 Load today's <b>${currentPlant}</b> production planning file.<br>Tap <b>⬆ Load plan file</b> and pick the file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}).<br>It is shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).</div>`
-        :`<div class="log-empty">No Daily Plan for today yet.<br>Tap <b>⬆ Load plan file</b> and pick today's ${currentPlant} file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}) — or load it in Batch, same result.<br>It is loaded once and shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).<br><a href="#" onclick="pullSharedPlan(true);return false">⟳ Check now</a><div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
+        :`<div class="log-empty">No Daily Plan for today yet.${stale?`<br><span style="font-size:12px;color:var(--text3)">(The last plan on this device is from ${pDay?fmtDay(pDay):'an earlier day'} — not shown.)</span>`:''}<br>Tap <b>⬆ Load plan file</b> and pick today's ${currentPlant} file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}) — or load it in Batch, same result.<br>It is loaded once and shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).<br><a href="#" onclick="pullSharedPlan(true);return false">⟳ Check now</a><div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
     return;
   }
   const summary=getItemSummary();
@@ -6785,7 +6788,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.09a';
+const APP_VERSION='2026.11.09b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
