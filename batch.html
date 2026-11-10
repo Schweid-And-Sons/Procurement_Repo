@@ -16,6 +16,7 @@
     --accent:#2563eb;--accent2:#0891b2;--success:#16a34a;--warn:#d97706;--danger:#dc2626;
     --text:#0f172a;--text2:#334155;--text3:#64748b;--plant:#1d4ed8;
   }
+  html.theme-dark select option,html.theme-dark select optgroup{background:#1c1c1e;color:#f2f2f7;}
   html.theme-dark,body.theme-dark{
     color-scheme:dark;
     --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3350;
@@ -242,7 +243,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.10i</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.10k</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" id="btn-progress" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Excel (whole day)</button>
@@ -282,7 +283,7 @@
     <div class="card">
       <h2>1 · Batch info</h2>
       <div class="grid">
-        <div style="grid-column:span 2;min-width:0"><label>Meat block</label><select id="f-product" onchange="pickProduct(this.value)"></select></div>
+        <div style="grid-column:span 2;min-width:0"><label>Meat block</label><button type="button" class="pickf" id="f-product" onclick="pickMeatBlock()"></button></div>
         <div><label>Mixer</label><select id="f-line" onchange="pickMixer(this)"></select></div>
         <div><label>Batch #</label><input id="f-batchNo" inputmode="numeric" autocomplete="off" onchange="setField('batchNo',this.value)"></div>
         <div><label>Date</label><input type="date" id="f-date" onchange="setField('date',this.value)"></div>
@@ -791,7 +792,7 @@ function setPlant(p,keepView){
 }
 function showView(v){curView=v;['list','progress','edit'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==v));}
 function showList(){cur=null;showView('list');render();window.scrollTo(0,0);}
-function showProgress(){cur=null;showView('progress');render();window.scrollTo(0,0);}
+function showProgress(){cur=null;progTab=showLines()?'line':'meat';showView('progress');render();window.scrollTo(0,0);}
 function onDateChange(){sync.at=0;render();pullRemote(true);}
 function render(){
   {const bp=document.getElementById('btn-progress');if(bp)bp.textContent='📊 Progress';}
@@ -903,7 +904,7 @@ function openBatch(id){
   pullRemote(false);
 }
 function fillEditor(){
-  document.getElementById('f-product').innerHTML=meatBlockOptions(cur.mbName||cur.product);
+  paintMeatBlock();
   ['batchNo','date','startTime','endTime','seasLbs','seasLot','water','fatTest','fatFinal','grindTemp','notes'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=cur[k]||'';});
   document.getElementById('f-waterUnit').value=cur.waterUnit||'lbs';
   fillSelects();
@@ -977,7 +978,7 @@ function renderEditorStatus(){
 function renderEditor(light){
   const amount=batchAmount(cur);
   document.getElementById('ed-title').textContent=(cur.product||'New batch')+' · #'+cur.batchNo;
-  renderEditorStatus();
+  renderEditorStatus();paintMeatBlock();
   document.getElementById('tot-count').textContent=cur.items.length;
   document.getElementById('tot-lbs').textContent=fmtLbs(amount);
   document.querySelectorAll('#seas-yn button').forEach(b=>b.classList.toggle('on',b.dataset.v===cur.seasoning));
@@ -1046,6 +1047,21 @@ function pkAdd(){const o=pk;const q=(document.getElementById('pk-q').value||'').
   const v=(prompt(o.addNew+':',q)||'').trim();if(!v)return;
   if(o.addKey){const l=(o.addList?o.addList():loadList(o.addKey,[])).slice();if(!l.includes(v)){l.push(v);try{localStorage.setItem(o.addKey,JSON.stringify(l));}catch(e){}}}
   o.onPick(v);}
+/* meat block: search + scroll list, today's plan first */
+function paintMeatBlock(){
+  const el=document.getElementById('f-product');if(!el||!cur)return;
+  const n=cur.mbName||cur.product;el.innerHTML=n?esc(n):'<span class="ph">Search meat block…</span>';
+}
+function pickMeatBlock(){
+  const p=loadPlan(cur&&cur.date);const inPlan=new Set((p?p.entries:[]).map(e=>e.name));
+  const pl=MEAT_BLOCKS.filter(m=>inPlan.has(m.name));
+  [...inPlan].forEach(n=>{if(!pl.some(m=>m.name===n))pl.push({name:n});});
+  const rest=MEAT_BLOCKS.filter(m=>!inPlan.has(m.name));
+  const g1=pl.length?"In today's plan":'Meat blocks',g2=pl.length?'Other meat blocks':'Meat blocks';
+  openPicker({title:'Meat block',sel:cur.mbName||cur.product,
+    items:[...pl.map(m=>({v:m.name,group:g1})),...rest.map(m=>({v:m.name,group:g2}))],
+    onPick:v=>pickProduct(v)});
+}
 function pickRmFor(target){
   const sel=target==='cf'?document.getElementById('cf-rm').value:(cur.items[target]||{}).rm;
   openPicker({title:'RM code',sel,items:RM_CODES.map(r=>({v:r.code,label:r.code+' '+r.name,html:`<b>${esc(r.code)}</b> — ${esc(r.name)}`,sub:r.vendor||'',group:r.group})),
@@ -1173,7 +1189,7 @@ function openConfirm(p){
   const u=document.getElementById('cf-used');u.value=pending.cur;delete u.dataset.touched;u.oninput=()=>{u.dataset.touched='1';};
   document.getElementById('cf-remember-wrap').style.display=pending.key?'':'none';
   document.getElementById('confirm-ov').classList.remove('hidden');
-  setTimeout(()=>{if(!pending.rm)pickRmFor('cf');else document.getElementById(pending.cur!==''?'cf-used':'cf-cur').focus();},80);
+  setTimeout(()=>{if(pending.rm)document.getElementById(pending.cur!==''?'cf-used':'cf-cur').focus();},80);   // manual entry: nothing opens by itself — the person taps the field they want
 }
 function closeConfirm(){document.getElementById('confirm-ov').classList.add('hidden');pending=null;setTimeout(()=>{const s=document.getElementById('scan-input');if(s)s.focus();},50);}
 function confirmAdd(){
