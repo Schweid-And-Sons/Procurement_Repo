@@ -7,7 +7,10 @@
 <meta name="theme-color" content="#f2f2f7">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Schweid & Sons WMS · NJ Direct Materials</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com blob: data:; object-src 'none'; base-uri 'self'">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   
   :root {
@@ -298,7 +301,7 @@
   .items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;}
   .item-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s;}
   .item-card.in-stock{border-left:3px solid var(--accent);}
-  .item-card.not-stock{opacity:.5;}
+  .item-card.not-stock{opacity:.72;}
   .ic-code{font-size:11px;font-weight:700;color:var(--accent2);}
   .ic-name{font-size:11px;color:var(--text2);line-height:1.35;}
   .ic-footer{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
@@ -307,7 +310,7 @@
   .ic-phys{font-size:9px;color:var(--warn);margin-top:1px;letter-spacing:.03em;}
   .ic-badge{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
   .badge-in{background:var(--empty-bg);color:var(--empty-tx);border:1px solid var(--empty-bd);}
-  .badge-out{background:var(--surface);color:var(--text3);border:1px solid var(--border);}
+  .badge-out{background:var(--fill,var(--surface));color:var(--text2);border:1px solid var(--border);}
 
   
   .loc-table{width:100%;border-collapse:collapse;}
@@ -317,6 +320,10 @@
   
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:100;}
   .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:360px;max-width:96vw;}
+  .xl-ask-btn{display:block;width:100%;margin:0 0 8px;padding:14px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface2,var(--surface));color:var(--text);font:inherit;font-size:16px;font-weight:600;cursor:pointer;text-align:center;}
+  .xl-ask-btn.cur{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .xl-ask-btn span{font-size:11px;font-weight:500;opacity:.85;margin-left:6px;}
+  .xl-ask-btn.cancel{background:transparent;border-color:transparent;color:var(--text3);font-weight:500;margin-bottom:0;}
   .modal h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent2);margin-bottom:3px;}
   .modal-loc{font-size:10px;color:var(--text3);margin-bottom:14px;}
   .modal label{display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
@@ -720,7 +727,7 @@
   .logo h1{font-size:17px!important;font-weight:700;letter-spacing:-.01em;text-transform:none;color:var(--text);}
   .logo .sub{font-size:12px;letter-spacing:0;color:var(--text3);}
   .logo .credit{font-size:11px;letter-spacing:0;}
-  .topbar-title{font-size:17px!important;font-weight:700;letter-spacing:-.01em;text-transform:none;color:var(--text);}
+  .topbar-title{font-size:17px!important;font-weight:700;letter-spacing:-.01em;text-transform:none;color:var(--text);max-width:62vw!important;flex-shrink:0;}
 
   /* plant strip → floating capsule */
   .plant-strip{margin:8px 12px 0;border-radius:16px;padding:9px 14px;letter-spacing:0;font-size:14px;
@@ -736,6 +743,9 @@
   .mode-tabs,.stats-subtabs{background:var(--fill);border-radius:10px;padding:2px;gap:2px!important;display:inline-flex!important;}
   .mode-tabs.mode-tabs-off{display:none!important;}
   .mode-tab,.stats-subtab{border:none!important;border-radius:8px!important;background:transparent!important;color:var(--text)!important;text-transform:none!important;letter-spacing:0!important;font-size:13px!important;font-weight:500;}
+  .stats-subtabs{flex-wrap:nowrap!important;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .stats-subtabs::-webkit-scrollbar{display:none;}
+  .stats-subtab{white-space:nowrap;flex:0 0 auto;}
   .mode-tab.active,.stats-subtab.active{background:var(--surface)!important;color:var(--text)!important;font-weight:600;box-shadow:0 3px 8px rgba(0,0,0,.12),0 1px 1px rgba(0,0,0,.04);}
   html.theme-dark .mode-tab.active,html.theme-dark .stats-subtab.active{background:#636366!important;}
 
@@ -988,7 +998,11 @@
   *::-webkit-scrollbar-track{background:transparent;}
   /* ---------- Procurement (Yooz POs → receiving check) ---------- */
   .po-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;}
-  .po-bar .po-src{font-size:11px;color:var(--text3);flex:1 1 220px;}
+  .po-bar .po-src{font-size:12px;color:var(--text2);flex:1 1 220px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  .src-pill{display:inline-flex;align-items:center;gap:4px;background:var(--fill,#eee);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--text2);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+  .src-pill b{color:var(--text);font-weight:600;}
+  .src-pill.bad{background:rgba(255,59,48,.12);color:var(--danger);}
+  .src-pill.none{white-space:normal;border-radius:12px;}
   .po-btn{border:none;background:var(--fill,#eee);color:var(--text);border-radius:10px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;}
   .po-btn.pri{background:var(--accent);color:#fff;}
   .po-btn.ok{background:color-mix(in srgb,var(--success) 16%,transparent);color:var(--success);}
@@ -1078,7 +1092,7 @@
   .po-quick .po-btn{flex:1;}
   .po-note{width:100%;min-height:54px;border-radius:10px;border:none;background:var(--fill,#f2f2f7);color:var(--text);font:inherit;font-size:13px;padding:8px 10px;box-sizing:border-box;}
   .po-hint{font-size:11px;color:var(--text3);margin:2px 0 8px;}
-  .po-sync{font-size:11px;color:var(--text3);margin:-4px 2px 10px;}
+  .po-sync{font-size:12px;color:var(--text2);margin:-4px 2px 10px;}
   .po-sync a{color:var(--accent);text-decoration:none;font-weight:600;}
   .po-pending{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:color-mix(in srgb,#ff9500 14%,var(--surface));color:#9a5200;border-radius:14px;padding:10px 12px;margin-bottom:12px;font-size:13px;}
   .po-pending .po-btn{margin-left:auto;}
@@ -1192,13 +1206,8 @@ try{
       <button class="count-session-btn" id="count-session-btn" onclick="toggleCountSession()" title="Marks every position as 'to review' so nothing is missed in a full count">🟡 Start Full Count</button>
       <button class="sf-toggle" onclick="toggleActions()"><span>⚙️ Actions</span><span class="sf-chev">▾</span></button>
       <div class="sf-body">
-        <select id="count-type-sel" onchange="onShiftSelect(this)" title="Shift: changing it starts that shift on every device" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;">
-          <option value="pre9">Before 9am</option>
-          <option value="post9">After 9am</option>
-          <option value="eom">End of Month</option>
-        </select>
         <div class="sf-grid">
-          <button class="export-btn" onclick="exportExcel()">⬇ Export Excel</button>
+          <button class="export-btn" onclick="askExportExcel()">⬇ Export Excel</button>
           <button class="import-btn" onclick="triggerImport()">⬆ Import Excel</button>
           <button class="sync-btn" onclick="openSyncModal()" title="Shift copies saved in SharePoint (calendar) — the live sync is automatic">📅 Saved copies</button>
           <button class="import-btn nj-only" onclick="openBoxRoomMap()">📦 Box Room Map</button>
@@ -1242,12 +1251,7 @@ try{
     </div>
     <div class="actions-drawer-body">
       <button class="count-session-btn" id="count-session-btn-drawer" onclick="toggleCountSession()">🟡 Start Full Count</button>
-      <select id="count-type-sel-drawer" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:inherit;font-size:11px;width:100%;cursor:pointer;" onchange="onShiftSelect(this)" title="Shift: changing it starts that shift on every device">
-        <option value="pre9">Before 9am</option>
-        <option value="post9">After 9am</option>
-        <option value="eom">End of Month</option>
-      </select>
-      <button class="export-btn" onclick="exportExcel();closeActionsDrawer()">⬇ Export Excel</button>
+      <button class="export-btn" onclick="closeActionsDrawer();askExportExcel()">⬇ Export Excel</button>
       <button class="import-btn" onclick="triggerImport();closeActionsDrawer()">⬆ Import Excel</button>
       <button class="sync-btn" onclick="openSyncModal();closeActionsDrawer()">📅 Saved copies</button>
       <button class="import-btn nj-only" onclick="openBoxRoomMap();closeActionsDrawer()">📦 Box Room Map</button>
@@ -1509,15 +1513,38 @@ try{
   <div class="boxroom-modal-box" onclick="event.stopPropagation()">
     <div class="boxroom-toolbar">
       <button class="btn-cancel" onclick="closeBoxRoomMap()">Close</button>
-      <button class="import-btn" onclick="printBoxRoomMap()">🖨 Print / Save PDF</button>
-      <button class="import-btn" onclick="downloadBoxRoomMap()">⬇ Download PDF</button>
-      <button class="sync-btn" onclick="shareBoxRoomMap()">↗ Share PDF</button>
+      <button class="sync-btn" onclick="shareBoxRoomMap()" title="iPad / phone: share the PDF (WhatsApp, Teams, mail, print…). PC: the PDF is downloaded">↗ Share PDF</button>
     </div>
     <div id="boxroom-printable"></div>
   </div>
 </div>
 
 <script>
+/* =====================================================================
+   WMS · INVENTORY + RECEIVING (index.html)
+   One file, no build step. Data lives per plant (NJ / GA) on the device
+   and is shared through SharePoint lists via Power Automate flows.
+
+   WHERE THINGS ARE (search for the label to jump there)
+     Catalog and plant data ........ "CAT_ORDER", "Georgia plant data", "Plants"
+     Saving on the device .......... "STORAGE"
+     Map view / Locations .......... "Map view", "Locations view"
+     Items and Substitutions ....... "ITEMS VIEW", "Substitutions sub-view"
+     Count mode (Full Count) ....... "COUNT MODE"
+     Activity Log / Statistics ..... "ACTIVITY LOG", "STATISTICS"
+     Daily Plan (shared) ........... "SHARED DAILY PLAN"
+     Live inventory (shared) ....... "LIVE INVENTORY"
+     Box Room Map (PDF) ............ "BOX ROOM MAP"
+     Receiving ..................... "Receiving (Yooz POs)" and the blocks after it
+     Sync / Export to SharePoint ... "SYNC / EXPORT"
+     Menu, theme, PIN .............. "MENU / THEME"
+     On-screen keypad .............. near the end of the file
+
+   RULES
+     - Text that comes from a file or from SharePoint goes through poEsc() before it is shown.
+     - Never put passwords or API keys in this file.
+     - Bump APP_VERSION (end of file) on every change.
+   ===================================================================== */
 const CAT_ORDER = ['BOXES','FILM','PATTY PAPER','SLEEVES','TRAYS','LINER BAGS','LABELS','SEASONINGS','PACKAGING','PPE','TOWER ISLE','MISC'];
 
 let PHYS_CODES = {
@@ -1858,6 +1885,7 @@ function loadData(){
     inventory={};
   }
 }
+/* ---------- STORAGE — the inventory of this device ---------- */
 function saveData(){
   try{
     const json=JSON.stringify(inventory);
@@ -2140,6 +2168,7 @@ function renderRackAreaBlock(aName,aDef,titleOverride,sectionKeys){
   return html;
 }
 
+/* ---------- ITEMS VIEW ---------- */
 function renderItemsView(q=''){
   const subTabs=`<div class="stats-subtabs">
     <button class="stats-subtab${itemsSubView==='items'?' active':''}" onclick="setItemsSubView('items')">📦 Items</button>
@@ -2781,6 +2810,7 @@ function loadCountSession(){
   }catch(e){}
   return null;
 }
+/* ---------- COUNT MODE (Full Count) ---------- */
 function saveCountSessionState(){
   try{
     if(countSession&&countSession.active)
@@ -3177,6 +3207,20 @@ window.addEventListener('popstate',function(){
   if(ov&&ov.classList.contains('hidden')&&currentPlant)showPlantSelector();
 });
 
+/* Export Excel asks which count the file is for. It only labels the file — it does NOT change the shift. */
+function askExportExcel(){
+  closeExportAsk();
+  const cur=(live.rec&&live.rec.turno)||currentTurnoSel();
+  const ov=document.createElement('div');ov.className='modal-overlay';ov.id='xl-ask-overlay';ov.style.zIndex='10001';
+  ov.onclick=e=>{if(e.target===ov)closeExportAsk();};
+  const opt=[['pre9','Before 9am'],['post9','After 9am'],['eom','End of Month']];
+  ov.innerHTML=`<div class="modal xl-ask"><h3 style="margin:0 0 4px;font-size:17px">Which count is this Excel for?</h3>
+    <p style="margin:0 0 14px;font-size:12px;color:var(--text3)">This only names the file. It does not change the shift.</p>
+    ${opt.map(o=>`<button class="xl-ask-btn${o[0]===cur?' cur':''}" onclick="closeExportAsk();exportExcel({turno:'${o[0]}'})">${o[1]}${o[0]===cur?' <span>current</span>':''}</button>`).join('')}
+    <button class="xl-ask-btn cancel" onclick="closeExportAsk()">Cancel</button></div>`;
+  document.body.appendChild(ov);
+}
+function closeExportAsk(){const o=document.getElementById('xl-ask-overlay');if(o)o.remove();}
 function exportExcel(o){
   o=o||{};
   const wb=XLSX.utils.book_new();
@@ -3202,7 +3246,7 @@ function exportExcel(o){
   ws1['!cols']=[{wch:22},{wch:36},{wch:15},{wch:12},{wch:11},{wch:70}];
   XLSX.utils.book_append_sheet(wb,ws1,'Inventory Summary');
 
-    const ctSel=o.turno?{value:o.turno}:document.getElementById('count-type-sel');
+    const ctSel={value:o.turno||(live.rec&&live.rec.turno)||currentTurnoSel()};
   const ctMap={'pre9':'pre 9am','post9':'post 9am','eom':'EOM'};
   const ctVal=ctSel?ctMap[ctSel.value]||'pre 9am':'pre 9am';
   const countLabel=`${dateStr.slice(0,-5)} ${ctVal}`;
@@ -3304,6 +3348,7 @@ function showToast(msg,type){
 let LOG_KEY = 'wms_schweid_log';
 const LOG_MAX = 500;
 
+/* ---------- ACTIVITY LOG ---------- */
 function loadLog(){
   try{const s=localStorage.getItem(LOG_KEY);return s?JSON.parse(s):[];}
   catch(e){return [];}
@@ -3349,11 +3394,11 @@ function renderLogView(){
         :e.action==='COUNT SESSION'?'log-action-count'
         :e.action==='SYNC IMPORT'?'log-action-import'
         :'log-action-clearall';
-      const undoBtn = e.undo ? `<button class="log-undo-btn" onclick="undoLogEntry('${e.id}')">↩ Undo</button>` : '';
+      const undoBtn = e.undo ? `<button class="log-undo-btn" onclick="undoLogEntry('${jsArg(e.id)}')">↩ Undo</button>` : '';
       html += `<tr>
-        <td style="color:var(--text3);white-space:nowrap">${e.ts}</td>
-        <td><span class="${cls}">${e.action}</span></td>
-        <td style="color:var(--text2)">${e.detail}</td>
+        <td style="color:var(--text3);white-space:nowrap">${poEsc(e.ts)}</td>
+        <td><span class="${cls}">${poEsc(e.action)}</span></td>
+        <td style="color:var(--text2)">${poEsc(e.detail)}</td>
         <td style="white-space:nowrap">${undoBtn}</td>
       </tr>`;
     });
@@ -3384,14 +3429,14 @@ function exportLogExcel(){
 function undoLogEntry(id){
   const log = loadLog();
   const idx = log.findIndex(e=>e.id===id);
-  if(idx<0){showToast('Entrada de log no encontrada.','error');return;}
+  if(idx<0){showToast('Log entry not found.','error');return;}
   const entry = log[idx];
   if(!entry.undo){showToast('This entry cannot be undone.','error');return;}
   if(!confirm('Undo this action?\n\n'+entry.action+' — '+entry.detail))return;
   let parsed;
   try{ parsed=JSON.parse(entry.undo); }catch(err){showToast('Error al deshacer: '+err.message,'error');return;}
   if(parsed && parsed.__t==='loc'){
-    // formato liviano — solo una posición (SAVE / CLEAR individuales)
+    // light format — a single position (individual SAVE / CLEAR)
     const beforeUndo=JSON.stringify({__t:'loc',l:parsed.l,v:inventory[parsed.l]||null});
     if(parsed.v)inventory[parsed.l]=parsed.v;else delete inventory[parsed.l];
     saveData();
@@ -3416,6 +3461,7 @@ function confirmClearLog(){
 
 let statsSubTab = 'overview';
 
+/* ---------- STATISTICS ---------- */
 function renderStatsView(){
   const summary = getItemSummary();
 
@@ -4081,16 +4127,21 @@ async function pullSharedPlan(force){
   }catch(e){planSync.err=e.message;planSync.at=Date.now();}
   finally{planSync.busy=false;renderPlanSyncLine();}
 }
+/* one button on the empty Plan screen: first the plan another device already shared, then today's file from SharePoint */
+async function planCheckAll(){
+  try{await pullSharedPlan(true);}catch(e){}
+  if(planData&&planData.day===isoToday()&&(planData.items||[]).length){if(currentView==='plan')renderPlanView();return;}
+  if(PLAN_FILE_URL)planAutoFetch(true);
+}
 function planSyncText(){
   if(!PLAN_READ_URL)return '';
   if(planSync.err)return '⚠ SharePoint not reachable — showing this device\'s copy · <a href="#" onclick="pullSharedPlan(true);return false">Retry</a>';
   const who=planData&&planData.by?' · loaded by '+planData.by:'';
-  return '☁ Shared plan'+who+(planSync.at?' · checked '+new Date(planSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'')+' · <a href="#" onclick="pullSharedPlan(true);return false">⟳ Refresh</a>';
+  return '☁ Shared plan'+who+(planSync.at?' · checked '+new Date(planSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'')+(planData&&planData.day===isoToday()||!PLAN_FILE_URL?' · <a href="#" onclick="pullSharedPlan(true);return false">⟳ Refresh</a>':'');
 }
 function renderPlanSyncLine(){const el=document.getElementById('plan-sync-line');if(el)el.innerHTML=planSyncText();}
-setInterval(()=>{if(currentView==='plan'&&document.visibilityState==='visible')pullSharedPlan(false);},30000);
+setInterval(()=>{if(currentView==='plan'&&document.visibilityState==='visible')pullSharedPlan(false);},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentView==='plan')pullSharedPlan(true);});
-function openPlanning(p){location.href='index.html?planning='+encodeURIComponent(p);}
 
 
 /* ================= LIVE INVENTORY (shared by every device of the plant) =================
@@ -4182,10 +4233,10 @@ async function livePull(force,push){
   finally{live.busy=false;renderLiveBar();}
 }
 function currentTurnoSel(){const s=document.getElementById('sync-turno-sel');return s&&LIVE_TURNOS.includes(s.value)?s.value:'pre9';}
-const SHIFT_SEL_IDS=['sync-turno-sel','count-type-sel','count-type-sel-drawer'];
+const SHIFT_SEL_IDS=['sync-turno-sel'];
 function setShiftSelects(v){SHIFT_SEL_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&[...el.options].some(o=>o.value===v))el.value=v;});}
-/* one shift for everything: the Actions selector, the drawer and Sync → Export are the same control.
-   With live sync on, choosing a shift really starts it (same as the ▶ buttons); cancel puts it back. */
+/* the shift is chosen in ONE place: Sync → Export. With live sync on, choosing a shift really starts it; cancel puts it back.
+   Export Excel asks which count the file is for (askExportExcel) — that only labels the file, it never changes the shift. */
 async function onShiftSelect(el){
   const v=el.value;
   if(live.on&&live.rec){
@@ -4236,8 +4287,8 @@ function liveBarInner(){
   const r=live.rec;
   const st=live.err?`<span class="lv-warn">⚠ Offline — changes stay on this device${live.pending?' and upload when back':''} · <a href="#" onclick="livePull(true,true);return false">Retry</a></span>`
     :`<span>☁ Live · ${live.pending?'uploading…':'all devices in sync'}${live.at?' · '+new Date(live.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):''}</span>`;
-  const btns=LIVE_TURNOS.filter(t=>!(r&&r.turno===t&&r.day===isoToday())).map(t=>`<button class="lv-btn" onclick="liveStartShift('${t}')">▶ ${SYNC_TURNO_LABELS[t].replace(/ \(.*\)/,'')}</button>`).join('');
-  return `<span class="lv-shift">${r?SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day):'Starting…'}</span>${st}<span class="lv-btns">${btns}</span>`;
+  // the shift is changed in ONE place only: Menu → Sync (the ▶ shortcut buttons were removed — they confused people)
+  return `<span class="lv-shift">${r?SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day):'Connecting…'}</span>${st}`;
 }
 function renderLiveBar(){const el=document.getElementById('live-bar');if(el)el.innerHTML=liveBarInner();syncTurnoSelects();}
 setInterval(()=>{if(live.on&&document.visibilityState==='visible')livePull(false,true);},30000);
@@ -4478,14 +4529,6 @@ function togglePlanDone(kind,code){
   renderPlanView();
 }
 
-function clearPlanDia(){
-  if(!planData){showToast('No hay plan cargado.','error');return;}
-  if(!confirm('Delete the current Daily Plan? This will not affect your inventory.'))return;
-  planData=null;
-  savePlanDia();
-  render();
-  showToast('Daily Plan deleted.','success');
-}
 
 function exportPlanWorkFile(){
   if(!planData||!planData.items.length){showToast('No plan to export.','error');return;}
@@ -4534,7 +4577,7 @@ function importPlanWorkFile(input){
           done:String(row[7]||'').trim().toUpperCase()==='YES'
         });
       }
-      if(!items.length){showToast('El archivo no tiene filas de plan reconocibles.','error');return;}
+      if(!items.length){showToast('This file has no plan rows we can read.','error');return;}
       let sleeves=[];
       const sleeveSheet=wb.SheetNames.find(n=>n==='Sleeves');
       if(sleeveSheet){
@@ -4574,7 +4617,7 @@ function renderPlanView(){
   if(!planData||stale){
     document.getElementById('main-content').innerHTML=`
       <div class="plan-toolbar">
-        ${PLAN_FILE_URL?`<button class="sync-btn" onclick="planAutoFetch(true)" ${planAuto.busy?'disabled':''}>${planAuto.busy?'⏳ Getting today\'s plan…':'☁ Get today\'s plan from SharePoint'}</button>`:''}
+        ${PLAN_FILE_URL?`<button class="sync-btn" onclick="planCheckAll()" ${planAuto.busy?'disabled':''}>${planAuto.busy?'⏳ Getting today\'s plan…':'☁ Get today\'s plan from SharePoint'}</button>`:''}
         <button class="import-btn" onclick="triggerPlanImport()">⬆ Load plan file</button>
         <button class="import-btn" onclick="triggerPlanWorkImport()">⬆ Load Work File</button>
         <input type="file" id="plan-import-input" accept=".xlsx,.xlsb,.xlsm,.xls" style="display:none" onchange="importPlanFile(this)">
@@ -4582,7 +4625,7 @@ function renderPlanView(){
       </div>
       ${PLAN_ONLY
         ?`<div class="log-empty" style="font-size:14px;line-height:1.6">📅 Load today's <b>${currentPlant}</b> production planning file.<br>Tap <b>⬆ Load plan file</b> and pick the file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}).<br>It is shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).</div>`
-        :`<div class="log-empty">No Daily Plan for today yet.${stale?`<br><span style="font-size:12px;color:var(--text3)">(The last plan on this device is from ${pDay?fmtDay(pDay):'an earlier day'} — not shown.)</span>`:''}<br>Tap <b>⬆ Load plan file</b> and pick today's ${currentPlant} file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}) — or load it in Batch, same result.<br>It is loaded once and shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).<br><a href="#" onclick="pullSharedPlan(true);return false">⟳ Check now</a><div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
+        :`<div class="log-empty">No Daily Plan for today yet.${stale?`<br><span style="font-size:12px;color:var(--text3)">(The last plan on this device is from ${pDay?fmtDay(pDay):'an earlier day'} — not shown.)</span>`:''}<br>Tap <b>⬆ Load plan file</b> and pick today's ${currentPlant} file (${currentPlant==='GA'?'GA daily .xlsb':'NJ .xlsx'}) — or load it in Batch, same result.<br>It is loaded once and shared with every ${currentPlant} device — Inventory (boxes &amp; sleeves) and Batch (meat blocks).<div id="plan-sync-line" style="margin-top:6px">${planSyncText()}</div></div>`}`;
     return;
   }
   const summary=getItemSummary();
@@ -4602,9 +4645,9 @@ function renderPlanView(){
     const equivNote=ps.note?`<div style="font-size:9px;color:var(--warn)">${ps.note}</div>`:'';
     if(it.done)doneCount++;
     return `<tr class="${it.done?'plan-row-done':''}">
-      <td><button class="plan-check${it.done?' on':''}" onclick="togglePlanDone('b','${it.code}')" title="Mark ready">${it.done?'✓':''}</button></td>
-      <td style="font-weight:700;color:var(--accent2)">${it.code}</td>
-      <td style="color:var(--text2);font-size:11px">${it.desc}</td>
+      <td><button class="plan-check${it.done?' on':''}" onclick="togglePlanDone('b','${jsArg(it.code)}')" title="Mark ready">${it.done?'✓':''}</button></td>
+      <td style="font-weight:700;color:var(--accent2)">${poEsc(it.code)}</td>
+      <td style="color:var(--text2);font-size:11px">${poEsc(it.desc)}</td>
       <td>${it.needed.toLocaleString()}</td>
       <td><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="plan-delivered-input" value="${it.delivered}" onfocus="this.select()" onchange="updatePlanDelivered('${it.code}',this.value)"></td>
       <td class="${remCls}">${remaining.toLocaleString()}</td>
@@ -4683,9 +4726,9 @@ function renderSleevesNeeded(summary){
     const physDisp=PHYS_CODES[s.code]?`<div class="ic-phys">Physical: ${PHYS_CODES[s.code].join(' · ')}</div>`:'';
     const byLine=s.lines||{'Line 22':s.line22,'Line 23':s.line23};
     return `<tr class="${s.done?'plan-row-done':''}">
-      <td><button class="plan-check${s.done?' on':''}" onclick="togglePlanDone('s','${s.code}')" title="Mark ready">${s.done?'✓':''}</button></td>
-      <td style="font-weight:700;color:var(--accent2)">${s.code}</td>
-      <td style="color:var(--text2);font-size:11px">${s.desc}${physDisp}</td>
+      <td><button class="plan-check${s.done?' on':''}" onclick="togglePlanDone('s','${jsArg(s.code)}')" title="Mark ready">${s.done?'✓':''}</button></td>
+      <td style="font-weight:700;color:var(--accent2)">${poEsc(s.code)}</td>
+      <td style="color:var(--text2);font-size:11px">${poEsc(s.desc)}${physDisp}</td>
       ${lines.map(l=>`<td>${byLine[l]?byLine[l].toLocaleString():'—'}</td>`).join('')}
       <td style="font-weight:700">${s.total.toLocaleString()}</td>
       <td style="font-weight:700;color:var(--warn)">${s.boxesNeeded.toLocaleString()}</td>
@@ -4764,6 +4807,7 @@ const BOXROOM_CSS=`
   document.head.appendChild(el);
 })();
 
+/* ---------- BOX ROOM MAP (view + Share PDF) ---------- */
 function openBoxRoomMap(){
   document.getElementById('boxroom-printable').innerHTML=renderBoxRoomMap();
   document.getElementById('boxroom-overlay').classList.remove('hidden');
@@ -4832,14 +4876,6 @@ function renderBoxRoomSlot(sec,tier,pos){
     ${occExtraCount(occ)?`<div class="boxroom-slot-desc" style="font-weight:bold">+ ${occ.extras.map(e=>e.item+' ('+e.qty+')').join(', ')}</div>`:''}
   </div>`;
 }
-function printBoxRoomMap(){
-  const win=window.open('','_blank');
-  if(!win){showToast('Please allow pop-ups to print.','error');return;}
-  win.document.open();
-  win.document.write(boxRoomFullHTML());
-  win.document.close();
-  win.onload=function(){win.focus();win.print();};
-}
 function boxRoomFullHTML(){
   const content=document.getElementById('boxroom-printable').innerHTML;
   const stamp=new Date().toLocaleString('en-US');
@@ -4859,10 +4895,11 @@ function boxRoomFullHTML(){
 </div>
 ${content}</body></html>`;
 }
+const LIB_SRI={'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js':'sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js':'sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA=='};
 function loadScriptOnce(src,test){
   return new Promise((res,rej)=>{
     if(test())return res();
-    const sc=document.createElement('script');sc.src=src;sc.onload=()=>test()?res():rej(new Error('lib'));sc.onerror=()=>rej(new Error('Could not load '+src));
+    const sc=document.createElement('script');sc.src=src;if(LIB_SRI[src]){sc.integrity=LIB_SRI[src];sc.crossOrigin='anonymous';}sc.onload=()=>test()?res():rej(new Error('lib'));sc.onerror=()=>rej(new Error('Could not load '+src));
     document.head.appendChild(sc);
   });
 }
@@ -4892,17 +4929,6 @@ function boxRoomFileName(){
   const n=new Date();
   return 'BoxRoom_Map_'+n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')+'_'+String(n.getHours()).padStart(2,'0')+String(n.getMinutes()).padStart(2,'0')+'.pdf';
 }
-async function downloadBoxRoomMap(){
-  try{
-    showToast('Creating PDF…','success');
-    const blob=await buildBoxRoomPDF();
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=boxRoomFileName();
-    document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),4000);
-    showToast('Box Room PDF downloaded.','success');
-  }catch(e){showToast('Could not create PDF ('+e.message+').','error');}
-}
 async function shareBoxRoomMap(){
   let blob;
   try{showToast('Creating PDF…','success');blob=await buildBoxRoomPDF();}
@@ -4910,14 +4936,14 @@ async function shareBoxRoomMap(){
   const file=new File([blob],boxRoomFileName(),{type:'application/pdf'});
   try{
     if(navigator.canShare&&navigator.canShare({files:[file]})){
-      await navigator.share({title:'Box Room Map',files:[file]});
+      await navigator.share({files:[file]});            // only the PDF — no page link or extra text
       return;
     }
   }catch(e){if(e&&e.name==='AbortError')return;}
   // no file sharing on this device → download instead
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=file.name;
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
-  showToast('PDF downloaded (sharing not available on this device).','success');
+  showToast('PDF downloaded — open it to print or send it.','success');
 }
 
 /* ---------- Receiving (Yooz POs) ----------
@@ -4933,7 +4959,8 @@ function loadReceipts(){try{return JSON.parse(localStorage.getItem(receiptsKey()
 function saveReceipts(r){try{localStorage.setItem(receiptsKey(),JSON.stringify(r));}catch(e){showToast('Could not save receipt on this device.','error');}}
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const fmtDay=s=>{if(!s)return '—';const [y,m,d]=s.split('-');return (+m)+'/'+(+d)+'/'+y.slice(2);};
-const poEsc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function poEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function jsArg(s){return poEsc(String(s==null?'':s).replace(/[\\'"<>&`]/g,''));}
 function toYmd(v){
   if(v==null||v==='')return '';
   if(v instanceof Date&&!isNaN(v))return ymd(new Date(v.getTime()+v.getTimezoneOffset()*60000*(v.getUTCHours()===0&&v.getUTCMinutes()===0?1:0)));
@@ -5084,7 +5111,16 @@ function poGroups(){
         (g[k]=g[k]||{key:k,po,vendor:r.vendor||'(planner)',due:r.date,planner:true,pnote:note,lines:[]}).lines.push({po,code:r.code,desc:r.desc,ordered:r.qty,due:r.date,vendor:r.vendor,plant:currentPlant});});
     });
   }
-  return Object.values(g);
+  // a receiving report saved while the PO was "planner only" (key PO|planner day) stays attached to the same PO
+  // when Yooz brings it the next day with its own date (key PO|Yooz day)
+  const gs=Object.values(g),gk=new Set(gs.map(x=>x.key));
+  const recs=Object.values(allReceipts());
+  gs.forEach(x=>{
+    if(recs.some(r=>baseKeyOf(r.key)===x.key))return;
+    const r=recs.find(r=>r.po===x.po&&!gk.has(baseKeyOf(r.key))&&Math.abs(new Date(r.due)-new Date(x.due))<=21*864e5);
+    if(r){gk.delete(x.key);x.key=baseKeyOf(r.key);gk.add(x.key);}
+  });
+  return gs;
 }
 /* ok = counted matches the BOL and the BOL matches the PO · bol = supplier sent a different qty than ordered
    diff = what we unloaded differs from the BOL · miss = nothing arrived · extra = item that is not on the PO */
@@ -5180,7 +5216,7 @@ function poSyncLineHtml(){
   if(!RECEIVING_SEARCH_URL)return '';
   if(_spSync.busy)return '☁ Updating from SharePoint…';
   if(_spSync.err)return `⚠ SharePoint not reachable — showing the last saved copy · <a href="#" onclick="syncReceiptsFromSP(true);return false">Retry</a>`;
-  if(_spSync.at)return `☁ Reports up to date with SharePoint · ${new Date(_spSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+  if(_spSync.at)return `✓ SharePoint reports · ${new Date(_spSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
   return '';
 }
 function renderPoSyncLine(){const el=document.getElementById('po-sync');if(el)el.innerHTML=poSyncLineHtml();}
@@ -5198,7 +5234,7 @@ function renderPoView(noSync){
     ${YOOZ_FLOW_URL?`<button class="po-btn pri" onclick="poRefreshAll()" ${yoozFetch.busy?'disabled':''} title="Gets the latest POs from Yooz and the latest receiving reports from SharePoint">${yoozFetch.busy?'⏳ Updating…':'⟳ Refresh'}</button>
     <button class="po-btn" onclick="document.getElementById('po-file-input').click()" title="Use a Yooz export instead">⬆ Yooz file</button>`
     :`<button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>`}
-    <span class="po-src">${PLANNER_FLOW_URL?(()=>{const pd=loadPlanner();return plannerFetch.err?`<span style="color:var(--danger)">⚠ Planner: ${poEsc(plannerFetch.err)}</span> · `:pd?`Planner: <b>${new Date(pd.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b> · `:'';})():''}${yoozFetch.err?`<span style="color:var(--danger)">⚠ ${poEsc(yoozFetch.err)}</span> · `:''}${data?`Yooz data: <b>${poEsc(data.file)}</b> · loaded ${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} · ${poLines(data).length} DM line(s) for ${currentPlant}`:'No Yooz data on this device yet — load the daily Yooz export (xlsx / csv).'}</span>
+    <span class="po-src">${PLANNER_FLOW_URL?(()=>{const pd=loadPlanner();return plannerFetch.err?`<span class="src-pill bad" title="${poEsc(plannerFetch.err)}">⚠ Planner not updated</span>`:pd?`<span class="src-pill" title="Jonathan's planning sheet — expected deliveries">✓ Planner · <b>${new Date(pd.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${yoozFetch.err?`<span class="src-pill bad" title="${poEsc(yoozFetch.err)}">⚠ Yooz not updated</span>`:''}${data?`<span class="src-pill" title="${poEsc(data.file)} — purchase orders">✓ Yooz · <b>${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</b> · ${poLines(data).length} lines</span>`:'<span class="src-pill none">No Yooz data on this device yet — tap ⟳ Refresh or load the Yooz file.</span>'}</span>
   </div>
   <div class="po-sync" id="po-sync">${poSyncLineHtml()}</div>
   <div class="po-qbox"><input id="po-q" type="search" placeholder="🔎 Find a PO — type part of the number (28175), the vendor or the item" value="${poEsc(poQ)}" oninput="poQ=this.value;poQRender()" autocomplete="off">${poQ?`<button class="po-btn" onclick="poQ='';renderPoView(true)">✕</button>`:''}</div>
@@ -5772,14 +5808,7 @@ function setSyncTab(t){
   document.getElementById('sync-import-body').classList.toggle('hidden',t!=='import');
   if(t==='import')renderSyncHistory();
 }
-/* When was the inventory on this device last changed? (saved time; older devices fall back to the last Log entry) */
-function lastLocalChange(){
-  try{const t=+localStorage.getItem(WMS_KEY+'_savedAt');if(t)return t;}catch(e){}
-  try{const lg=loadLog();if(lg.length){const m=String(lg[0].ts).match(/(\d+)\/(\d+)\/(\d{4})\s*·\s*(\d+):(\d+)\s*(AM|PM)/i);
-    if(m){let h=+m[4]%12;if(/pm/i.test(m[6]))h+=12;return new Date(+m[3],+m[1]-1,+m[2],h,+m[5]).getTime();}}}catch(e){}
-  return null;
-}
-function agoText(ms){const h=ms/3600e3;if(h<1)return Math.max(1,Math.round(ms/60e3))+' min';if(h<48)return Math.round(h)+' h';return Math.round(h/24)+' days';}
+/* ---------- SYNC / EXPORT to SharePoint ---------- */
 async function syncExport(){
   const turnoSel=document.getElementById('sync-turno-sel').value;
   // NJ keeps its original labels; other plants prefix the shift ("GA · Before 9am (Morning)").
@@ -6270,28 +6299,14 @@ function closeActionsDrawer(e){
     if(d) d.classList.add('hidden');
   }
 }
-function syncDrawerCountType(){
-  var main=document.getElementById('count-type-sel');
-  var drawer=document.getElementById('count-type-sel-drawer');
-  if(main&&drawer) drawer.value=main.value;
-}
-function syncCountTypeSel(src){
-  var main=document.getElementById('count-type-sel');
-  if(main) main.value=src.value;
-}
+function syncDrawerCountType(){}
 function closeSidebar(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('active');
 }
 
+/* ---------- MENU / THEME ---------- */
 function toggleTheme(){toggleThemeMini();}
-function toggleThemeOld(){
-  const isDark=document.body.classList.toggle('theme-dark');
-  document.documentElement.classList.toggle('theme-dark',isDark);
-  const btn=document.getElementById('theme-btn');
-  btn.textContent=isDark?'☀ Day Mode':'🌙 Night Mode';
-  try{localStorage.setItem('wms_theme',isDark?'dark':'light');}catch(e){}
-}
 
 /* 🌙 / ☀ small button: same night mode for the whole WMS (saved as wms_theme) */
 function themeIsDark(){return document.documentElement.classList.contains('theme-dark');}
@@ -6317,7 +6332,7 @@ function loadTheme(){
 
 function p2(n){return String(n).padStart(2,'0');}
 
-function p2(n){return String(n).padStart(2,'0');}
+
 
 function openSecPanel(areaName, sec){
   const aDef=AREAS[areaName];
@@ -6541,7 +6556,7 @@ function jumpToItemOnMap(code, locId_){
 async function autoLoadIfEmpty(){
   if(PLAN_HELPER)return;                     // hidden plan helper for Batch: never touches the inventory
   if(Object.keys(inventory).length>0)return; // ya hay datos locales — nunca los toca
-  if(syncMode()!=='sharepoint')return; // sin SharePoint conectado, no hay de dónde traer
+  if(syncMode()!=='sharepoint')return; // no SharePoint connected, nothing to pull from
   try{
     const res=await fetch(getFlowUrl(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'list'})});
     if(!res.ok)return;
@@ -6560,7 +6575,7 @@ async function autoLoadIfEmpty(){
       refresh();
       showToast('Loaded latest inventory from SharePoint ('+dateLabel+').','success');
     }
-  }catch(e){/* silencioso — si falla, se queda vacío/local, no interrumpe el arranque */}
+  }catch(e){/* silent — if it fails it stays empty/local and does not block start-up */}
 }
 
 /* iPad numeric keypad + basic calculator. iPadOS has no numbers-only keyboard (inputmode=numeric
@@ -6790,7 +6805,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.09d';
+const APP_VERSION='2026.11.10f';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

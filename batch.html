@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Schweid & Sons · Batch Sheets</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com blob: data:; object-src 'none'; base-uri 'self'">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root{
     color-scheme:light;
@@ -203,7 +206,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.05d</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.10f</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Excel (whole day)</button>
@@ -354,6 +357,22 @@
 <div class="toast" id="toast"></div>
 
 <script>
+/* =====================================================================
+   WMS · BATCH SHEETS (batch.html)
+   One file, no build step. Batches are saved per plant and per day on the
+   device and shared between tablets through the SharePoint list WMS_Batches.
+
+   WHERE THINGS ARE (search for the label)
+     Raw material and meat block lists .. "RM_CODES", "per-plant lists"
+     Saving on the device ............... "storage"
+     Barcode reading .................... "GS1-128 parser", "camera scanning"
+     Daily Production Plan .............. "Daily Production Plan"
+     Sync between tablets ............... "Sync between tablets"
+     Screens and the batch editor ....... "plant / views", "editor"
+     Excel export ....................... "Excel"
+
+   RULES: show user or file text through esc(); no passwords or keys here.
+   ===================================================================== */
 const RM_CODES=[{"code": "NM4165", "name": "Natural trim 65% Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4185", "name": "Natural trim 85% Certied Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4050", "name": "Natural trim 50%", "group": "NATURAL", "vendor": ""}, {"code": "NM4180", "name": "Natural 80/20 trim Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4065", "name": "Natural trim 65%", "group": "NATURAL", "vendor": ""}, {"code": "NM4085", "name": "Natural trim 85%", "group": "NATURAL", "vendor": ""}, {"code": "GM3080", "name": "Grass Fed Trim 80%", "group": "GRASS FED", "vendor": ""}, {"code": "PM5100", "name": "USDA Prime Chuck", "group": "PRIME", "vendor": ""}, {"code": "PM5150", "name": "USDA Prime Chuck Clod", "group": "PRIME", "vendor": ""}, {"code": "CM2500", "name": "Cab Prime Chuck", "group": "CAB PRIME", "vendor": ""}, {"code": "CM2200", "name": "Cab Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "BM0200", "name": "Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "CM2065", "name": "Cab Trim 65%", "group": "CAB", "vendor": ""}, {"code": "CM2085", "name": "Cab Trim 85%", "group": "CAB", "vendor": ""}, {"code": "CM2050", "name": "Cab Trim 50%", "group": "CAB", "vendor": ""}, {"code": "CM2075", "name": "Cab Trim 75%", "group": "CAB", "vendor": ""}, {"code": "CM2180", "name": "Cab Chuck Trim 80%", "group": "CAB", "vendor": ""}, {"code": "CM2160", "name": "Cab Short Plate Rib", "group": "CAB", "vendor": ""}, {"code": "CM2800", "name": "Cab Loin Wing", "group": "CAB", "vendor": ""}, {"code": "AM1065", "name": "Angus trim 65%", "group": "ANGUS", "vendor": ""}, {"code": "AM1085", "name": "Angus Trim 85%", "group": "ANGUS", "vendor": ""}, {"code": "AM1180", "name": "Angus Chuck Trim 80%", "group": "ANGUS", "vendor": ""}, {"code": "AM1175", "name": "Angus Trim 75%", "group": "ANGUS", "vendor": ""}, {"code": "AM1050", "name": "Angus Trim 50%", "group": "ANGUS", "vendor": ""}, {"code": "SM010", "name": "Cab Peeled Tri Tips", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1011", "name": "Coulottes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM8780", "name": "Halal trim 80%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1010", "name": "Rib Eyes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6455", "name": "Wagyu Trim 65%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6450", "name": "Wagyu Trim 50%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6475", "name": "Wagyu Trim 75%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6460", "name": "Wagyu Round Trim", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "TM0065", "name": "Trim 65%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0085", "name": "Trim 85%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0090", "name": "Trim 90%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0073", "name": "Trim 73%", "group": "TRIMMINGS", "vendor": ""}, {"code": "LM2800", "name": "Loin Wing", "group": "TRIMMINGS", "vendor": ""}, {"code": "FZ9995", "name": "Frozen Bull Meat AU/NZ 95%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9966", "name": "Frozen Bull Meat AU/NZ 65%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9900", "name": "BLBT", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9920", "name": "Cab Block FTB", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9070", "name": "Frozen 70%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9075", "name": "Frozen Angus 75/25 Halal", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9680", "name": "Wagyu Frozen Block", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9085", "name": "Frozen 85%", "group": "FROZEN BLOCKS", "vendor": ""}];
 const MEAT_BLOCKS=[{"mb": "10", "name": "Fresh 90/10"}, {"mb": "", "name": "Halal 75/25"}, {"mb": "5", "name": "Wagyu"}, {"mb": "7", "name": "Natural Angus Ground Beef - CH 80/20"}, {"mb": "8", "name": "Natural Angus Ground Beef 75/25"}, {"mb": "12", "name": "CAB Prime Chuck"}, {"mb": "13", "name": "Prime Chuck"}, {"mb": "15", "name": "CAB Chuck"}, {"mb": "17", "name": "CAB Chuck Brisket Sirloin"}, {"mb": "18", "name": "CAB Chuck Brisket"}, {"mb": "19", "name": "CAB Chuck Brisket Short Rib"}, {"mb": "23", "name": "CAB Ground Beef 75/25"}, {"mb": "26", "name": "Angus Chuck"}, {"mb": "30", "name": "Angus Ground Beef 75/25"}, {"mb": "", "name": "Angus Ground Beef 80/20"}, {"mb": "35", "name": "Chuck Brisket"}, {"mb": "37", "name": "Chuck Brisket Short Rib"}, {"mb": "38", "name": "Chuck Brisket Steaktail"}, {"mb": "39", "name": "Chuck Rib Eye"}, {"mb": "40", "name": "Fuddruckers"}, {"mb": "", "name": "Fresh 73/27"}, {"mb": "42", "name": "Fresh 5 Guys"}, {"mb": "45", "name": "Fresh 85/15"}, {"mb": "50", "name": "Fresh 80/20"}, {"mb": "51", "name": "Fresh 80/20 USF"}, {"mb": "55", "name": "Ranchers 80/20"}, {"mb": "60", "name": "Fresh 75/25"}, {"mb": "62", "name": "Ranchers 75/25"}, {"mb": "75", "name": "Tower Isle Patties 50051"}, {"mb": "90", "name": "RT The Steakhouse Blend"}, {"mb": "91", "name": "RT The Korean Blend"}, {"mb": "92", "name": "RT The Taco Blend"}];
 /* ---------- per-plant lists ---------- */
@@ -595,7 +614,7 @@ function sendPlanToInventory(buf,name,pl){
 }
 function planLineHtml(){
   const p=loadPlan();
-  if(!p)return `No ${plant} plan for ${listDate()} yet — load it once here or in <b>Inventory ${plant} → Plan</b> — it goes to both and appears on every tablet · <a onclick="pullRemote(true)">⟳ Check now</a> · <a onclick="document.getElementById('plan-file').click()">⬆ Load plan</a>`;
+  if(!p)return `No ${plant} plan for ${listDate()} yet — load it once here or in <b>Inventory ${plant} → Plan</b> — it goes to both and appears on every tablet · <a onclick="document.getElementById('plan-file').click()">⬆ Load plan file</a>`;
   return `📋 Plan ${esc(p.file)} · ${fmt0(p.total)} lb${p.day?' · Day = <b>'+esc(p.day)+'</b>':''} · loaded ${new Date(p.loadedAt).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${p._dirty?' · <span style="color:#c76a00">not published yet</span>':''} · <a onclick="document.getElementById('plan-file').click()">replace</a>`;
 }
 /* meat blocks offered in the editor: today's plan first, then the full catalogue */

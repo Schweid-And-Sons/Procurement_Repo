@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Schweid & Sons · Waste Log</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com blob: data:; object-src 'none'; base-uri 'self'">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   :root{color-scheme:light;
     --bg:#f2f2f7;--surface:#ffffff;--surface2:#f2f2f7;--border:#e5e5ea;
@@ -101,7 +104,7 @@
 <body>
 <div class="strip"><div>🗑 <b id="plant-sub">GEORGIA</b><span class="sub">· Daily Waste</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Daily Waste <span class="ver">v 2026.11.05d</span><div class="ver" id="sync-line" style="font-weight:500;margin-top:2px"></div></h1>
+  <div class="head"><h1>Daily Waste <span class="ver">v 2026.11.10d</span><div class="ver" id="sync-line" style="font-weight:500;margin-top:2px"></div></h1>
     <div class="seg"><button id="tab-rec" class="on" onclick="setTab('rec')">Record</button><button id="tab-hist" onclick="setTab('hist')">History</button></div>
   </div>
 
@@ -147,6 +150,19 @@
 <div class="toast" id="toast"></div>
 
 <script>
+/* =====================================================================
+   WMS · DAILY WASTE (waste.html)
+   One file, no build step. Waste entries are saved per plant on the device
+   and shared through the SharePoint list WMS_Waste (one row per entry).
+
+   WHERE THINGS ARE (search for the label)
+     Lines, catalog, flow addresses .. "Settings"
+     Recording waste ................. "Record"
+     Send / read from SharePoint ..... "SharePoint sync"
+     History and Excel export ........ "History"
+
+   RULES: show user text through esc(); no passwords or keys here.
+   ===================================================================== */
 /* ===== Settings ===== */
 /* Plant: waste.html?plant=NJ or ?plant=GA (Start → WASTE → NJ / GA). Each plant has its own lines, catalog and log. */
 const PLANT=(()=>{const q=(new URLSearchParams(location.search).get('plant')||'').toUpperCase();
