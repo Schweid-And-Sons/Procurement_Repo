@@ -179,6 +179,42 @@
   .cf-left{background:color-mix(in srgb,var(--warn) 14%,transparent);color:#9a5200;border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:10px;}
   .list-sec{font-size:13px;font-weight:700;color:var(--text2);margin:14px 2px 8px;}
   .list-card .lines{font-size:12px;color:var(--text2);margin-top:2px;}
+  /* pickers: search list (RM code, supplier) and calendar (pack date) */
+  .pickf{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;text-align:left;cursor:pointer;}
+  .pickf .ph{color:var(--text3);}
+  .pickf::after{content:'▾';color:var(--text3);font-size:11px;flex:0 0 auto;}
+  .pickf.cal::after{content:'📅';font-size:14px;}
+  .pickf.sm{min-height:34px;padding:5px 8px;font-size:13px;}
+  .pickf.miss{border-color:var(--danger);}
+  .pk-ov{z-index:260;align-items:flex-start;padding-top:6vh;}
+  .pk-box{width:min(520px,96vw);max-height:84vh;display:flex;flex-direction:column;padding:12px;}
+  .pk-head{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .pk-head h3{margin:0;flex:1;font-size:16px;}
+  .pk-q{width:100%;font-size:16px;padding:10px 12px;border-radius:10px;margin-bottom:8px;}
+  .pk-list{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;border-top:1px solid var(--border);}
+  .pk-g{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:10px 4px 4px;}
+  .pk-it{display:block;width:100%;text-align:left;padding:11px 8px;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font:inherit;font-size:14px;cursor:pointer;}
+  .pk-it b{font-weight:700;}
+  .pk-it .s{display:block;font-size:12px;color:var(--text3);margin-top:1px;}
+  .pk-it.on{background:rgba(0,122,255,.1);}
+  .pk-it.add{color:var(--accent);font-weight:600;}
+  .pk-none{padding:18px 6px;color:var(--text3);font-size:13px;text-align:center;}
+  .cal-box{width:min(360px,94vw);padding:14px;}
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .cal-nav b{font-size:16px;}
+  .cal-nav button{border:0;background:var(--fill,#eee);color:var(--text);width:40px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-grid .wd{font-size:10px;color:var(--text3);text-align:center;font-weight:700;padding:4px 0;}
+  .cal-grid button{height:40px;border:0;border-radius:10px;background:transparent;color:var(--text);font:inherit;font-size:15px;cursor:pointer;}
+  .cal-grid button.td{box-shadow:inset 0 0 0 1.5px var(--accent);}
+  .cal-grid button.on{background:var(--accent);color:#fff;font-weight:700;}
+  .cal-grid button.fut{color:var(--text3);}
+  .cal-foot{display:flex;gap:8px;margin-top:10px;}
+  .cal-foot .btn{flex:1;}
+  .pg-tabs{display:flex;gap:4px;background:var(--fill,#eee);border-radius:10px;padding:3px;margin-bottom:10px;}
+  .pg-tabs button{flex:1;border:0;border-radius:8px;padding:9px 6px;background:transparent;color:var(--text2);font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+  .pg-tabs button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .pg-tbl tr.gt td{font-weight:800;border-top:2px solid var(--border);}
   .pg-card h3{display:flex;justify-content:space-between;gap:10px;font-size:16px;margin-bottom:8px;}
   .pg-card h3 span{font-size:13px;font-weight:600;color:var(--text2);font-variant-numeric:tabular-nums;}
   .pg-tbl td,.pg-tbl th{font-variant-numeric:tabular-nums;}
@@ -206,9 +242,9 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.10f</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.10i</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
-      <button class="btn" onclick="showProgress()">📊 Line progress</button>
+      <button class="btn" id="btn-progress" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Excel (whole day)</button>
       <button class="btn primary big" onclick="newBatch()">+ New Batch</button>
     </div>
@@ -248,7 +284,7 @@
       <div class="grid">
         <div style="grid-column:span 2;min-width:0"><label>Meat block</label><select id="f-product" onchange="pickProduct(this.value)"></select></div>
         <div><label>Mixer</label><select id="f-line" onchange="pickMixer(this)"></select></div>
-        <div><label>Batch #</label><input id="f-batchNo" onchange="setField('batchNo',this.value)"></div>
+        <div><label>Batch #</label><input id="f-batchNo" inputmode="numeric" autocomplete="off" onchange="setField('batchNo',this.value)"></div>
         <div><label>Date</label><input type="date" id="f-date" onchange="setField('date',this.value)"></div>
         <div><label>Start time</label><input type="time" id="f-startTime" onchange="setField('startTime',this.value)"></div>
         <div><label>End time</label><input type="time" id="f-endTime" onchange="setField('endTime',this.value)"></div>
@@ -256,7 +292,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="lines-card">
       <h2>2 · Production lines <span class="h-note">up to 4 · where this meat goes</span></h2>
       <div id="lines-box"></div>
       <div class="row-actions" style="margin-top:6px"><button class="btn no-print" id="btn-add-line" onclick="addLine()">+ Add line</button></div>
@@ -325,12 +361,12 @@
     <div class="raw" id="cf-raw"></div>
     <div class="cf-left hidden" id="cf-left"></div>
     <div class="grid">
-      <div style="grid-column:1/-1"><label>RM Code</label><select id="cf-rm"></select></div>
-      <div><label>Lot / Serial</label><input id="cf-lot"></div>
-      <div><label>Pack date</label><input id="cf-pack" placeholder="MM/DD/YYYY"></div>
+      <div style="grid-column:1/-1"><label>RM Code</label><input type="hidden" id="cf-rm"><button type="button" class="pickf" id="cf-rm-btn" onclick="pickRmFor('cf')"></button></div>
+      <div><label>Lot / Serial</label><input id="cf-lot" inputmode="numeric" autocomplete="off"></div>
+      <div><label>Pack date</label><input type="hidden" id="cf-pack"><button type="button" class="pickf cal" id="cf-pack-btn" onclick="pickDateFor('cf')"></button></div>
       <div><label>EST #</label><input id="cf-est"></div>
       <div><label>Temp °F</label><input type="text" inputmode="decimal" autocomplete="off" id="cf-temp"></div>
-      <div style="grid-column:1/-1"><label>Supplier</label><select id="cf-supplier" onchange="if(this.value===ADD_NEW){const v=askNew(SUPPLIER_KEY,supplierList(),'supplier');this.innerHTML=listOptions(supplierList(),v,'— Supplier —','+ Add new supplier…');}"></select></div>
+      <div style="grid-column:1/-1"><label>Supplier</label><input type="hidden" id="cf-supplier"><button type="button" class="pickf" id="cf-supplier-btn" onclick="pickSupplierFor('cf')"></button></div>
       <div style="grid-column:1/-1"><label>PO # (Yooz)</label><input id="cf-po" inputmode="numeric" autocomplete="off" placeholder="e.g. 27647"></div>
       <div><label>Current weight (lbs)</label><input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" id="cf-cur" oninput="cfSyncUsed()"></div>
       <div><label>Weight used (lbs)</label><input type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" id="cf-used"></div>
@@ -448,6 +484,9 @@ function isoDay(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,
 function isoToday(){return isoDay(new Date());}
 function nowTime(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 function rmByCode(c){return RM_CODES.find(r=>r.code===c);}
+/* NJ does not pick production lines for now: the section is only hidden (data and code stay),
+   and the progress screen shows the meat totals instead of the lines. GA keeps the lines. */
+function showLines(){return plant!=='NJ';}
 function lineShort(l){const m=String(l).match(/(?:mixer|grinder)\s*(\d+)/i);return m?'M'+m[1]:'M';}
 function fmtLbs(n){return (Math.round((+n||0)*100)/100).toLocaleString();}
 function fmt0(n){return Math.round(+n||0).toLocaleString();}
@@ -623,9 +662,9 @@ function meatBlockOptions(sel){
   const planned={};(p?p.entries:[]).forEach(e=>{const k=e.name;(planned[k]=planned[k]||{mb:e.mb,name:e.name,lbs:0}).lbs+=e.lbs;});
   const pl=Object.values(planned).sort((a,b)=>(+a.mb||999)-(+b.mb||999));
   const rest=MEAT_BLOCKS.filter(m=>!planned[m.name]);
-  const opt=(m,extra)=>`<option value="${esc(m.name)}"${m.name===sel?' selected':''}>${esc((m.mb?m.mb+' · ':'')+m.name+(extra||''))}</option>`;
+  const opt=m=>`<option value="${esc(m.name)}"${m.name===sel?' selected':''}>${esc(m.name)}</option>`;   // meat type only (no MB # / plan lbs in the list)
   let h='<option value="">— Select meat block —</option>';
-  if(pl.length)h+=`<optgroup label="In today's plan">${pl.map(m=>opt(m,' — '+fmt0(m.lbs)+' lb')).join('')}</optgroup>`;
+  if(pl.length)h+=`<optgroup label="In today's plan">${pl.map(m=>opt(m)).join('')}</optgroup>`;
   h+=`<optgroup label="${pl.length?'Other meat blocks':'Meat blocks'}">${rest.map(m=>opt(m)).join('')}</optgroup>`;
   if(sel&&!pl.some(m=>m.name===sel)&&!rest.some(m=>m.name===sel))h+=opt({mb:'',name:sel});
   return h;
@@ -755,6 +794,7 @@ function showList(){cur=null;showView('list');render();window.scrollTo(0,0);}
 function showProgress(){cur=null;showView('progress');render();window.scrollTo(0,0);}
 function onDateChange(){sync.at=0;render();pullRemote(true);}
 function render(){
+  {const bp=document.getElementById('btn-progress');if(bp)bp.textContent='📊 Progress';}
   renderSyncLines();
   const pl=planLineHtml();['plan-line-list','plan-line-pg'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=pl;});
   if(curView==='list')renderList();else if(curView==='progress')renderProgress();
@@ -776,16 +816,52 @@ function renderList(){
   el.innerHTML=order.map(s=>{const g=rows.filter(b=>b.status===s).sort((a,b)=>(a.createdAt<b.createdAt?1:-1));return g.length?`<div class="list-sec">${title[s]} · ${g.length}</div>`+g.map(card).join(''):'';}).join('');
 }
 
-/* ---------- line progress: plan vs batched, by line and meat block ---------- */
+/* raw materials planned (from the plan file) vs used today */
+function rmPlanHtml(p,day){
+  let h='';if(!p)return h;
+    const need={};p.entries.forEach(e=>Object.entries(e.rms||{}).forEach(([c,v])=>{need[c]=(need[c]||0)+v;}));
+  if(Object.keys(need).length){
+    const used={};day.forEach(b=>b.items.forEach(x=>{if(x.rm)used[x.rm]=(used[x.rm]||0)+(+x.used||0);}));
+    const codes=[...new Set([...Object.keys(need),...Object.keys(used)])].sort((a,b)=>(need[b]||0)-(need[a]||0));
+    h+=`<div class="card"><h2>Raw materials · planned vs used today</h2><div class="tbl-wrap"><table class="pg-tbl"><thead><tr><th>RM</th><th>Description</th><th class="n">Planned</th><th class="n">Used</th><th class="n">Left</th></tr></thead><tbody>
+    ${codes.map(c=>{const r=rmByCode(c);const n=need[c]||0,u=used[c]||0;return `<tr><td><b>${esc(c)}</b></td><td class="muted">${r?esc(r.name):''}</td><td class="n">${n?fmt0(n):'—'}</td><td class="n">${fmt0(u)}</td><td class="n">${n?(n-u<0?`<span class="pg-over">+${fmt0(u-n)}</span>`:fmt0(n-u)):'—'}</td></tr>`;}).join('')}
+    </tbody></table></div></div>`;
+  }
+  return h;
+}
+/* NJ: meat progress — total of each meat type for the day and how much is left (like the plan Excel) */
+function meatProgressHtml(d,p,day){
+  const rows={};
+  (p?p.entries:[]).forEach(e=>{const r=rows[e.name]||(rows[e.name]={name:e.name,mb:e.mb,plan:0,done:0,prog:0});r.plan+=e.lbs;});
+  day.forEach(b=>{const n=b.mbName||b.product||'(no meat block)';const r=rows[n]||(rows[n]={name:n,mb:b.mbNo||'',plan:p?0:null,done:0,prog:0,extra:true});r[b.status==='done'?'done':'prog']+=batchAmount(b);});
+  const rs=Object.values(rows).sort((a,b)=>(+a.mb||999)-(+b.mb||999)||a.name.localeCompare(b.name));
+  if(!rs.length)return `<div class="card empty">${p?'':'Load today\'s Daily Production Plan to see the total of each meat.<br>'}No batches yet.</div>`;
+  const gP=rs.reduce((s,r)=>s+(r.plan||0),0),gD=rs.reduce((s,r)=>s+r.done,0),gG=rs.reduce((s,r)=>s+r.prog,0);
+  const bar=(pl,dn,pg)=>{if(!pl)return '';const d1=Math.min(100,dn/pl*100),p1=Math.min(100-d1,pg/pl*100);return `<div class="bar2"><i class="d" style="width:${d1}%"></i><i class="p" style="width:${p1}%"></i></div>`;};
+  const left=(pl,dn,pg)=>{if(pl==null)return '—';const v=pl-dn-pg;return v<0?`<span class="pg-over">+${fmt0(-v)} over</span>`:fmt0(v);};
+  return `<div class="pg-legend"><span><i style="background:var(--success)"></i>Batched (complete)</span><span><i style="background:var(--warn)"></i>In progress (still need add / draft)</span><span>Left = total − batched − in progress</span></div>
+  <div class="card pg-card"><h3>Grand total<span>${p?fmt0(gD+gG)+' / '+fmt0(gP)+' lb · '+(gP?Math.round((gD+gG)/gP*100):0)+'%':fmt0(gD+gG)+' lb batched'}</span></h3>${bar(gP,gD,gG)}
+  <div class="tbl-wrap" style="margin-top:10px"><table class="pg-tbl"><thead><tr><th>Meat block</th><th class="n">Total</th><th class="n">Batched</th><th class="n">In progress</th><th class="n">Left</th><th style="width:20%"></th></tr></thead><tbody>
+  ${rs.map(r=>`<tr><td>${esc(r.name)}${r.extra&&p?' <span class="muted">(not in plan)</span>':''}</td><td class="n">${r.plan==null?'—':fmt0(r.plan)}</td><td class="n">${fmt0(r.done)}</td><td class="n">${r.prog?fmt0(r.prog):'—'}</td><td class="n">${left(r.plan,r.done,r.prog)}</td><td>${bar(r.plan,r.done,r.prog)}</td></tr>`).join('')}
+  <tr class="gt"><td>Grand total</td><td class="n">${p?fmt0(gP):'—'}</td><td class="n">${fmt0(gD)}</td><td class="n">${gG?fmt0(gG):'—'}</td><td class="n">${left(p?gP:null,gD,gG)}</td><td></td></tr>
+  </tbody></table></div></div>`;
+}
+/* ---------- line progress: plan vs batched, by line and meat block (GA) ---------- */
+let progTab='meat';
+function setProgTab(t){progTab=t;renderProgress();}
 function renderProgress(){
   const d=listDate();const p=loadPlan(d);
   document.getElementById('pg-title').textContent='Line progress · '+d;
   const al={};const add=(name,line,lbs,st)=>{const k=name+'|'+line;const o=al[k]||(al[k]={name,line,done:0,prog:0});o[st==='done'?'done':'prog']+=lbs;};
   const day=liveBatches().filter(b=>b.date===d);
+  // two tabs: Line progress / Meat progress. NJ only shows Meat progress (its lines are hidden for now).
+  if(!showLines())progTab='meat';
+  const tabs=showLines()?`<div class="pg-tabs"><button class="${progTab==='line'?'on':''}" onclick="setProgTab('line')">Line progress</button><button class="${progTab==='meat'?'on':''}" onclick="setProgTab('meat')">Meat progress</button></div>`:'';
+  if(progTab==='meat'){document.getElementById('pg-title').textContent='Meat progress · '+d;document.getElementById('pg-body').innerHTML=tabs+meatProgressHtml(d,p,day)+rmPlanHtml(p,day);return;}
   day.forEach(b=>b.lines.forEach(l=>{if(l.line)add(b.mbName||b.product||'(no meat block)',l.line,lineLbs(b,l),b.status);}));
   const lines=new Set([...(p?p.entries.map(e=>e.line):[]),...Object.values(al).map(a=>a.line)]);
   const body=document.getElementById('pg-body');
-  if(!lines.size){body.innerHTML=`<div class="card empty">${p?'':'Load today\'s Daily Production Plan to see the target per line.<br>'}No batches assigned to lines yet.</div>`;return;}
+  if(!lines.size){body.innerHTML=tabs+`<div class="card empty">${p?'':'Load today\'s Daily Production Plan to see the target per line.<br>'}No batches assigned to lines yet.</div>`;return;}
   let h=`<div class="pg-legend"><span><i style="background:var(--success)"></i>Batched (complete)</span><span><i style="background:var(--warn)"></i>In progress (still need add / draft)</span><span>Left = planned − batched − in progress</span></div>`;
   let gP=0,gD=0,gG=0;
   sortLines([...lines]).forEach(line=>{
@@ -803,16 +879,9 @@ function renderProgress(){
   });
   if(p){
     h=`<div class="card"><h3 style="display:flex;justify-content:space-between;font-size:16px">All lines<span style="font-size:13px;color:var(--text2)">${fmt0(gD+gG)} / ${fmt0(gP)} lb · ${gP?Math.round((gD+gG)/gP*100):0}%</span></h3>${(()=>{const pl=gP||1;return `<div class="bar2" style="height:12px"><i class="d" style="width:${Math.min(100,gD/pl*100)}%"></i><i class="p" style="width:${Math.min(100,gG/pl*100)}%"></i></div>`;})()}</div>`+h;
-    const need={};p.entries.forEach(e=>Object.entries(e.rms||{}).forEach(([c,v])=>{need[c]=(need[c]||0)+v;}));
-    if(Object.keys(need).length){
-      const used={};day.forEach(b=>b.items.forEach(x=>{if(x.rm)used[x.rm]=(used[x.rm]||0)+(+x.used||0);}));
-      const codes=[...new Set([...Object.keys(need),...Object.keys(used)])].sort((a,b)=>(need[b]||0)-(need[a]||0));
-      h+=`<div class="card"><h2>Raw materials · planned vs used today</h2><div class="tbl-wrap"><table class="pg-tbl"><thead><tr><th>RM</th><th>Description</th><th class="n">Planned</th><th class="n">Used</th><th class="n">Left</th></tr></thead><tbody>
-      ${codes.map(c=>{const r=rmByCode(c);const n=need[c]||0,u=used[c]||0;return `<tr><td><b>${esc(c)}</b></td><td class="muted">${r?esc(r.name):''}</td><td class="n">${n?fmt0(n):'—'}</td><td class="n">${fmt0(u)}</td><td class="n">${n?(n-u<0?`<span class="pg-over">+${fmt0(u-n)}</span>`:fmt0(n-u)):'—'}</td></tr>`;}).join('')}
-      </tbody></table></div></div>`;
-    }
+    h+=rmPlanHtml(p,day);
   }
-  body.innerHTML=h;
+  body.innerHTML=tabs+h;
 }
 /* ---------- editor ---------- */
 function nextBatchNo(date,line,self){
@@ -850,7 +919,7 @@ function pickProduct(name){
   const p=loadPlan(cur.date);const e=p&&p.entries.find(x=>x.name===name);const m=MEAT_BLOCKS.find(x=>x.name===name);
   cur.mbName=name;cur.mbNo=(e&&e.mb)||(m&&m.mb)||'';cur.product=name?((cur.mbNo?cur.mbNo+' · ':'')+name):'';
   // first meat block pick: suggest the lines where it is planned
-  if(name&&p&&cur.lines.every(l=>!l.line)){const ls=sortLines(p.entries.filter(x=>x.name===name).map(x=>x.line));if(ls.length)cur.lines=ls.slice(0,4).map(l=>({line:l,lbs:''}));if(ls.length>1)toast('Planned on '+ls.length+' lines — enter the lbs for each one.');}
+  if(showLines()&&name&&p&&cur.lines.every(l=>!l.line)){const ls=sortLines(p.entries.filter(x=>x.name===name).map(x=>x.line));if(ls.length)cur.lines=ls.slice(0,4).map(l=>({line:l,lbs:''}));if(ls.length>1)toast('Planned on '+ls.length+' lines — enter the lbs for each one.');}
   touch(cur);renderEditor();
 }
 function rmOptions(sel){
@@ -916,22 +985,99 @@ function renderEditor(light){
   document.querySelectorAll('#fat-ok button').forEach(b=>b.classList.toggle('on',b.dataset.v===cur.fatOk));
   document.getElementById('fat-final-wrap').style.display=cur.fatOk==='no'?'':'none';
   document.getElementById('print-head').innerHTML=`<b>Schweid &amp; Sons · ${plant} · Batch Sheet</b><br>${esc(cur.product)} · #${esc(cur.batchNo)} · ${esc(cur.line)} · ${esc(cur.date)}`;
+  const lc=document.getElementById('lines-card');if(lc)lc.style.display=showLines()?'':'none';
+  let sn=0;document.querySelectorAll('#view-edit .card > h2').forEach(h=>{if(h.closest('.card').style.display==='none')return;const t=h.firstChild;if(t&&t.nodeType===3&&/^\d+ · /.test(t.nodeValue))t.nodeValue=t.nodeValue.replace(/^\d+/,++sn);});
   renderLines();
   if(light)return;
   document.getElementById('rm-body').innerHTML=cur.items.length?cur.items.map((x,i)=>{const r=rmByCode(x.rm);const left=Math.max(0,(+x.cur||0)-(+x.used||0));return `<tr>
     <td>${i+1}</td>
-    <td style="min-width:150px"><select onchange="setItem(${i},'rm',this.value)">${rmOptions(x.rm)}</select>${r?'':'<div class="rm-desc" style="color:var(--danger)">Select RM code</div>'}</td>
-    <td><input value="${esc(x.lot)}" onchange="setItem(${i},'lot',this.value)" style="min-width:90px"></td>
-    <td class="hide-sm"><input value="${esc(x.packDate)}" onchange="setItem(${i},'packDate',this.value)" style="min-width:90px"></td>
+    <td style="min-width:150px"><button type="button" class="pickf sm${r?'':' miss'}" onclick="pickRmFor(${i})">${r?esc(x.rm):'<span class="ph">RM code</span>'}</button>${r?'<div class="rm-desc">'+esc(r.name)+'</div>':''}</td>
+    <td><input value="${esc(x.lot)}" inputmode="numeric" autocomplete="off" onchange="setItem(${i},'lot',this.value)" style="min-width:90px"></td>
+    <td class="hide-sm"><button type="button" class="pickf sm cal" onclick="pickDateFor(${i})" style="min-width:118px">${x.packDate?esc(x.packDate):'<span class="ph">—</span>'}</button></td>
     <td class="hide-sm"><input value="${esc(x.est)}" onchange="setItem(${i},'est',this.value)" style="min-width:60px"></td>
     <td class="hide-sm"><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.temp||'')}" onchange="setItem(${i},'temp',this.value)" style="min-width:52px"></td>
-    <td class="hide-sm"><select onchange="pickItemSupplier(${i},this)" style="min-width:110px">${listOptions(supplierList(),x.supplier||'','—','+ Add new…')}</select></td>
+    <td class="hide-sm"><button type="button" class="pickf sm" onclick="pickSupplierFor(${i})" style="min-width:120px">${x.supplier?esc(x.supplier):'<span class="ph">—</span>'}</button></td>
     <td class="hide-sm"><input value="${esc(x.po||'')}" inputmode="numeric" onchange="setItem(${i},'po',this.value)" style="min-width:70px"></td>
     <td><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.cur)}" onchange="setItem(${i},'cur',this.value)" style="min-width:70px"></td>
     <td><input type="text" inputmode="decimal" autocomplete="off" value="${esc(x.used)}" onchange="setItem(${i},'used',this.value)" style="min-width:70px"></td>
     <td class="left${left?'':' zero'}">${fmtLbs(left)}</td>
     <td class="no-print"><button class="btn danger" style="padding:5px 8px" onclick="removeItem(${i})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="12" class="empty">Scan the first box label or add it manually.</td></tr>';
 }
+/* ---------- pickers (search list + calendar) ----------
+   target 'cf' = the Add raw material window; a number = that box in the table. */
+function cfPaint(){
+  const rm=document.getElementById('cf-rm').value,r=rmByCode(rm);
+  document.getElementById('cf-rm-btn').innerHTML=r?`<span><b>${esc(r.code)}</b> — ${esc(r.name)}</span>`:(rm?esc(rm):'<span class="ph">Search RM code…</span>');
+  const pk=document.getElementById('cf-pack').value;
+  document.getElementById('cf-pack-btn').innerHTML=pk?esc(pk):'<span class="ph">Pick a date</span>';
+  const sp=document.getElementById('cf-supplier').value;
+  document.getElementById('cf-supplier-btn').innerHTML=sp?esc(sp):'<span class="ph">Search supplier…</span>';
+}
+function setPicked(target,field,val){
+  if(target==='cf'){document.getElementById({rm:'cf-rm',packDate:'cf-pack',supplier:'cf-supplier'}[field]).value=val;
+    if(field==='rm'&&!document.getElementById('cf-supplier').value){const r=rmByCode(val);if(r&&r.vendor)document.getElementById('cf-supplier').value=r.vendor;}
+    cfPaint();return;}
+  setItem(target,field,val);if(field!=='rm')renderEditor();
+}
+let pk=null;
+function openPicker(o){
+  closePicker();
+  pk=o;const ov=document.createElement('div');ov.className='ov pk-ov';ov.id='pk-ov';
+  ov.onclick=e=>{if(e.target===ov)closePicker();};
+  ov.innerHTML=`<div class="modal pk-box"><div class="pk-head"><h3>${esc(o.title)}</h3><button class="btn" onclick="closePicker()">✕</button></div>
+    <input class="pk-q" id="pk-q" type="search" placeholder="Type to search…" autocomplete="off" oninput="pkRender()"><div class="pk-list" id="pk-list"></div></div>`;
+  document.body.appendChild(ov);pkRender();
+  setTimeout(()=>{const q=document.getElementById('pk-q');if(q&&!('ontouchstart' in window))q.focus();},60);
+}
+function closePicker(){const o=document.getElementById('pk-ov');if(o)o.remove();pk=null;}
+function pkRender(){
+  if(!pk)return;const q=(document.getElementById('pk-q').value||'').trim().toLowerCase();
+  const words=q.split(/\s+/).filter(Boolean);
+  const hit=it=>words.every(w=>(it.v+' '+(it.label||'')+' '+(it.sub||'')+' '+(it.group||'')).toLowerCase().includes(w));
+  const rows=pk.items.filter(hit);let h='',g=null;
+  rows.forEach((it,n)=>{if(it.group!==undefined&&it.group!==g){g=it.group;h+=`<div class="pk-g">${esc(g)}</div>`;}
+    h+=`<button class="pk-it${it.v===pk.sel?' on':''}" onclick="pkChoose(${pk.items.indexOf(it)})">${it.html||esc(it.label||it.v)}${it.sub?`<span class="s">${esc(it.sub)}</span>`:''}</button>`;});
+  if(!rows.length)h+=`<div class="pk-none">Nothing matches “${esc(q)}”.</div>`;
+  if(pk.addNew)h+=`<button class="pk-it add" onclick="pkAdd()">＋ ${esc(pk.addNew)}${q?' “'+esc(q)+'”':''}</button>`;
+  document.getElementById('pk-list').innerHTML=h;
+}
+function pkChoose(n){const o=pk;closePicker();o.onPick(o.items[n].v);}
+function pkAdd(){const o=pk;const q=(document.getElementById('pk-q').value||'').trim();closePicker();
+  const v=(prompt(o.addNew+':',q)||'').trim();if(!v)return;
+  if(o.addKey){const l=(o.addList?o.addList():loadList(o.addKey,[])).slice();if(!l.includes(v)){l.push(v);try{localStorage.setItem(o.addKey,JSON.stringify(l));}catch(e){}}}
+  o.onPick(v);}
+function pickRmFor(target){
+  const sel=target==='cf'?document.getElementById('cf-rm').value:(cur.items[target]||{}).rm;
+  openPicker({title:'RM code',sel,items:RM_CODES.map(r=>({v:r.code,label:r.code+' '+r.name,html:`<b>${esc(r.code)}</b> — ${esc(r.name)}`,sub:r.vendor||'',group:r.group})),
+    onPick:v=>setPicked(target,'rm',v)});
+}
+function pickSupplierFor(target){
+  const sel=target==='cf'?document.getElementById('cf-supplier').value:(cur.items[target]||{}).supplier;
+  openPicker({title:'Supplier',sel,items:supplierList().slice().sort((a,b)=>a.localeCompare(b)).map(v=>({v})),addNew:'Add new supplier',addKey:SUPPLIER_KEY,addList:supplierList,
+    onPick:v=>setPicked(target,'supplier',v)});
+}
+/* calendar (same look as the Receiving calendar): value stored as MM/DD/YYYY */
+let calSt=null;
+function pickDateFor(target){
+  const v=target==='cf'?document.getElementById('cf-pack').value:(cur.items[target]||{}).packDate;
+  const m=String(v||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);const sel=m?new Date(+m[3],+m[1]-1,+m[2]):null;
+  const base=sel||new Date();calSt={target,sel,y:base.getFullYear(),m:base.getMonth()};
+  const ov=document.createElement('div');ov.className='ov pk-ov';ov.id='cal-ov';ov.onclick=e=>{if(e.target===ov)closeCal();};
+  ov.innerHTML='<div class="modal cal-box" id="cal-box"></div>';document.body.appendChild(ov);calRender();
+}
+function closeCal(){const o=document.getElementById('cal-ov');if(o)o.remove();calSt=null;}
+function calMove(d){calSt.m+=d;if(calSt.m<0){calSt.m=11;calSt.y--;}if(calSt.m>11){calSt.m=0;calSt.y++;}calRender();}
+function calRender(){
+  const {y,m,sel}=calSt,first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),t=new Date();t.setHours(0,0,0,0);
+  let g=['S','M','T','W','T','F','S'].map(d=>`<div class="wd">${d}</div>`).join('')+'<div></div>'.repeat(first);
+  for(let d=1;d<=days;d++){const dt=new Date(y,m,d);const c=[dt.getTime()===t.getTime()?'td':'',sel&&dt.getTime()===sel.getTime()?'on':'',dt>t?'fut':''].join(' ');
+    g+=`<button class="${c}" onclick="calPick(${d})">${d}</button>`;}
+  document.getElementById('cal-box').innerHTML=`<div class="cal-nav"><button onclick="calMove(-1)">‹</button><b>${new Date(y,m,1).toLocaleString('en-US',{month:'long',year:'numeric'})}</b><button onclick="calMove(1)">›</button></div>
+    <div class="cal-grid">${g}</div><div class="cal-foot"><button class="btn" onclick="calPick(0,true)">Today</button><button class="btn" onclick="calClear()">Clear</button><button class="btn" onclick="closeCal()">Cancel</button></div>`;
+}
+function calPick(d,today){const {y,m,target}=calSt;const dt=today?new Date():new Date(y,m,d);
+  const v=String(dt.getMonth()+1).padStart(2,'0')+'/'+String(dt.getDate()).padStart(2,'0')+'/'+dt.getFullYear();closeCal();setPicked(target,'packDate',v);}
+function calClear(){const t=calSt.target;closeCal();setPicked(t,'packDate','');}
 function pickItemSupplier(i,sel){let v=sel.value;if(v===ADD_NEW)v=askNew(SUPPLIER_KEY,supplierList(),'supplier');cur.items[i].supplier=v;touch(cur);renderEditor();}
 function setItem(i,k,v){
   const x=cur.items[i];x[k]=typeof v==='string'?v.trim():v;
@@ -945,18 +1091,36 @@ function validateBasics(){
   if(!cur.mbName&&!cur.product){toast('Select the meat block first.',true);return false;}
   return true;
 }
+/* Complete only when everything is filled in (Notes is the only optional field). */
+function missingFields(b){
+  const m=[],e=v=>v==null||String(v).trim()==='';
+  if(!b.mbName&&!b.product)m.push('Meat block');
+  if(e(b.line))m.push('Mixer');
+  if(e(b.batchNo))m.push('Batch #');
+  if(e(b.date))m.push('Date');
+  if(e(b.startTime))m.push('Start time');
+  if(e(b.operator))m.push('Mixer operator');
+  if(showLines()&&!b.lines.some(l=>l.line))m.push('Production line');
+  if(!b.items.length)m.push('At least one raw material');
+  const F=[['rm','RM code'],['lot','Lot'],['packDate','Pack date'],['est','EST #'],['temp','Temp'],['supplier','Supplier'],['po','PO #'],['cur','Current lbs'],['used','Used lbs']];
+  b.items.forEach((x,i)=>{const miss=F.filter(([k])=>k==='cur'||k==='used'?!(+x[k]>0):e(x[k])).map(f=>f[1]);if(miss.length)m.push('Box '+(i+1)+': '+miss.join(', '));});
+  if(b.seasoning!=='yes'&&b.seasoning!=='no')m.push('Seasoning (yes / no)');
+  if(b.seasoning==='yes')[['seasType','Seasoning type'],['seasLbs','Seasoning lbs'],['seasLot','Seasoning lot #'],['seasSupplier','Seasoning supplier'],['water','Water amount']].forEach(([k,l])=>{if(e(b[k]))m.push(l);});
+  if(e(b.fatTest))m.push('Initial fat test');
+  if(b.fatOk!=='yes'&&b.fatOk!=='no')m.push('Fat test OK?');
+  if(b.fatOk==='no'&&e(b.fatFinal))m.push('Final fat test');
+  if(e(b.grindTemp))m.push('Final grind temp');
+  if(e(b.completedBy))m.push('Completed by');
+  return m;
+}
 function completeBatch(){
   if(cur.status==='done'){if(!confirm('Reopen this batch for editing?'))return;cur.status='need';cur.completedAt='';touch(cur);renderEditor();return;}
   if(!validateBasics())return;
-  if(!cur.items.length){toast('Add at least one raw material.',true);return;}
-  if(cur.items.some(x=>!x.rm)){toast('Every box needs an RM code.',true);return;}
-  if(cur.items.some(x=>!(+x.used>0))){toast('Every box needs the weight used.',true);return;}
-  if(!cur.lines.some(l=>l.line)){toast('Pick at least one production line.',true);return;}
-  const amount=batchAmount(cur),sum=cur.lines.reduce((a,l)=>a+lineLbs(cur,l),0);
-  if(cur.lines.length>1&&Math.abs(sum-amount)>1&&!confirm(`The lines add up to ${fmtLbs(sum)} lb but the batch is ${fmtLbs(amount)} lb. Complete anyway?`))return;
-  if(cur.seasoning==='yes'&&(!cur.seasType||!cur.seasLot)){toast('Enter the seasoning type and lot #.',true);return;}
-  if(cur.fatOk==='no'&&!cur.fatFinal){toast('Enter the final fat test.',true);return;}
-  if(!cur.completedBy){toast('Select who completed the batch.',true);document.getElementById('f-completedBy').focus();return;}
+  const miss=missingFields(cur);
+  if(miss.length){alert('This batch cannot be completed yet.\n\nStill missing:\n• '+miss.join('\n• ')+'\n\n(Notes is optional.)');return;}
+  if(cur.items.some(x=>+x.used>+x.cur)){toast('A box has more used than its current weight.',true);return;}
+  if(showLines()){const amount=batchAmount(cur),sum=cur.lines.reduce((a,l)=>a+lineLbs(cur,l),0);
+    if(cur.lines.length>1&&Math.abs(sum-amount)>1&&!confirm(`The lines add up to ${fmtLbs(sum)} lb but the batch is ${fmtLbs(amount)} lb. Complete anyway?`))return;}
   cur.status='done';cur.completedAt=new Date().toISOString();if(!cur.endTime)cur.endTime=nowTime();
   touch(cur);fillEditor();renderEditor();toast('✓ Batch complete');
 }
@@ -997,18 +1161,19 @@ function openConfirm(p){
   const lf=document.getElementById('cf-left');
   if(pending.prev){lf.classList.remove('hidden');lf.innerHTML=pending.prev.left>0?`♻ This lot was opened before: batch #${esc(pending.prev.batchNo)} (${esc(pending.prev.date)}) left <b>${fmtLbs(pending.prev.left)} lb</b>${pending.netLbs!==''?' (label: '+fmtLbs(pending.netLbs)+' lb)':''}.`:`⚠ This lot was already <b>used up</b> in batch #${esc(pending.prev.batchNo)} (${esc(pending.prev.date)}). Check the box.`;}
   else lf.classList.add('hidden');
-  document.getElementById('cf-rm').innerHTML=rmOptions(pending.rm);
+  document.getElementById('cf-rm').value=pending.rm||'';
   document.getElementById('cf-lot').value=pending.lot;
-  document.getElementById('cf-pack').value=pending.packDate;
+  document.getElementById('cf-pack').value=pending.packDate||'';
   document.getElementById('cf-est').value=pending.est;
   document.getElementById('cf-temp').value=pending.temp;
-  document.getElementById('cf-supplier').innerHTML=listOptions(supplierList(),pending.supplier,'— Supplier —','+ Add new supplier…');
+  document.getElementById('cf-supplier').value=pending.supplier||'';
+  cfPaint();
   document.getElementById('cf-po').value=pending.po||(pending.prev&&pending.prev.po)||'';
   document.getElementById('cf-cur').value=pending.cur;
   const u=document.getElementById('cf-used');u.value=pending.cur;delete u.dataset.touched;u.oninput=()=>{u.dataset.touched='1';};
   document.getElementById('cf-remember-wrap').style.display=pending.key?'':'none';
   document.getElementById('confirm-ov').classList.remove('hidden');
-  setTimeout(()=>document.getElementById(pending.rm?(pending.cur!==''?'cf-used':'cf-cur'):'cf-rm').focus(),80);
+  setTimeout(()=>{if(!pending.rm)pickRmFor('cf');else document.getElementById(pending.cur!==''?'cf-used':'cf-cur').focus();},80);
 }
 function closeConfirm(){document.getElementById('confirm-ov').classList.add('hidden');pending=null;setTimeout(()=>{const s=document.getElementById('scan-input');if(s)s.focus();},50);}
 function confirmAdd(){

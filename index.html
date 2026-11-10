@@ -320,6 +320,12 @@
   
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:100;}
   .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:360px;max-width:96vw;}
+  .shift-box{border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:10px;background:var(--surface2,var(--surface));}
+  .shift-box:empty{display:none;}
+  .shift-now{font-size:11px;color:var(--text3);margin-bottom:6px;line-height:1.35;}
+  .shift-now b{display:block;font-size:14px;color:var(--text);margin-top:1px;}
+  .shift-btn{display:block;width:100%;margin-top:6px;padding:10px 8px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent2);font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-align:center;}
+  .shift-btn.back{border-color:var(--border);color:var(--text2);}
   .xl-ask-btn{display:block;width:100%;margin:0 0 8px;padding:14px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface2,var(--surface));color:var(--text);font:inherit;font-size:16px;font-weight:600;cursor:pointer;text-align:center;}
   .xl-ask-btn.cur{background:var(--accent);border-color:var(--accent);color:#fff;}
   .xl-ask-btn span{font-size:11px;font-weight:500;opacity:.85;margin-left:6px;}
@@ -1206,10 +1212,11 @@ try{
       <button class="count-session-btn" id="count-session-btn" onclick="toggleCountSession()" title="Marks every position as 'to review' so nothing is missed in a full count">🟡 Start Full Count</button>
       <button class="sf-toggle" onclick="toggleActions()"><span>⚙️ Actions</span><span class="sf-chev">▾</span></button>
       <div class="sf-body">
+        <div class="shift-box"></div>
         <div class="sf-grid">
           <button class="export-btn" onclick="askExportExcel()">⬇ Export Excel</button>
           <button class="import-btn" onclick="triggerImport()">⬆ Import Excel</button>
-          <button class="sync-btn" onclick="openSyncModal()" title="Shift copies saved in SharePoint (calendar) — the live sync is automatic">📅 Saved copies</button>
+          <button class="sync-btn" onclick="openSyncModal()" title="Look at or restore the inventories saved in SharePoint — the live sync is automatic">📅 View inventories</button>
           <button class="import-btn nj-only" onclick="openBoxRoomMap()">📦 Box Room Map</button>
           <button class="add-item-btn" onclick="openAddItemModal()">＋ Custom Item</button>
           <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal()">🗑 Clear Section</button>
@@ -1251,9 +1258,10 @@ try{
     </div>
     <div class="actions-drawer-body">
       <button class="count-session-btn" id="count-session-btn-drawer" onclick="toggleCountSession()">🟡 Start Full Count</button>
+      <div class="shift-box"></div>
       <button class="export-btn" onclick="closeActionsDrawer();askExportExcel()">⬇ Export Excel</button>
       <button class="import-btn" onclick="triggerImport();closeActionsDrawer()">⬆ Import Excel</button>
-      <button class="sync-btn" onclick="openSyncModal();closeActionsDrawer()">📅 Saved copies</button>
+      <button class="sync-btn" onclick="openSyncModal();closeActionsDrawer()">📅 View inventories</button>
       <button class="import-btn nj-only" onclick="openBoxRoomMap();closeActionsDrawer()">📦 Box Room Map</button>
       <button class="clear-all-btn" onclick="triggerClearAll();closeActionsDrawer()">🗑 Clear All</button>
       <button class="clear-all-btn" style="color:var(--warn);border-color:var(--warn)" onclick="openClearSectionModal();closeActionsDrawer()">🗑 Clear Section</button>
@@ -1456,22 +1464,17 @@ try{
 
 <div class="modal-overlay hidden" id="sync-overlay" onclick="closeSyncModal(event)">
   <div class="modal" onclick="event.stopPropagation()" style="width:620px;max-width:96vw;max-height:92vh;overflow-y:auto">
-    <h3 style="color:var(--accent2)">📅 Saved copies</h3>
-    <div style="font-size:11px;color:var(--text2);margin:-4px 0 8px;line-height:1.5">The inventory already syncs by itself on every Save. Use this only to look at or restore an older shift copy.</div>
+    <h3 style="color:var(--accent2)">📅 View inventories</h3>
+    <div style="font-size:11px;color:var(--text2);margin:-4px 0 8px;line-height:1.5">The inventory already syncs by itself. Use this only to look at or restore an inventory saved on another day or count.</div>
     <div id="sync-mode-label" style="font-size:10px;color:var(--text3);margin-bottom:14px">💾 Mode: Local (this device)</div>
 
     <div class="stats-subtabs">
-      <button class="stats-subtab active" id="sync-tab-export" onclick="setSyncTab('export')">⬆ Export</button>
-      <button class="stats-subtab" id="sync-tab-import" onclick="setSyncTab('import')">⬇ Import</button>
+      <button class="stats-subtab" id="sync-tab-import" onclick="setSyncTab('import')">⬇ View / restore</button>
+      <button class="stats-subtab" id="sync-tab-export" onclick="setSyncTab('export')">⬆ Upload a copy</button>
     </div>
 
     <div id="sync-export-body">
-      <label>Count shift</label>
-      <select id="sync-turno-sel" onchange="onShiftSelect(this)" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:12px;margin-bottom:12px;">
-        <option value="pre9">Before 9am (Morning)</option>
-        <option value="post9">After 9am (Afternoon)</option>
-        <option value="eom">End of Month (EOM)</option>
-      </select>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.5">Uploads a copy of the inventory as it is right now, labeled <b id="sync-cur-count"></b>. The count itself is changed from <b>Actions</b>.</div>
       <button class="btn-primary" style="background:var(--success);width:100%;margin-bottom:8px" onclick="syncExport()">⬆ Upload current inventory copy</button>
       <div id="sync-export-status" style="font-size:11px;color:var(--text3);min-height:16px"></div>
     </div>
@@ -4232,10 +4235,10 @@ async function livePull(force,push){
   }catch(e){live.err=e.message;live.at=Date.now();}
   finally{live.busy=false;renderLiveBar();}
 }
-function currentTurnoSel(){const s=document.getElementById('sync-turno-sel');return s&&LIVE_TURNOS.includes(s.value)?s.value:'pre9';}
-const SHIFT_SEL_IDS=['sync-turno-sel'];
+function currentTurnoSel(){return live&&live.rec&&LIVE_TURNOS.includes(live.rec.turno)?live.rec.turno:'pre9';}
+const SHIFT_SEL_IDS=[];
 function setShiftSelects(v){SHIFT_SEL_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&[...el.options].some(o=>o.value===v))el.value=v;});}
-/* the shift is chosen in ONE place: Sync → Export. With live sync on, choosing a shift really starts it; cancel puts it back.
+/* the count (morning / afternoon / End of Month) is changed ONLY with the buttons in Actions (renderShiftBox). With live sync on, choosing a shift really starts it; cancel puts it back.
    Export Excel asks which count the file is for (askExportExcel) — that only labels the file, it never changes the shift. */
 async function onShiftSelect(el){
   const v=el.value;
@@ -4251,9 +4254,13 @@ async function liveStartShift(turno,silent){
   if(!live.on)return;
   const day=isoToday();
   if(!silent){
-    const cur=live.rec?SYNC_TURNO_LABELS[live.rec.turno]+' ('+liveDayLabel(live.rec.day)+')':'the current inventory';
-    if(live.rec&&live.rec.day===day&&live.rec.turno===turno){showToast('Already on '+SYNC_TURNO_LABELS[turno]+'.','success');return;}
-    if(!confirm('Start '+SYNC_TURNO_LABELS[turno]+' for '+liveDayLabel(day)+'?\n\n'+cur+' is frozen exactly as it is now and saved in the calendar.\n'+SYNC_TURNO_LABELS[turno]+' starts from it, on every '+currentPlant+' device.'))return;
+    const same=live.rec&&live.rec.day===day&&live.rec.turno===turno;
+    if(same){showToast('Already on '+SYNC_TURNO_LABELS[turno]+'.','success');return;}
+    const back=live.rec&&live.rec.day===day&&LIVE_TURNOS.indexOf(turno)<LIVE_TURNOS.indexOf(live.rec.turno)&&turno==='pre9';
+    const msg=back
+      ?'Go back to the MORNING count?\n\nThe inventory stays exactly as it is now. The '+SYNC_TURNO_LABELS[live.rec.turno]+' copy already saved stays in the calendar.\nEvery '+currentPlant+' device switches to the morning count.'
+      :'Start the '+SYNC_TURNO_LABELS[turno]+' count?\n\nThe current count is saved in the calendar exactly as it is now.\nThe new count continues from it, on every '+currentPlant+' device.\n\nAfter this, changes go into the new count.';
+    if(!confirm(msg))return;
     await livePull(true,true);
   }
   if(live.rec){try{await liveFreezeCopy();}catch(e){}}
@@ -4290,7 +4297,21 @@ function liveBarInner(){
   // the shift is changed in ONE place only: Menu → Sync (the ▶ shortcut buttons were removed — they confused people)
   return `<span class="lv-shift">${r?SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day):'Connecting…'}</span>${st}`;
 }
-function renderLiveBar(){const el=document.getElementById('live-bar');if(el)el.innerHTML=liveBarInner();syncTurnoSelects();}
+function renderLiveBar(){const el=document.getElementById('live-bar');if(el)el.innerHTML=liveBarInner();syncTurnoSelects();renderShiftBox();}
+/* Actions → the count buttons. Shows which count is being edited and only the buttons that make sense from here. */
+function renderShiftBox(){
+  const boxes=document.querySelectorAll('.shift-box');if(!boxes.length)return;
+  let h='';
+  if(live.on&&live.rec){
+    const t=live.rec.turno;
+    const b=(tu,txt,cls)=>`<button class="shift-btn ${cls||''}" onclick="closeActionsDrawer();liveStartShift('${tu}')">${txt}</button>`;
+    h=`<div class="shift-now">Changes you make now go into:<b>${SYNC_TURNO_LABELS[t]}</b></div>`
+      +(t==='pre9'?b('post9','▶ Start afternoon count'):b('pre9','↩ Resume morning count','back'))
+      +(t==='eom'?b('post9','▶ Start afternoon count'):'')
+      +(t!=='eom'?b('eom','▶ Start End of Month count','back'):'');
+  }
+  boxes.forEach(x=>x.innerHTML=h);
+}
 setInterval(()=>{if(live.on&&document.visibilityState==='visible')livePull(false,true);},30000);
 document.addEventListener('visibilitychange',()=>{if(live.on&&document.visibilityState==='visible')livePull(true,true);});
 
@@ -4936,7 +4957,7 @@ async function shareBoxRoomMap(){
   const file=new File([blob],boxRoomFileName(),{type:'application/pdf'});
   try{
     if(navigator.canShare&&navigator.canShare({files:[file]})){
-      await navigator.share({files:[file]});            // only the PDF — no page link or extra text
+      await navigator.share({title:'Box Room Map',files:[file]});   // the PDF + a title (no page link). Keep the title: without it Teams may not show up as a target
       return;
     }
   }catch(e){if(e&&e.name==='AbortError')return;}
@@ -5788,7 +5809,7 @@ const SYNC_TURNO_LABELS={pre9:'Before 9am (Morning)',post9:'After 9am (Afternoon
 function openSyncModal(){
   document.getElementById('sync-export-status').textContent='';
   updateSyncModeLabel();
-  setSyncTab('export');
+  setSyncTab('import');
   document.getElementById('sync-overlay').classList.remove('hidden');
 }
 function closeSyncModal(e){
@@ -5802,6 +5823,7 @@ function updateSyncModeLabel(){
 }
 function setSyncTab(t){
   syncTab=t;
+  const cc=document.getElementById('sync-cur-count');if(cc)cc.textContent=SYNC_TURNO_LABELS[currentTurnoSel()];
   document.getElementById('sync-tab-export').classList.toggle('active',t==='export');
   document.getElementById('sync-tab-import').classList.toggle('active',t==='import');
   document.getElementById('sync-export-body').classList.toggle('hidden',t!=='export');
@@ -5810,7 +5832,7 @@ function setSyncTab(t){
 }
 /* ---------- SYNC / EXPORT to SharePoint ---------- */
 async function syncExport(){
-  const turnoSel=document.getElementById('sync-turno-sel').value;
+  const turnoSel=currentTurnoSel();
   // NJ keeps its original labels; other plants prefix the shift ("GA · Before 9am (Morning)").
   // The flow's date+Shift filter then keeps each plant's copy separate — no flow change needed.
   const turnoLabel=(currentPlant==='NJ'?'':currentPlant+' · ')+SYNC_TURNO_LABELS[turnoSel];
@@ -6805,7 +6827,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.10f';
+const APP_VERSION='2026.11.10h';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
