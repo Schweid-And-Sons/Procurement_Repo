@@ -1809,7 +1809,7 @@ let AREAS = {
     7:{1:[1,2],2:[1,2,3,4,5,6],3:[1,2,3,4,5,6]}
   }},
   'BOX ROOM FLOOR':{type:'floor',slots:FLOOR_SLOTS},
-  'RETAIL COOLER SLEEVES RACK':{type:'rack',sections:{
+  'RETAIL COOLER SLEEVES RACK':{type:'rack',countAsFloor:true,sections:{   // drawn as a rack, but counted as FLOOR in the Racks / Floor totals (many small sleeve spots)
     1:{1:[1,2,3,4,5,6],2:[1,2,3,4,5,6],3:[1,2,3,4,5,6]},
     2:{1:[1,2,3,4,5,6],2:[1,2,3,4,5,6],3:[1,2,3,4,5,6]},
     3:{1:[1,2,3,4,5,6],2:[1,2,3,4,5,6],3:[1,2,3,4,5,6]}
@@ -1908,12 +1908,13 @@ function calcStats(){
   let rackTotal=0,rackOcc=0,floorTotal=0,floorOcc=0,skus=new Set(),totalUnits=0;
   for(const[an,ad]of Object.entries(AREAS)){
     if(ad.type==='rack'){
+      const fl=!!ad.countAsFloor;   // e.g. the sleeves rack: counted with the floor
       for(const[s,tiers]of Object.entries(ad.sections))
         for(const[t,positions]of Object.entries(tiers))
           positions.forEach(pos=>{
-            rackTotal++;
+            if(fl)floorTotal++;else rackTotal++;
             const id=locId(an,+s,+t,pos);
-            if(inventory[id]){rackOcc++;occItems(inventory[id]).forEach(x=>{skus.add(x.item);totalUnits+=x.qty;});}
+            if(inventory[id]){if(fl)floorOcc++;else rackOcc++;occItems(inventory[id]).forEach(x=>{skus.add(x.item);totalUnits+=x.qty;});}
           });
     }else{
       for(let i=1;i<=ad.slots;i++){
@@ -1950,12 +1951,13 @@ function getRackFloorBreakdown(){
           sd.secs.forEach(s=>{const tiers=ad.sections[s]||{};for(const[t,positions]of Object.entries(tiers))positions.forEach(pos=>{rk.total++;if(inventory[locId(an,+s,+t,pos)])rk.occ++;});});
         });
       }else{
-        if(!rackAreas[an])rackAreas[an]={occ:0,total:0};
+        const bag=ad.countAsFloor?floorAreas:rackAreas;   // sleeves rack shows under Floor
+        if(!bag[an])bag[an]={occ:0,total:0};
         for(const[s,tiers]of Object.entries(ad.sections))
           for(const[t,positions]of Object.entries(tiers))
             positions.forEach(pos=>{
-              rackAreas[an].total++;
-              if(inventory[locId(an,+s,+t,pos)])rackAreas[an].occ++;
+              bag[an].total++;
+              if(inventory[locId(an,+s,+t,pos)])bag[an].occ++;
             });
       }
     }else{
@@ -6856,7 +6858,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.11b';
+const APP_VERSION='2026.11.11c';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
