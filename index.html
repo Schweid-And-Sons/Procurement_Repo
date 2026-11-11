@@ -829,7 +829,7 @@
 
   /* — bottom tab bar → floating glass capsule — */
   @media(max-width:679px){
-    .bottom-nav{left:10px!important;right:10px!important;bottom:max(6px,calc(env(safe-area-inset-bottom) - 20px))!important;padding:5px 4px!important;border-radius:26px!important;border:.5px solid var(--glass-edge)!important;
+    .bottom-nav{left:10px!important;right:10px!important;bottom:max(10px,calc(env(safe-area-inset-bottom) - 8px))!important;padding:5px 4px!important;border-radius:26px!important;border:.5px solid var(--glass-edge)!important;
       background:var(--glass)!important;-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);box-shadow:0 10px 30px rgba(0,0,0,.15);}
     .bnav-btn{font-size:10px!important;text-transform:none!important;letter-spacing:0!important;font-weight:500;border-radius:20px;padding:6px 2px!important;}
     .bnav-btn.active{color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 12%,transparent);}
@@ -2622,6 +2622,26 @@ function closeModal(e){
   }
   ov.classList.add('hidden');modalLoc=null;_modalSnap=null;
 }
+/* Most that ever fits on ONE pallet. Saving more asks "Is this number right?" (it can still be saved).
+   Specific codes win over the category. Codes are matched without the plant suffix (-1 NJ / -4 GA). Add new rules here. */
+const PALLET_MAX_CODE={
+  'F1000':   {max:18,  why:'F1000 rolls are big: 18 per pallet'},
+  'F1000ABX':{max:18,  why:'F1000 rolls are big: 18 per pallet'},
+  'P2000':   {max:60,  why:'50 per pallet + up to 10 on top'},
+  'P3100':   {max:54,  why:'45 per pallet + up to 9 on top'},
+  'P4100':   {max:42,  why:'35 per pallet + up to 7 on top'},
+};
+const PALLET_MAX_CAT={
+  'BOXES':  {max:1500, why:'no box pallet has more than 1,500 — BX2050 double stack is 1,100'},
+  'FILM':   {max:36,   why:'27 per pallet + up to 9 on top'},
+  'SLEEVES':{max:56,   why:'every sleeve pallet is 56 max'},
+};
+function palletMax(code){
+  const c=String(code||'').toUpperCase(),base=c.replace(/-[0-9]+$/,'');
+  if(PALLET_MAX_CODE[base])return PALLET_MAX_CODE[base];
+  const it=ITEMS.find(i=>i.code===code);const cat=it?it.cat:(/^BX/.test(c)?'BOXES':/^SL\d/.test(c)?'SLEEVES':/^(F\d|E\d|BTB\d|HBH\d)/.test(c)?'FILM':'');
+  return PALLET_MAX_CAT[cat]||null;
+}
 function saveLocation(){
   const item=document.getElementById('modal-item').value;
   const qtyEl=document.getElementById('modal-qty');
@@ -2647,6 +2667,10 @@ function saveLocation(){
     if(m)m.qty+=eq;else merged.push({item:e.item,qty:eq});
   }
   if(merged.length>MAX_ITEMS_PER_POS-1){showToast('Max '+MAX_ITEMS_PER_POS+' items per position.','error');return;}
+  // Sanity check: more than what ever fits on one pallet → ask before saving (see PALLET_MAX).
+  const big=[{item,qty:mainQty},...merged].map(x=>({...x,lim:palletMax(x.item)})).filter(x=>x.lim&&x.qty>x.lim.max);
+  if(big.length&&!confirm(big.map(x=>x.item+': '+x.qty.toLocaleString()+' — max per pallet is '+x.lim.max.toLocaleString()+' ('+x.lim.why+')').join('\n')+'\n\nIs this number right?\n\nOK = save it anyway · Cancel = fix the qty')){
+    qtyEl.classList.add('qty-missing');setTimeout(function(){qtyEl.focus();qtyEl.select&&qtyEl.select();},60);return;}
   const prev=inventory[modalLoc];
   const _saveBefore=JSON.stringify({__t:'loc',l:modalLoc,v:prev||null});
   inventory[modalLoc]=merged.length?{item,qty:mainQty,extras:merged}:{item,qty:mainQty};
@@ -3161,7 +3185,12 @@ function plantSummary(p){
   let inv={}; try{inv=JSON.parse(localStorage.getItem(cfg.keys.wms)||'{}')||{};}catch(e){}
   const occ=Object.keys(inv).length;
   const units=Object.values(inv).reduce((a,o)=>a+occTotalQty(o),0);
-  let last=''; try{const lg=JSON.parse(localStorage.getItem(cfg.keys.log)||'[]');if(lg.length)last=lg[0].ts;}catch(e){}
+  // last change on the plant, from ANY device (the live-sync stamps of each position); falls back to this device's log
+  let last='';
+  try{const lv=JSON.parse(localStorage.getItem(cfg.keys.wms+'_live')||'null');
+    if(lv){const all=[...Object.values(lv.ts||{}),...Object.values(lv.del||{})].map(String).filter(Boolean).sort();const m=all[all.length-1];
+      if(m){const d=new Date(m);if(!isNaN(d))last=d.toLocaleDateString('en-US')+' · '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}}}catch(e){}
+  if(!last){try{const lg=JSON.parse(localStorage.getItem(cfg.keys.log)||'[]');if(lg.length)last=lg[0].ts;}catch(e){}}
   return `${occ} / ${total} positions occupied · ${units.toLocaleString()} units${last?'<br>Last activity: '+last:''}`;
 }
 function showPlantSelector(){
@@ -6827,7 +6856,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.10h';
+const APP_VERSION='2026.11.11b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
