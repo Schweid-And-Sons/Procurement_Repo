@@ -326,6 +326,9 @@
   .shift-now b{display:block;font-size:14px;color:var(--text);margin-top:1px;}
   .shift-btn{display:block;width:100%;margin-top:6px;padding:10px 8px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent2);font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-align:center;}
   .shift-btn.back{border-color:var(--border);color:var(--text2);}
+  .seq-n{font-weight:800;color:var(--accent);white-space:nowrap;width:44px;}
+  tr.seq-first td{border-top:2px solid var(--border);}
+  .seq-again{font-size:9px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.04em;margin-left:4px;}
   .xl-ask-btn{display:block;width:100%;margin:0 0 8px;padding:14px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface2,var(--surface));color:var(--text);font:inherit;font-size:16px;font-weight:600;cursor:pointer;text-align:center;}
   .xl-ask-btn.cur{background:var(--accent);border-color:var(--accent);color:#fff;}
   .xl-ask-btn span{font-size:11px;font-weight:500;opacity:.85;margin-left:6px;}
@@ -1568,7 +1571,7 @@ let PHYS_CODES = {
   'SL4100-1':['78605','18605'],
   'SL9905-1':['79905'],
   'SL15099-1':['75099','15099'],
-  'SL15299-1':['75299'],
+  'SL15299-1':['75299','15299'],
   'SL15906-1':['75906','15906'],
   'SL18512-1':['78512','18512'],
   'SL18908-1':['78908','18908'],
@@ -4112,12 +4115,18 @@ function planFileDay(name){                      // "… 2026 NJ Nov 9th.xlsx" �
   if(!m)return null;const y=(String(name).match(/20\d\d/)||[new Date().getFullYear()])[0];
   return y+'-'+String(MONTHS.indexOf(m[2])+1).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
 }
-let planAuto={busy:false,tried:{}};
+let planAuto={busy:false,tried:{},checked:{}};
 async function planAutoFetch(manual){
   if(!PLAN_FILE_URL||planAuto.busy||RCV_ONLY)return;
   const d=isoToday(),p0=currentPlant,k=p0+'|'+d;
+  let recheck=false;
   if(!manual){
-    if(planData&&planData.day===d&&(planData.items||[]).length)return;            // today's plan is already here
+    if(planData&&planData.day===d&&(planData.items||[]).length){
+      // today's plan is already here — but the planners keep editing the file during the day:
+      // look again at most once an hour (only while the Plan screen is open) and reload it if the file changed.
+      if(currentView!=='plan'||document.visibilityState!=='visible'||Date.now()-(planAuto.checked[k]||0)<60*60000)return;
+      recheck=true;
+    }
     if(Date.now()-(planAuto.tried[k]||0)<20*60000)return;
     try{await pullSharedPlan(true);}catch(e){}                                      // maybe another device loaded it already
     if(planData&&planData.day===d&&(planData.items||[]).length)return;
@@ -4130,13 +4139,18 @@ async function planAutoFetch(manual){
     if(p0!==currentPlant)return;
     const fd=planFileDay(f.name)||String(f.modified||'').slice(0,10);
     if(fd!==d){if(manual)showToast("Today's planning file is not in SharePoint yet (newest: "+(f.name||'—')+').','error');return;}
+    if(recheck||manual)planAuto.checked[k]=Date.now();
+    if(planData&&planData.day===d&&planData.fileModified&&f.modified&&String(f.modified)<=String(planData.fileModified)&&planData.source===f.name){
+      if(manual)showToast('✓ The plan is already the newest version of '+f.name,'success');return;}   // file did not change
     const bin=atob(f.content);const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
     const wb=XLSX.read(buf,{type:'array'});
+    const had=!!(planData&&planData.day===d&&(planData.items||[]).length);
     const r=processPlanWorkbook(wb,f.name);
+    if(f.modified){planData.fileModified=String(f.modified);savePlanDia();}
     await sharePlan(wb,f.name);
-    addLog('PLAN AUTO','Loaded from SharePoint: '+f.name);
+    addLog('PLAN AUTO',(had?'Updated':'Loaded')+' from SharePoint: '+f.name);
     if(currentView==='plan')render();
-    showToast('📅 Today\'s plan loaded automatically · '+r.msg.replace('Daily Plan imported: ',''),'success');
+    showToast('📅 '+(had?'The planning file changed — plan updated':'Today\'s plan loaded automatically')+' · '+r.msg.replace('Daily Plan imported: ',''),'success');
   }catch(e){if(manual)showToast('Could not get the planning file: '+e.message,'error');}
   finally{planAuto.busy=false;if(currentView==='plan')render();}
 }
@@ -4171,10 +4185,12 @@ function planSyncText(){
   if(!PLAN_READ_URL)return '';
   if(planSync.err)return '⚠ SharePoint not reachable — showing this device\'s copy · <a href="#" onclick="pullSharedPlan(true);return false">Retry</a>';
   const who=planData&&planData.by?' · loaded by '+planData.by:'';
-  return '☁ Shared plan'+who+(planSync.at?' · checked '+new Date(planSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'')+(planData&&planData.day===isoToday()||!PLAN_FILE_URL?' · <a href="#" onclick="pullSharedPlan(true);return false">⟳ Refresh</a>':'');
+  return '☁ Shared plan'+who+(planSync.at?' · checked '+new Date(planSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'')+(planData&&planData.day===isoToday()||!PLAN_FILE_URL?' · <a href="#" onclick="planRefreshAll();return false">⟳ Refresh</a>':'');
 }
+/* ⟳ Refresh: other devices' marks + a newer version of today's planning file, if there is one */
+async function planRefreshAll(){try{await pullSharedPlan(true);}catch(e){}if(PLAN_FILE_URL)planAutoFetch(true);}
 function renderPlanSyncLine(){const el=document.getElementById('plan-sync-line');if(el)el.innerHTML=planSyncText();}
-setInterval(()=>{if(currentView==='plan'&&document.visibilityState==='visible')pullSharedPlan(false);},60000);
+setInterval(()=>{if(currentView==='plan'&&document.visibilityState==='visible'){pullSharedPlan(false);if(PLAN_FILE_URL)planAutoFetch(false);}},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentView==='plan')pullSharedPlan(true);});
 
 
@@ -4400,7 +4416,7 @@ function boxesFromSchedule(wb){
   const cCode=col('Box Code'),cDesc=col('Boxes'),cLP=col('Line Priority'),cDay=col('Day');
   const cQty=col('Open Cs')>-1?col('Open Cs'):col('Column2');
   if(cQty<0)return null;
-  const byCode={},days=new Set(),noCode={},byLine={};let total=0;
+  const byCode={},days=new Set(),noCode={},byLine={},seq={};let total=0;
   const cLine=col('Line');
   for(let i=hr+1;i<rows.length;i++){
     const r=rows[i];
@@ -4416,8 +4432,17 @@ function boxesFromSchedule(wb){
     byCode[code].needed+=q;total+=q;
     const ln=cLine>-1&&String(r[cLine]).trim()?String(r[cLine]).trim():'(no line)';
     const L=byLine[ln]||(byLine[ln]={});L[code]=(L[code]||0)+q;
+    (seq[ln]||(seq[ln]=[])).push({p:String(r[cLP]).trim(),code,q});
   }
-  return {sheet,byCode,total,days:[...days],noCode,byLine};
+  // run order of each line = the "Line Priority" column (1 runs first). Same priority + same box code → one row.
+  const pn=p=>{const n=parseFloat(p);return isNaN(n)?9999:n;};
+  const lineSeq={};
+  Object.entries(seq).forEach(([ln,arr])=>{
+    const m=[];arr.forEach(x=>{const ex=m.find(y=>y.p===x.p&&y.code===x.code);if(ex)ex.q+=x.q;else m.push({...x});});
+    m.sort((a,b)=>pn(a.p)-pn(b.p)||String(a.p).localeCompare(String(b.p)));
+    lineSeq[ln]=m.map(x=>[x.p,x.code,x.q]);
+  });
+  return {sheet,byCode,total,days:[...days],noCode,byLine,lineSeq};
 }
 
 /* the planning file → inventory Daily Plan (boxes + sleeves). Used by ⬆ Load plan file here AND by Batch
@@ -4536,7 +4561,7 @@ function processPlanWorkbook(wb,fileName){
   }).sort((a,b)=>a.code.localeCompare(b.code));
   meta.sleeveLines=currentPlant==='GA'?sleeveLines:['Line 22','Line 23'];   // NJ keeps its two fixed columns
   if(currentPlant==='GA'&&skippedPhys.size)meta.sleeveSkipped=[...skippedPhys];
-  planData={importedAt:new Date().toISOString(),source:fileName,meta,items,sleeves,byLine:sched?sched.byLine:null};
+  planData={importedAt:new Date().toISOString(),source:fileName,meta,items,sleeves,byLine:sched?sched.byLine:null,lineSeq:sched?sched.lineSeq:null};
   planData.day=isoToday();planData.by=planDevice();planData.updatedAt=new Date().toISOString();
   savePlanDia();
   addLog('PLAN IMPORT','Planning imported from "'+fileName+'" ('+sheetName+') — '+items.length+' box codes'+(sleeves.length?', '+sleeves.length+' sleeve codes':''));
@@ -4755,17 +4780,27 @@ function renderPlanByLine(summary){
   const num=l=>{const m=String(l).match(/\d+/);return m?+m[0]:9999;};
   const lines=Object.keys(bl).sort((a,b)=>num(a)-num(b)||a.localeCompare(b));
   const grand=lines.reduce((t,l)=>t+Object.values(bl[l]).reduce((a,b)=>a+b,0),0);
-  return `<div class="plan-meta">${lines.length} line(s) · ${grand.toLocaleString()} boxes scheduled today</div>`+lines.map(l=>{
-    const codes=Object.entries(bl[l]).sort((a,b)=>b[1]-a[1]);
-    const tot=codes.reduce((a,[,q])=>a+q,0);
-    const rows=codes.map(([c,q])=>{
-      const it=ITEMS.find(x=>x.code===c);const ps=planStock(c,summary);
-      const sq=ps.qty,locs=ps.locs;
-      return `<tr><td style="font-weight:700;color:var(--accent2);white-space:nowrap">${c}</td><td style="color:var(--text2);font-size:11px">${it?it.name:''}</td>
-        <td style="text-align:right;font-weight:700">${Math.round(q).toLocaleString()}</td><td style="text-align:right">${sq.toLocaleString()}</td>
-        <td style="font-size:10px;color:var(--text3)">${locs.length?locs.join(', '):'<span style="color:var(--danger)">No stock</span>'}</td></tr>`;}).join('');
-    return `<div class="stats-section-title" style="margin-top:12px">${l} <span style="color:var(--text3);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">${Math.round(tot).toLocaleString()} boxes</span> <span></span></div>
-      <div style="overflow-x:auto"><table class="log-table plan-table"><thead><tr><th>Code</th><th>Description</th><th style="text-align:right">Boxes</th><th style="text-align:right">Stock (all lines)</th><th>Location</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const sq=planData.lineSeq||null;
+  return `<div class="plan-meta">${lines.length} line(s) · ${grand.toLocaleString()} boxes scheduled today${sq?' · boxes in the order each line runs (Line Priority — #1 goes first)':''}</div>`+lines.map(l=>{
+    const tot=Object.values(bl[l]).reduce((a,b)=>a+b,0);
+    const stockTd=c=>{const ps=planStock(c,summary);return `<td style="text-align:right">${ps.qty.toLocaleString()}</td><td style="font-size:10px;color:var(--text3)">${ps.locs.length?ps.locs.join(', '):'<span style="color:var(--danger)">No stock</span>'}</td>`;};
+    let rows,head;
+    if(sq&&sq[l]&&sq[l].length){
+      // run order: same box again later in the day shows again at its turn ("again" = already sent earlier on this line)
+      const seen=new Set();let lastP=null;
+      rows=sq[l].map(([p,c,q])=>{const it=ITEMS.find(x=>x.code===c);const again=seen.has(c);seen.add(c);const showP=p!==lastP;lastP=p;
+        return `<tr${showP?' class="seq-first"':''}><td class="seq-n">${showP?'#'+poEsc(p):''}</td><td style="font-weight:700;color:var(--accent2);white-space:nowrap">${poEsc(c)}</td>
+          <td style="color:var(--text2);font-size:11px">${it?poEsc(it.name):''}${again?' <span class="seq-again">again</span>':''}</td>
+          <td style="text-align:right;font-weight:700">${Math.round(q).toLocaleString()}</td>${stockTd(c)}</tr>`;}).join('');
+      head='<th>Run</th><th>Code</th><th>Description</th><th style="text-align:right">Boxes</th><th style="text-align:right">Stock (all lines)</th><th>Location</th>';
+    }else{
+      rows=Object.entries(bl[l]).sort((a,b)=>b[1]-a[1]).map(([c,q])=>{const it=ITEMS.find(x=>x.code===c);
+        return `<tr><td style="font-weight:700;color:var(--accent2);white-space:nowrap">${poEsc(c)}</td><td style="color:var(--text2);font-size:11px">${it?poEsc(it.name):''}</td>
+          <td style="text-align:right;font-weight:700">${Math.round(q).toLocaleString()}</td>${stockTd(c)}</tr>`;}).join('');
+      head='<th>Code</th><th>Description</th><th style="text-align:right">Boxes</th><th style="text-align:right">Stock (all lines)</th><th>Location</th>';
+    }
+    return `<div class="stats-section-title" style="margin-top:12px">${poEsc(l)} <span style="color:var(--text3);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">${Math.round(tot).toLocaleString()} boxes</span> <span></span></div>
+      <div style="overflow-x:auto"><table class="log-table plan-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join('');
 }
 function renderSleevesNeeded(summary){
@@ -6858,7 +6893,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.11c';
+const APP_VERSION='2026.11.12b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
