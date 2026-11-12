@@ -192,7 +192,7 @@
   .pk-head{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
   .pk-head h3{margin:0;flex:1;font-size:16px;}
   .pk-q{width:100%;font-size:16px;padding:10px 12px;border-radius:10px;margin-bottom:8px;}
-  .pk-list{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;border-top:1px solid var(--border);}
+  .pk-list{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;flex:1 1 auto;min-height:120px;border-top:1px solid var(--border);}
   .pk-g{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:10px 4px 4px;}
   .pk-it{display:block;width:100%;text-align:left;padding:11px 8px;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font:inherit;font-size:14px;cursor:pointer;}
   .pk-it b{font-weight:700;}
@@ -243,7 +243,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.10k</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.12d</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" id="btn-progress" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Excel (whole day)</button>
@@ -411,7 +411,7 @@
    RULES: show user or file text through esc(); no passwords or keys here.
    ===================================================================== */
 const RM_CODES=[{"code": "NM4165", "name": "Natural trim 65% Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4185", "name": "Natural trim 85% Certied Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4050", "name": "Natural trim 50%", "group": "NATURAL", "vendor": ""}, {"code": "NM4180", "name": "Natural 80/20 trim Certified Humane", "group": "NATURAL", "vendor": ""}, {"code": "NM4065", "name": "Natural trim 65%", "group": "NATURAL", "vendor": ""}, {"code": "NM4085", "name": "Natural trim 85%", "group": "NATURAL", "vendor": ""}, {"code": "GM3080", "name": "Grass Fed Trim 80%", "group": "GRASS FED", "vendor": ""}, {"code": "PM5100", "name": "USDA Prime Chuck", "group": "PRIME", "vendor": ""}, {"code": "PM5150", "name": "USDA Prime Chuck Clod", "group": "PRIME", "vendor": ""}, {"code": "CM2500", "name": "Cab Prime Chuck", "group": "CAB PRIME", "vendor": ""}, {"code": "CM2200", "name": "Cab Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "BM0200", "name": "Brisket", "group": "BRISKETS", "vendor": ""}, {"code": "CM2065", "name": "Cab Trim 65%", "group": "CAB", "vendor": ""}, {"code": "CM2085", "name": "Cab Trim 85%", "group": "CAB", "vendor": ""}, {"code": "CM2050", "name": "Cab Trim 50%", "group": "CAB", "vendor": ""}, {"code": "CM2075", "name": "Cab Trim 75%", "group": "CAB", "vendor": ""}, {"code": "CM2180", "name": "Cab Chuck Trim 80%", "group": "CAB", "vendor": ""}, {"code": "CM2160", "name": "Cab Short Plate Rib", "group": "CAB", "vendor": ""}, {"code": "CM2800", "name": "Cab Loin Wing", "group": "CAB", "vendor": ""}, {"code": "AM1065", "name": "Angus trim 65%", "group": "ANGUS", "vendor": ""}, {"code": "AM1085", "name": "Angus Trim 85%", "group": "ANGUS", "vendor": ""}, {"code": "AM1180", "name": "Angus Chuck Trim 80%", "group": "ANGUS", "vendor": ""}, {"code": "AM1175", "name": "Angus Trim 75%", "group": "ANGUS", "vendor": ""}, {"code": "AM1050", "name": "Angus Trim 50%", "group": "ANGUS", "vendor": ""}, {"code": "SM010", "name": "Cab Peeled Tri Tips", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1011", "name": "Coulottes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM8780", "name": "Halal trim 80%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "SM1010", "name": "Rib Eyes", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6455", "name": "Wagyu Trim 65%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6450", "name": "Wagyu Trim 50%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6475", "name": "Wagyu Trim 75%", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "WM6460", "name": "Wagyu Round Trim", "group": "SPECIALTY MEATS", "vendor": ""}, {"code": "TM0065", "name": "Trim 65%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0085", "name": "Trim 85%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0090", "name": "Trim 90%", "group": "TRIMMINGS", "vendor": ""}, {"code": "TM0073", "name": "Trim 73%", "group": "TRIMMINGS", "vendor": ""}, {"code": "LM2800", "name": "Loin Wing", "group": "TRIMMINGS", "vendor": ""}, {"code": "FZ9995", "name": "Frozen Bull Meat AU/NZ 95%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9966", "name": "Frozen Bull Meat AU/NZ 65%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9900", "name": "BLBT", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9920", "name": "Cab Block FTB", "group": "FROZEN BLOCKS", "vendor": "Noble Valley"}, {"code": "FZ9070", "name": "Frozen 70%", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9075", "name": "Frozen Angus 75/25 Halal", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9680", "name": "Wagyu Frozen Block", "group": "FROZEN BLOCKS", "vendor": ""}, {"code": "FZ9085", "name": "Frozen 85%", "group": "FROZEN BLOCKS", "vendor": ""}];
-const MEAT_BLOCKS=[{"mb": "10", "name": "Fresh 90/10"}, {"mb": "", "name": "Halal 75/25"}, {"mb": "5", "name": "Wagyu"}, {"mb": "7", "name": "Natural Angus Ground Beef - CH 80/20"}, {"mb": "8", "name": "Natural Angus Ground Beef 75/25"}, {"mb": "12", "name": "CAB Prime Chuck"}, {"mb": "13", "name": "Prime Chuck"}, {"mb": "15", "name": "CAB Chuck"}, {"mb": "17", "name": "CAB Chuck Brisket Sirloin"}, {"mb": "18", "name": "CAB Chuck Brisket"}, {"mb": "19", "name": "CAB Chuck Brisket Short Rib"}, {"mb": "23", "name": "CAB Ground Beef 75/25"}, {"mb": "26", "name": "Angus Chuck"}, {"mb": "30", "name": "Angus Ground Beef 75/25"}, {"mb": "", "name": "Angus Ground Beef 80/20"}, {"mb": "35", "name": "Chuck Brisket"}, {"mb": "37", "name": "Chuck Brisket Short Rib"}, {"mb": "38", "name": "Chuck Brisket Steaktail"}, {"mb": "39", "name": "Chuck Rib Eye"}, {"mb": "40", "name": "Fuddruckers"}, {"mb": "", "name": "Fresh 73/27"}, {"mb": "42", "name": "Fresh 5 Guys"}, {"mb": "45", "name": "Fresh 85/15"}, {"mb": "50", "name": "Fresh 80/20"}, {"mb": "51", "name": "Fresh 80/20 USF"}, {"mb": "55", "name": "Ranchers 80/20"}, {"mb": "60", "name": "Fresh 75/25"}, {"mb": "62", "name": "Ranchers 75/25"}, {"mb": "75", "name": "Tower Isle Patties 50051"}, {"mb": "90", "name": "RT The Steakhouse Blend"}, {"mb": "91", "name": "RT The Korean Blend"}, {"mb": "92", "name": "RT The Taco Blend"}];
+const MEAT_BLOCKS=[{"mb": "10", "name": "Fresh 90/10"}, {"mb": "", "name": "Fresh 90/10 w/ FTB"}, {"mb": "", "name": "Halal 75/25"}, {"mb": "5", "name": "Wagyu"}, {"mb": "7", "name": "Natural Angus Ground Beef - CH 80/20"}, {"mb": "8", "name": "Natural Angus Ground Beef 75/25"}, {"mb": "12", "name": "CAB Prime Chuck"}, {"mb": "13", "name": "Prime Chuck"}, {"mb": "15", "name": "CAB Chuck"}, {"mb": "17", "name": "CAB Chuck Brisket Sirloin"}, {"mb": "18", "name": "CAB Chuck Brisket"}, {"mb": "19", "name": "CAB Chuck Brisket Short Rib"}, {"mb": "23", "name": "CAB Ground Beef 75/25"}, {"mb": "26", "name": "Angus Chuck"}, {"mb": "30", "name": "Angus Ground Beef 75/25"}, {"mb": "", "name": "Angus Ground Beef 80/20"}, {"mb": "", "name": "Angus Steakburger 75/25 w/ FTB"}, {"mb": "30", "name": "Angus Steakburger 80/20 w/ FTB"}, {"mb": "35", "name": "Chuck Brisket"}, {"mb": "37", "name": "Chuck Brisket Short Rib"}, {"mb": "38", "name": "Chuck Brisket Steaktail"}, {"mb": "39", "name": "Chuck Rib Eye"}, {"mb": "40", "name": "Fuddruckers"}, {"mb": "", "name": "Fresh 73/27"}, {"mb": "42", "name": "Fresh 5 Guys"}, {"mb": "45", "name": "Fresh 85/15"}, {"mb": "43", "name": "Fresh 78/22 w/ FTB"}, {"mb": "50", "name": "Fresh 80/20"}, {"mb": "55", "name": "80/20 w/FTB"}, {"mb": "62", "name": "75/25 w/FTB"}, {"mb": "51", "name": "Fresh 80/20 USF"}, {"mb": "55", "name": "Ranchers 80/20"}, {"mb": "60", "name": "Fresh 75/25"}, {"mb": "62", "name": "Ranchers 75/25"}, {"mb": "75", "name": "Tower Isle Patties 50051"}, {"mb": "90", "name": "RT The Steakhouse Blend"}, {"mb": "91", "name": "RT The Korean Blend"}, {"mb": "92", "name": "RT The Taco Blend"}];
 /* ---------- per-plant lists ---------- */
 const PLANT_COLORS={NJ:'#1d4ed8',GA:'#15803d'};
 const PLANT_NAMES={NJ:'NEW JERSEY',GA:'GEORGIA'};
@@ -748,7 +748,14 @@ async function pullRemote(force){
     const a=new Date(d+'T12:00');a.setDate(a.getDate()-14);const z=new Date(d+'T12:00');z.setDate(z.getDate()+1);
     const res=await fetch(BATCH_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:p0,from:isoDay(a),to:isoDay(z)})});
     if(!res.ok)throw new Error('HTTP '+res.status);
-    const js=await res.json();const rows=Array.isArray(js)?js:(js.value||[]);
+    const js=await res.json();let rows=Array.isArray(js)?js:(js.value||[]);
+    if(p0!==plant)return;
+    // No plan for today yet? Ask again for today only: the 15-day answer can be cut off by the flow's row limit
+    // (SharePoint "Get items" returns 100 rows by default), and the newest rows — today's plan — are the ones left out.
+    if(!loadPlan(d)&&!rows.some(x=>{if((x.Kind||x.kind)!=='plan')return false;try{return JSON.parse(x.JsonData||x.jsonData||'{}').date===d;}catch(e){return false;}})){   // the list column is DayDate; read the plan's own date instead
+      try{const r2=await fetch(BATCH_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:p0,from:d,to:isoDay(z)})});
+        if(r2.ok){const j2=await r2.json();rows=rows.concat(Array.isArray(j2)?j2:(j2.value||[]));}}catch(e){}
+    }
     if(p0!==plant)return;
     let changed=false;
     rows.forEach(x=>{
@@ -1028,9 +1035,14 @@ function openPicker(o){
   ov.innerHTML=`<div class="modal pk-box"><div class="pk-head"><h3>${esc(o.title)}</h3><button class="btn" onclick="closePicker()">✕</button></div>
     <input class="pk-q" id="pk-q" type="search" placeholder="Type to search…" autocomplete="off" oninput="pkRender()"><div class="pk-list" id="pk-list"></div></div>`;
   document.body.appendChild(ov);pkRender();
+  // iPad / phone: the on-screen keyboard covers the bottom of the page, and 84vh does not shrink with it.
+  // Fit the picker to the part of the screen that is still visible, so the list can always be scrolled.
+  const vv=window.visualViewport;
+  if(vv){const fit=()=>{const bx=ov.querySelector('.pk-box');if(!bx)return;ov.style.paddingTop=Math.max(8,vv.offsetTop+8)+'px';bx.style.maxHeight=Math.max(220,vv.height-24)+'px';};
+    fit();vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);pk._unfit=()=>{vv.removeEventListener('resize',fit);vv.removeEventListener('scroll',fit);};}
   setTimeout(()=>{const q=document.getElementById('pk-q');if(q&&!('ontouchstart' in window))q.focus();},60);
 }
-function closePicker(){const o=document.getElementById('pk-ov');if(o)o.remove();pk=null;}
+function closePicker(){if(pk&&pk._unfit)pk._unfit();const o=document.getElementById('pk-ov');if(o)o.remove();pk=null;}
 function pkRender(){
   if(!pk)return;const q=(document.getElementById('pk-q').value||'').trim().toLowerCase();
   const words=q.split(/\s+/).filter(Boolean);
