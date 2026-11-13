@@ -243,7 +243,7 @@
   <!-- LIST VIEW -->
   <div id="view-list">
     <div class="bar">
-      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.12d</span></h1>
+      <h1>Batch Sheets <span style="font-size:11px;font-weight:500;color:var(--text3,#8e8e93);opacity:.8">v 2026.11.13b</span></h1>
       <input type="date" id="list-date" style="width:auto" onchange="onDateChange()">
       <button class="btn" id="btn-progress" onclick="showProgress()">📊 Line progress</button>
       <button class="btn" onclick="exportDay()">⬇ Excel (whole day)</button>
@@ -786,6 +786,7 @@ function softRender(){
 }
 setInterval(()=>{if(document.visibilityState==='visible')pullRemote(false);},45000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pullRemote(true);});
+window.addEventListener('pageshow',e=>{if(e.persisted)pullRemote(true);});   // iPad restoring the page from memory: refresh right away
 /* ---------- plant / views ---------- */
 function setPlant(p,keepView){
   plant=p;
@@ -1268,37 +1269,82 @@ function closeCamera(){
   if(zxReader){try{zxReader.reset();}catch(e){}zxReader=null;}
 }
 
-/* ---------- Excel ---------- */
-function batchRows(b){
-  const rows=[['Schweid & Sons · '+b.plant+' · Batch Sheet'],[],
-    ['Meat block',b.product],['Mixer',b.line],['Batch #',b.batchNo],['Date',b.date],['Start time',b.startTime],['End time',b.endTime||''],['Mixer operator',b.operator],['Status',ST_TXT[b.status]||b.status],[],
-    ['Production line','LBS']];
-  b.lines.filter(l=>l.line).forEach(l=>rows.push([l.line,lineLbs(b,l)]));
-  rows.push([],['#','RM Code','Description','Supplier','PO #','Lot / Serial','Pack date','EST #','Temp °F','Current LBS','Used LBS','Left LBS']);
-  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);rows.push([i+1,x.rm,r?r.name:'',x.supplier||'',x.po||'',x.lot,x.packDate,x.est,x.temp||'',+x.cur||0,+x.used||0,Math.max(0,(+x.cur||0)-(+x.used||0))]);});
-  rows.push(['','','','','','','','','','','TOTAL USED',Math.round(batchAmount(b)*100)/100],[],
-    ['Seasoning',b.seasoning==='yes'?'Yes':b.seasoning==='no'?'No':''],
-    ...(b.seasoning==='yes'?[['Seasoning type',b.seasType],['Seasoning lbs',b.seasLbs],['Seasoning lot #',b.seasLot],['Seasoning supplier',b.seasSupplier],['Water',(b.water||'')+' '+(b.waterUnit||'')]]:[]),
-    [],['Initial fat test (%)',b.fatTest],['Fat test OK',b.fatOk==='yes'?'Yes':b.fatOk==='no'?'No':''],['Final fat test (%)',b.fatFinal||''],['Final grind temp (°F)',b.grindTemp],['Notes',b.notes],[],
-    ['Completed by',b.completedBy],['Completed at',b.completedAt?new Date(b.completedAt).toLocaleString():'(open)']);
-  return rows;
+/* ---------- Excel ----------
+   Plain, easy-to-read layout (the free SheetJS can't color or bold cells, so the layout does the work):
+   title + date on top, labeled blocks, real numbers with thousands separators, sensible column widths,
+   and filters on the Summary table. Sheet names are made unique (two batches can share a Batch #). */
+const XL_N0='#,##0',XL_N2='#,##0.00';
+function xlNum(ws,fmt,r0,r1,c0,c1){for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){const a=XLSX.utils.encode_cell({r,c});const cl=ws[a];if(cl&&cl.t==='n')cl.z=fmt;}}
+function xlSheetName(base,used){
+  let n=String(base||'Batch').replace(/[\\\/\?\*\[\]:]/g,'-').trim().slice(0,28)||'Batch';
+  let name=n,k=2;while(used.has(name.toLowerCase())){name=(n.slice(0,26)+' ('+k+')');k++;}
+  used.add(name.toLowerCase());return name;
+}
+function stText(b){return ST_TXT[b.status]||b.status||'';}
+function num(v){return v===''||v==null||isNaN(+v)?(v||''):+v;}
+function batchSheet(b){
+  const rows=[],merges=[],numRows=[];
+  const add=r=>{rows.push(r);return rows.length-1;};
+  add(['BATCH SHEET  ·  '+(plant==='GA'?'Georgia':'New Jersey')]);merges.push({s:{r:0,c:0},e:{r:0,c:7}});
+  add([b.product||'(no meat block)','','Batch # '+(b.batchNo||'—'),'','Date '+(b.date||''),'',stText(b)]);
+  add([]);
+  add(['BATCH INFO']);
+  add(['Mixer',b.line||'','','Start time',b.startTime||'','','Mixer operator',b.operator||'']);
+  add(['Status',stText(b),'','End time',b.endTime||'','','Completed by',b.completedBy||'']);
+  const ls=b.lines.filter(l=>l.line);
+  if(ls.length){add([]);add(['PRODUCTION LINES']);add(['Line','LBS']);ls.forEach(l=>numRows.push(add([l.line,num(lineLbs(b,l))])));}
+  add([]);add(['RAW MATERIALS']);
+  const h=add(['#','RM Code','Description','Supplier','PO #','Lot / Serial','Pack date','EST #','Temp °F','Current LBS','Used LBS','Left LBS']);
+  b.items.forEach((x,i)=>{const r=rmByCode(x.rm);numRows.push(add([i+1,x.rm||'',r?r.name:'',x.supplier||'',x.po||'',x.lot||'',x.packDate||'',x.est||'',num(x.temp),+x.cur||0,+x.used||0,Math.max(0,(+x.cur||0)-(+x.used||0))]));});
+  numRows.push(add(['','','','','','','','','','TOTAL',Math.round(batchAmount(b)*100)/100,'']));
+  add([]);add(['SEASONING']);
+  add(['Seasoned',b.seasoning==='yes'?'Yes':b.seasoning==='no'?'No':'']);
+  if(b.seasoning==='yes'){add(['Type',b.seasType||'','','Lbs',num(b.seasLbs)]);add(['Lot #',b.seasLot||'','','Supplier',b.seasSupplier||'']);add(['Water',((b.water||'')+' '+(b.waterUnit||'')).trim()]);}
+  add([]);add(['QUALITY']);
+  add(['Initial fat %',num(b.fatTest),'','Fat test OK',b.fatOk==='yes'?'Yes':b.fatOk==='no'?'No':'']);
+  add(['Final fat %',num(b.fatFinal),'','Final grind °F',num(b.grindTemp)]);
+  add([]);add(['Notes',b.notes||'']);
+  add(['Completed at',b.completedAt?new Date(b.completedAt).toLocaleString('en-US'):'(open)']);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges']=merges;
+  ws['!cols']=[{wch:14},{wch:16},{wch:30},{wch:18},{wch:14},{wch:16},{wch:14},{wch:10},{wch:9},{wch:12},{wch:11},{wch:10}];
+  xlNum(ws,XL_N2,h+1,rows.length-1,9,11);
+  return ws;
 }
 function exportBatch(){
-  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(batchRows(cur));
-  ws['!cols']=[{wch:18},{wch:12},{wch:30},{wch:16},{wch:16},{wch:11},{wch:9},{wch:8},{wch:11},{wch:11},{wch:10}];
-  XLSX.utils.book_append_sheet(wb,ws,'Batch');
-  XLSX.writeFile(wb,'Batch_'+plant+'_'+cur.batchNo+'.xlsx');
+  try{
+    if(typeof XLSX==='undefined')throw new Error('the Excel tool did not load — check the internet and try again');
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,batchSheet(cur),xlSheetName('Batch '+(cur.batchNo||''),new Set()));
+    XLSX.writeFile(wb,'Batch_'+plant+'_'+(cur.date||'')+'_'+String(cur.batchNo||'').replace(/[^\w-]/g,'')+'.xlsx');
+  }catch(e){toast('Excel export failed: '+e.message,true);console.error(e);}
 }
 function exportDay(){
-  const d=listDate();
-  const rows=liveBatches().filter(b=>b.date===d);
-  if(!rows.length){toast('No batches for this day.',true);return;}
-  const wb=XLSX.utils.book_new();
-  const sum=[['Batch #','Meat block','Mixer','Lines','Boxes','Used LBS','Seasoning','Fat %','Final fat %','Grind °F','Mixer operator','Completed by','Status']];
-  rows.forEach(b=>{sum.push([b.batchNo,b.product,b.line,b.lines.filter(l=>l.line).map(l=>l.line+' '+lineLbs(b,l)).join(', '),b.items.length,Math.round(batchAmount(b)*100)/100,b.seasoning==='yes'?b.seasType:'',b.fatTest,b.fatFinal||'',b.grindTemp,b.operator,b.completedBy,ST_TXT[b.status]]);});
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sum),'Summary');
-  rows.forEach(b=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(batchRows(b)),String(b.batchNo).replace(/[\\\/\?\*\[\]:]/g,'-').slice(0,31)));
-  XLSX.writeFile(wb,'Batches_'+plant+'_'+d+'.xlsx');
+  try{
+    if(typeof XLSX==='undefined')throw new Error('the Excel tool did not load — check the internet and try again');
+    const d=listDate();
+    const rows=liveBatches().filter(b=>b.date===d).sort((a,b)=>String(a.line).localeCompare(String(b.line))||String(a.batchNo).localeCompare(String(b.batchNo),undefined,{numeric:true}));
+    if(!rows.length){toast('No batches for this day.',true);return;}
+    const wb=XLSX.utils.book_new(),used=new Set(['summary']);
+    const done=rows.filter(b=>b.status==='done');
+    const aoa=[['BATCHES  ·  '+(plant==='GA'?'Georgia':'New Jersey')+'  ·  '+d],
+      [rows.length+' batches  ·  '+done.length+' complete  ·  '+Math.round(rows.reduce((a,b)=>a+batchAmount(b),0)).toLocaleString('en-US')+' lb used'],[],
+      ['Batch #','Meat block','Mixer',...(showLines()?['Lines']:[]),'Boxes','Used LBS','Seasoning','Fat %','Final fat %','Grind °F','Mixer operator','Completed by','Status']];
+    const hdr=aoa.length-1;
+    rows.forEach(b=>aoa.push([b.batchNo||'',b.product||'',b.line||'',...(showLines()?[b.lines.filter(l=>l.line).map(l=>l.line+' '+lineLbs(b,l)).join(', ')]:[]),
+      b.items.length,Math.round(batchAmount(b)*100)/100,b.seasoning==='yes'?(b.seasType||'Yes'):b.seasoning==='no'?'No':'',num(b.fatTest),num(b.fatFinal),num(b.grindTemp),b.operator||'',b.completedBy||'',stText(b)]));
+    const off=showLines()?1:0;
+    const tot=aoa.length;aoa.push(['TOTAL','','',...(showLines()?['']:[]),rows.reduce((a,b)=>a+b.items.length,0),Math.round(rows.reduce((a,b)=>a+batchAmount(b),0)*100)/100]);
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    const lastC=aoa[hdr].length-1;
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:lastC}},{s:{r:1,c:0},e:{r:1,c:lastC}}];
+    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:hdr,c:0},e:{r:tot-1,c:lastC}})};
+    ws['!cols']=[{wch:14},{wch:32},{wch:12},...(showLines()?[{wch:26}]:[]),{wch:7},{wch:11},{wch:16},{wch:7},{wch:10},{wch:9},{wch:16},{wch:16},{wch:14}];
+    xlNum(ws,XL_N2,hdr+1,tot,4+off,4+off+1);
+    XLSX.utils.book_append_sheet(wb,ws,'Summary');
+    rows.forEach(b=>XLSX.utils.book_append_sheet(wb,batchSheet(b),xlSheetName((b.batchNo||'Batch')+' '+lineShort(b.line||''),used)));
+    XLSX.writeFile(wb,'Batches_'+plant+'_'+d+'.xlsx');
+  }catch(e){toast('Excel export failed: '+e.message,true);console.error(e);}
 }
 /* keep dialogs above the on-screen keyboard */
 /* iPad numeric keypad + basic calculator. iPadOS has no numbers-only keyboard (inputmode=numeric

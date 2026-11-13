@@ -104,7 +104,7 @@
 <body>
 <div class="strip"><div>🗑 <b id="plant-sub">GEORGIA</b><span class="sub">· Daily Waste</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Daily Waste <span class="ver">v 2026.11.10d</span><div class="ver" id="sync-line" style="font-weight:500;margin-top:2px"></div></h1>
+  <div class="head"><h1>Daily Waste <span class="ver">v 2026.11.13a</span><div class="ver" id="sync-line" style="font-weight:500;margin-top:2px"></div></h1>
     <div class="seg"><button id="tab-rec" class="on" onclick="setTab('rec')">Record</button><button id="tab-hist" onclick="setTab('hist')">History</button></div>
   </div>
 
@@ -324,6 +324,7 @@ function syncLine(){
 async function syncNow(){await pushPending();await pullRemote();}
 setInterval(()=>{if(document.visibilityState==='visible')syncNow();},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncNow();});
+window.addEventListener('pageshow',e=>{if(e.persisted)syncNow();});   // iPad restoring the page from memory: refresh right away
 
 /* ===== History ===== */
 function initHistory(){

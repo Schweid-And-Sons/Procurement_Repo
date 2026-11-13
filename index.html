@@ -2733,6 +2733,7 @@ function setView(v){
     currentMode='browse';
   }
   document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===currentMode));
+  snapView(currentView);
   currentView=v;
   closeSidebar();
   document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['map','items','stats','plan','po','log'][i]===v));
@@ -2763,20 +2764,25 @@ function setMode(m){
 // Remember where the user was (view + scroll) so coming back from Excel/another app — or iPadOS reloading the
 // tab in the background — lands on the same spot instead of the top of the page.
 const VIEW_STATE_KEY='wms_view_state';
-let _renderedView=null,_vsTimer=null;
+let _renderedView=null,_vsTimer=null,_mapCentered=false;
+const _viewPos={};   // position of each screen (map, items, plan…) in this session: going to another menu and back lands on the same spot
+function rowsLeft(mc){return [...mc.querySelectorAll('.sections-row')].map(r=>Math.round(r.scrollLeft));}
+function snapView(v){const mc=document.getElementById('main-content');if(!mc||!v||_renderedView!==v)return;_viewPos[v]={y:mc.scrollTop,h:rowsLeft(mc)};}
 function saveViewState(){
   if(RCV_ONLY)return;
   const mc=document.getElementById('main-content');if(!mc||!currentPlant)return;
   let all={};try{all=JSON.parse(localStorage.getItem(VIEW_STATE_KEY)||'{}')||{};}catch(e){}
-  const st=all[currentPlant]||{scroll:{}};st.view=currentView;st.scroll=st.scroll||{};st.scroll[currentView]=Math.round(mc.scrollTop);st.ts=Date.now();
+  const st=all[currentPlant]||{scroll:{}};st.view=currentView;st.scroll=st.scroll||{};st.scroll[currentView]=Math.round(mc.scrollTop);st.h=st.h||{};st.h[currentView]=rowsLeft(mc);st.ts=Date.now();
   all[currentPlant]=st;try{localStorage.setItem(VIEW_STATE_KEY,JSON.stringify(all));}catch(e){}
 }
 function loadViewState(p){
   try{const st=(JSON.parse(localStorage.getItem(VIEW_STATE_KEY)||'{}')||{})[p];if(st&&Date.now()-(st.ts||0)<12*3600e3)return st;}catch(e){}
   return null;
 }
-function restoreScroll(y){
-  const mc=document.getElementById('main-content');if(!mc||!y)return;
+function restoreScroll(y,h){
+  const mc=document.getElementById('main-content');if(!mc)return;
+  if(Array.isArray(h)&&h.length){_mapCentered=true;requestAnimationFrame(()=>mc.querySelectorAll('.sections-row').forEach((r,i)=>{if(h[i]!=null)r.scrollLeft=h[i];}));}
+  if(!y)return;
   let n=0;const go=()=>{mc.scrollTop=y;if(Math.abs(mc.scrollTop-y)>2&&++n<10)setTimeout(go,120);};
   requestAnimationFrame(go);
 }
@@ -2795,9 +2801,14 @@ function render(){
   const hKeep=same?[...mc.querySelectorAll('.sections-row')].map(r=>r.scrollLeft):null;
   _render();
   _renderedView=currentView;
-  if(keep!=null&&mc.scrollTop!==keep)mc.scrollTop=keep;   // re-render of the same view: stay where you were
+  if(keep!=null&&mc.scrollTop!==keep)mc.scrollTop=keep;   // re-render of the same view (live sync, a save…): stay where you were
   if(hKeep){const rows=mc.querySelectorAll('.sections-row');rows.forEach((r,i)=>{if(hKeep[i]!=null&&r.scrollLeft!==hKeep[i])r.scrollLeft=hKeep[i];});}
-  if(currentView==='map')keepLastTouchedInView();
+  if(!same&&mc){
+    const vp=_viewPos[currentView];
+    if(vp){mc.scrollTop=vp.y;const rows=mc.querySelectorAll('.sections-row');rows.forEach((r,i)=>{if(vp.h[i]!=null)r.scrollLeft=vp.h[i];});}   // back from another menu: same spot
+    else mc.scrollTop=0;
+    if(currentView==='map'&&!vp&&!_mapCentered){keepLastTouchedInView();_mapCentered=true;}   // only the first time the map opens — never moves it while you work
+  }
 }
 /* After opening the map (or reload), bring the section with the orange marker into view horizontally. */
 function keepLastTouchedInView(){
@@ -4360,7 +4371,22 @@ function renderShiftBox(){
   boxes.forEach(x=>x.innerHTML=h);
 }
 setInterval(()=>{if(live.on&&document.visibilityState==='visible')livePull(false,true);},30000);
-document.addEventListener('visibilitychange',()=>{if(live.on&&document.visibilityState==='visible')livePull(true,true);});
+/* Receiving: refresh the reports while the screen is open (not while someone is typing or has a PO open) */
+setInterval(()=>{
+  if(currentView!=='po'||document.visibilityState!=='visible')return;
+  const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))return;
+  const ov=document.getElementById('po-overlay');if(ov&&!ov.classList.contains('hidden'))return;
+  syncReceiptsFromSP(false);yoozAutoRefresh();plannerAutoRefresh();
+},60000);
+/* back to the app (home screen, another app, iPad wake-up): refresh what is on screen right away */
+function refreshOnReturn(){
+  if(document.visibilityState!=='visible'||!currentPlant)return;
+  if(live.on)livePull(true,true);
+  if(currentView==='plan')pullSharedPlan(true);
+  if(currentView==='po')syncReceiptsFromSP(true);
+}
+window.addEventListener('pageshow',e=>{if(e.persisted)refreshOnReturn();});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(live.on)livePull(true,true);if(currentView==='po')syncReceiptsFromSP(true);}});
 
 function savePlanDia(){
   try{
@@ -6893,7 +6919,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.12b';
+const APP_VERSION='2026.11.13a';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -6961,7 +6987,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     applyPlant(rem);
     try{history.pushState({wmsPlant:rem},'');}catch(e){}
     if(vs){if(vs.view&&vs.view!==currentView&&['map','items','stats','plan','log'].includes(vs.view))setView(vs.view);
-      restoreScroll((vs.scroll||{})[currentView]);}
+      restoreScroll((vs.scroll||{})[currentView],(vs.h||{})[currentView]);}
   }else{
     showPlantSelector();
   }
