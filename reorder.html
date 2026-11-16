@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Schweid & Sons · Next POs</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'; connect-src 'self' https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com; object-src 'none'; base-uri 'self'">
+<style>
+  :root{color-scheme:light;
+    --bg:#f2f2f7;--surface:#ffffff;--surface2:#f2f2f7;--border:#e5e5ea;
+    --accent:#007aff;--plant:#15803d;--success:#16a34a;--warn:#d97706;--danger:#dc2626;
+    --text:#111827;--text2:#374151;--text3:#6b7280;}
+  html.theme-dark{color-scheme:dark;
+    --bg:#000;--surface:#1c1c1e;--surface2:#2c2c2e;--border:#3a3a3c;
+    --accent:#0a84ff;--success:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+    --text:#f2f2f7;--text2:#d1d5db;--text3:#9ca3af;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font:15px -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;min-height:100vh;-webkit-text-size-adjust:100%;}
+  button,input{font:inherit;color:inherit;}
+  /* top bar: same as Inventory, Receiving, Batch and Waste */
+  .strip{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;z-index:50;color:#fff;
+    margin:8px 12px 0;border-radius:16px;top:8px;padding:9px 14px;font-size:14px;
+    background:linear-gradient(135deg,var(--plant),color-mix(in srgb,var(--plant) 75%,#000));box-shadow:0 6px 20px color-mix(in srgb,var(--plant) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.25);}
+  .strip b{font-size:15px;letter-spacing:.02em;}
+  .strip .sub{margin-left:4px;}
+  @media(max-width:679px){.strip .sub{display:none;}}
+  .tb-right{display:flex;gap:6px;align-items:center;flex:none;}
+  .tb-btn{display:inline-flex;align-items:center;justify-content:center;height:30px;min-width:34px;padding:0 12px;border:none;border-radius:999px;background:rgba(255,255,255,.22);color:#fff;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;white-space:nowrap;}
+  .tb-btn.theme-mini{padding:0;width:34px;font-size:15px;}
+  .wrap{max-width:860px;margin:0 auto;padding:16px;}
+  .head{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .head h1{font-size:26px;font-weight:800;flex:1;}
+  .ver{font-size:11px;color:var(--text3);font-weight:500;}
+  .refresh{border:none;background:var(--surface);border-radius:12px;padding:10px 14px;font-weight:600;color:var(--accent);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .refresh:disabled{opacity:.5;}
+  .status{font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:14px;}
+  .status .bad{color:var(--danger);}
+  .status .warn{color:var(--warn);}
+  /* the three tabs: each one shows exactly its group */
+  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+  .tab{border:2px solid transparent;background:var(--surface);border-radius:16px;padding:12px 8px;cursor:pointer;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .tab b{display:block;font-size:30px;line-height:1.1;font-weight:800;}
+  .tab span{font-size:13px;font-weight:600;color:var(--text2);}
+  .tab.now b{color:var(--danger);}.tab.week b{color:var(--warn);}.tab.all b{color:var(--text);}
+  .tab.on{border-color:var(--accent);}
+  .search{width:100%;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:11px 14px;font-size:16px;margin-bottom:12px;}
+  .card{background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:6px solid var(--border);}
+  .card.red{border-left-color:var(--danger);}.card.amber{border-left-color:var(--warn);}.card.green{border-left-color:var(--success);}
+  .c-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+  .c-code{font-size:17px;font-weight:800;}
+  .c-name{font-size:13px;color:var(--text3);}
+  .c-main{font-size:19px;font-weight:800;margin-top:6px;}
+  .card.red .c-main{color:var(--danger);}.card.amber .c-main{color:var(--warn);}.card.green .c-main{color:var(--success);}.card.none .c-main{color:var(--text3);}
+  .c-sub{font-size:14px;color:var(--text2);margin-top:3px;line-height:1.4;}
+  .c-alert{font-size:13px;font-weight:700;color:var(--danger);margin-top:6px;}
+  .c-more{border:none;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:8px 0 0;cursor:pointer;}
+  .c-det{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:14px;font-weight:600;}
+  .c-det span{display:block;font-size:11px;font-weight:500;color:var(--text3);}
+  .c-vend{grid-column:1/-1;font-size:12px;font-weight:500;color:var(--text3);}
+  @media(max-width:520px){.c-det{grid-template-columns:repeat(2,1fr);}.head h1{font-size:22px;}}
+  .empty{text-align:center;padding:40px 10px;color:var(--text2);font-size:16px;}
+  .empty b{display:block;font-size:40px;margin-bottom:6px;}
+  .loading{text-align:center;padding:50px 10px;color:var(--text2);}
+  .spin{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:sp 1s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+  details.how{margin:18px 0 30px;font-size:13px;color:var(--text2);}
+  details.how summary{cursor:pointer;font-weight:600;color:var(--text3);}
+  details.how ul{margin:8px 0 0 18px;line-height:1.6;}
+</style>
+</head>
+<body>
+<script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
+<div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
+<div class="wrap">
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.16c</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="status" id="status">Checking stock, plan and Yooz…</div>
+  <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
+  <details class="how"><summary>How is this calculated?</summary><ul>
+    <li><b>Stock</b> is the live inventory. <b>Open POs</b> are Yooz orders not received yet.</li>
+    <li>It takes away what <b>today's production plan</b> needs, day by day, and after the plan ends what we <b>usually use</b> (what was received in the last 30 days).</li>
+    <li><b>Lead time</b> = the days in which 9 out of 10 orders from that supplier arrived in the last 12 months (from Yooz).</li>
+    <li><b>Order by</b> = the last day to place the PO so it arrives with 5 days to spare. <b>About</b> = enough for 2 weeks after it arrives.</li>
+    <li>It is a check, not a PO: the official PO is still made in Yooz.</li>
+  </ul></details>
+</div>
+<iframe id="helper" title="data" style="display:none" aria-hidden="true"></iframe>
+<script>
+/* =====================================================================
+   WMS · NEXT POs (reorder.html)
+   Read only. The numbers come from Inventory (index.html), loaded hidden with ?reorderdata=XX:
+   it refreshes the live stock, today's plan, the Yooz POs and the lead times, does the math
+   (reorderRows in index.html) and sends the result here. This page only shows it.
+   ===================================================================== */
+const PLANT=(()=>{const q=(new URLSearchParams(location.search).get('plant')||'').toUpperCase();
+  if(q==='NJ'||q==='GA'){try{localStorage.setItem('reorder_plant',q);}catch(e){}return q;}
+  try{const r=localStorage.getItem('reorder_plant');if(r==='NJ'||r==='GA')return r;}catch(e){}return 'NJ';})();
+document.getElementById('plant-name').textContent=PLANT==='NJ'?'NEW JERSEY':'GEORGIA';
+document.documentElement.style.setProperty('--plant',PLANT==='NJ'?'#1d4ed8':'#15803d');
+(o=>{const a=document.getElementById('plant-switch');a.textContent='⇄ '+o;a.href='reorder.html?plant='+o;})(PLANT==='NJ'?'GA':'NJ');
+
+let data=null,tab=null,q='',open=new Set(),reqId=0,busy=false,ready=false,pendingAsk=null;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const n0=n=>Math.round(+n||0).toLocaleString('en-US');
+const n1=n=>(+n||0)>=10?n0(n):(Math.round((+n||0)*10)/10).toLocaleString('en-US');
+const dayTxt=d=>new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+const timeTxt=t=>{if(!t)return '';const d=new Date(t);if(isNaN(d))return '';const today=new Date().toDateString()===d.toDateString();
+  return today?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
+
+/* talk to the hidden Inventory helper */
+const frame=document.getElementById('helper');
+window.addEventListener('message',ev=>{
+  if(ev.source!==frame.contentWindow)return;const m=ev.data||{};
+  if(m.type==='wms-reorder-ready'){ready=true;if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}}
+  if(m.type==='wms-reorder-data'&&m.id===reqId){busy=false;data=m;
+    if(!tab){const c=counts();tab=c.red?'now':c.amber?'week':'all';}
+    try{localStorage.setItem('reorder_last_'+PLANT,JSON.stringify({at:Date.now(),data:m}));}catch(e){}
+    render();}
+});
+function ask(force){
+  if(!ready){pendingAsk=!!force;return;}
+  busy=true;reqId++;frame.contentWindow.postMessage({type:'wms-reorder-get',id:reqId,force:!!force},location.origin);render();
+}
+frame.src='index.html?reorderdata='+PLANT;
+// show the last result right away while the fresh one loads
+try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<12*3600e3){data=last.data;const c=counts();tab=c.red?'now':c.amber?'week':'all';}}catch(e){}
+ask(false);render();
+
+function counts(){const r=(data&&data.rows)||[];return {red:r.filter(x=>x.st==='red').length,amber:r.filter(x=>x.st==='amber').length,all:r.length};}
+function setTab(t){tab=t;render();window.scrollTo({top:0});}
+function toggle(code){open.has(code)?open.delete(code):open.add(code);render();}
+function onSearch(v){q=v.trim().toLowerCase();render(true);}
+
+function statusLine(){
+  if(!data)return busy?'Checking stock, plan and Yooz…':'';
+  const p=[];
+  p.push(data.liveOn?'Stock '+(data.stockAt?timeTxt(data.stockAt):'—'):'<span class="warn">Stock from this device only</span>');
+  p.push(data.plan?'Plan until '+dayTxt(data.plan.end+'T12:00:00').replace(/^\w+, /,''):'<span class="warn">No production plan for today — using usual use only</span>');
+  p.push(data.yzAt?'Yooz POs '+timeTxt(data.yzAt):'<span class="bad">Yooz POs not loaded</span>');
+  if(data.ltErr)p.push('<span class="bad">Lead times: '+esc(data.ltErr)+'</span>');
+  if(data.yzErr)p.push('<span class="bad">Yooz: '+esc(data.yzErr)+'</span>');
+  if(data.err)p.push('<span class="bad">'+esc(data.err)+'</span>');
+  return (busy?'⏳ Updating… · ':'')+p.join(' · ');
+}
+function mainLine(r){
+  const about=r.sug?' · about '+n0(r.sug):'';
+  if(r.st==='red')return 'Order today'+about;
+  if(r.st==='amber')return 'Order by '+dayTxt(r.orderBy)+about;
+  if(r.st==='green')return 'OK — order by '+dayTxt(r.orderBy);
+  return 'No recent use';
+}
+function subLine(r){
+  if(r.st==='none')return 'Nothing planned and nothing received in 30 days.';
+  const lasts=r.cover>=400?'Lasts months':r.cover<1?'Runs out today':'Lasts about '+n0(r.cover)+' day'+(Math.round(r.cover)===1?'':'s');
+  return lasts+' · the supplier takes up to '+r.L+' days';
+}
+function card(r){
+  const key=r.base,m=r.main||{};
+  const det=open.has(key)?`<div class="c-det">
+      <div><span>Stock</span>${n0(r.stock)}</div><div><span>Open POs</span>${r.open?n0(r.open):'—'}</div>
+      <div><span>Plan until ${r.planEnd?r.planEnd.slice(5).replace('-','/'):'—'}</span>${r.ptot?n1(r.ptot):'—'}</div>
+      <div><span>Usual use / day</span>${r.use?n1(r.use):'—'}</div><div><span>Lead time</span>${r.L} days</div><div><span>Usual order</span>${m.qtyAvg?n0(m.qtyAvg):'—'}</div>
+      <div class="c-vend">${esc(m.vendor||'')} · ${m.onTime!=null?m.onTime+'% on time':''} · ${m.pos||0} POs in 12 months${r.vendors>1?' · '+r.vendors+' suppliers':''}${m.pos<5?' · few POs, rough lead time':''}</div>
+    </div>`:'';
+  return `<div class="card ${r.st}">
+    <div class="c-top"><span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
+    <div class="c-main">${mainLine(r)}</div>
+    <div class="c-sub">${subLine(r)}</div>
+    ${r.short?`<div class="c-alert">⚠ Not enough for the production already planned (needs ${n1(r.ptot)}, have ${n0(r.have)})</div>`:''}
+    <button class="c-more" onclick="toggle('${esc(key).replace(/'/g,'')}')">${open.has(key)?'Hide details ▴':'Details ▾'}</button>${det}
+  </div>`;
+}
+function render(keepFocus){
+  document.getElementById('status').innerHTML=statusLine();
+  document.getElementById('btn-refresh').disabled=busy;
+  const body=document.getElementById('body');
+  if(!data){if(!busy)body.innerHTML='<div class="empty"><b>⚠</b>Could not load the data. Tap ⟳ Refresh.</div>';return;}
+  const c=counts();
+  let rows=data.rows||[];
+  if(tab==='now')rows=rows.filter(r=>r.st==='red');else if(tab==='week')rows=rows.filter(r=>r.st==='amber');
+  if(q)rows=(data.rows||[]).filter(r=>((r.codes||[]).join(' ')+' '+r.name+' '+((r.main||{}).vendor||'')).toLowerCase().includes(q));
+  const list=rows.length?rows.map(card).join(''):
+    `<div class="empty"><b>✓</b>${q?'Nothing matches “'+esc(q)+'”.':tab==='now'?'Nothing to order today.':tab==='week'?'Nothing else to order this week.':'No items with lead times yet.'}</div>`;
+  const tabs=`<div class="tabs">
+    <button class="tab now${tab==='now'&&!q?' on':''}" onclick="setTab('now')"><b>${c.red}</b><span>Order today</span></button>
+    <button class="tab week${tab==='week'&&!q?' on':''}" onclick="setTab('week')"><b>${c.amber}</b><span>This week</span></button>
+    <button class="tab all${tab==='all'&&!q?' on':''}" onclick="setTab('all')"><b>${c.all}</b><span>All items</span></button></div>`;
+  if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;document.querySelector('.tabs').outerHTML=tabs;return;}
+  body.innerHTML=tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
+}
+
+/* refresh when coming back to the page */
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!busy)ask(false);});
+
+/* 🌙 / ☀ — same night mode for the whole WMS (saved as wms_theme) */
+function themeIsDark(){return document.documentElement.classList.contains('theme-dark');}
+function paintThemeMini(){const d=themeIsDark();document.querySelectorAll('.theme-mini').forEach(b=>{b.textContent=d?'☀':'🌙';b.title=d?'Day mode':'Night mode';});}
+function toggleThemeMini(ev){if(ev)ev.stopPropagation();const d=!themeIsDark();document.documentElement.classList.toggle('theme-dark',d);
+  try{localStorage.setItem('wms_theme',d?'dark':'light');}catch(e){}paintThemeMini();}
+paintThemeMini();
+</script>
+</body>
+</html>

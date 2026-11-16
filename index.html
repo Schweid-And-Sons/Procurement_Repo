@@ -1194,6 +1194,10 @@ try{
       <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="location.href='batch.html?plant=NJ'">NJ</button><button type="button" onclick="location.href='batch.html?plant=GA'">GA</button></span>
       <span class="pb-sum" id="plant-sum-BATCH"></span>
     </div>
+    <div class="plant-btn rcv-tile tool" style="--pc:#7c3aed">
+      <span class="pb-code">REORDER</span><span class="pb-name">🛒 NEXT POs</span>
+      <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="location.href='reorder.html?plant=NJ'">NJ</button><button type="button" onclick="location.href='reorder.html?plant=GA'">GA</button></span>
+    </div>
     <div class="plant-btn rcv-tile tool" style="--pc:#6b7280">
       <span class="pb-code">WASTE</span><span class="pb-name">🗑 DAILY WASTE</span>
       <span class="rcv-pick"><button type="button" style="background:#1d4ed8" onclick="location.href='waste.html?plant=NJ'">NJ</button><button type="button" onclick="location.href='waste.html?plant=GA'">GA</button></span>
@@ -3557,7 +3561,6 @@ function renderStatsView(){
     <button class="stats-subtab${statsSubTab==='clients'?' active':''}" onclick="setStatsTab('clients')">By Client</button>
     <button class="stats-subtab${statsSubTab==='all'?' active':''}" onclick="setStatsTab('all')">All Items</button>
     <button class="stats-subtab${statsSubTab==='nostock'?' active':''}" onclick="setStatsTab('nostock')">No Stock</button>
-    <button class="stats-subtab${statsSubTab==='reorder'?' active':''}" onclick="setStatsTab('reorder')">🛒 Reorder</button>
   </div>`;
 
   if(statsSubTab==='overview'){
@@ -3715,7 +3718,6 @@ function renderStatsView(){
     if(!html.includes('no-stock-item'))
       html+=`<div style="color:var(--success);font-size:12px;padding:20px 0">All items have stock assigned!</div>`;
   }
-  else if(statsSubTab==='reorder'){html+=reorderHtml(summary);leadTimeAuto();}
 
   document.getElementById('main-content').innerHTML=html;
 }
@@ -7094,7 +7096,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.16b';
+const APP_VERSION='2026.11.16c';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7145,6 +7147,31 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       }catch(err){reply({ok:false,err:err.message});}
     });
     window.parent.postMessage({type:'wms-plan-import-ready',plant:pi},'*');
+    return;
+  }
+  const rd=(qs.get('reorderdata')||'').toUpperCase();
+  if(PLANTS[rd]&&window.parent!==window){          // hidden helper for reorder.html: refresh stock / plan / Yooz / lead times, do the math, send it
+    PLAN_ONLY=true;document.body.classList.add('plan-only');
+    applyPlant(rd);
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    const busy=()=>live.busy||planAuto.busy||yoozFetch.busy||ltFetch.busy;
+    const collect=async force=>{
+      let t=0;while(busy()&&t++<160)await sleep(250);
+      try{if(live.on)await livePull(true,false);}catch(e){}
+      try{await pullSharedPlan(false);}catch(e){}
+      if(!(planData&&planData.day===isoToday()&&planData.dm)&&PLAN_FILE_URL){try{await planAutoFetch(false);}catch(e){}}
+      const yz=loadYooz();if(force||!yz||Date.now()-new Date(yz.loaded).getTime()>4*3600e3){try{await loadYoozFromFlow(false);}catch(e){}}
+      const lt=loadLeadTime();if(force||!lt||Date.now()-new Date(lt.loaded).getTime()>7*864e5){try{await loadLeadTimeFromFlow(false);}catch(e){}}
+      const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
+      return {rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
+        stockAt:live.at||0,liveOn:!!live.on,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null};
+    };
+    window.addEventListener('message',async ev=>{
+      const m=ev.data;if(ev.source!==window.parent||!m||m.type!=='wms-reorder-get')return;
+      let out;try{out=await collect(!!m.force);}catch(e){out={rows:[],err:e.message};}
+      window.parent.postMessage(Object.assign({type:'wms-reorder-data',id:m.id},out),location.origin);
+    });
+    window.parent.postMessage({type:'wms-reorder-ready',plant:rd},location.origin);
     return;
   }
   const pp=(qs.get('planning')||'').toUpperCase();
