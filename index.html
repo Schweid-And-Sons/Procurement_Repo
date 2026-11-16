@@ -329,6 +329,29 @@
   .seq-n{font-weight:800;color:var(--accent);white-space:nowrap;width:44px;}
   tr.seq-first td{border-top:2px solid var(--border);}
   .seq-again{font-size:9px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.04em;margin-left:4px;}
+  .reo-head{margin:-4px 0 10px;}
+  .reo-src{font-size:12px;color:var(--text2);line-height:1.5;}
+  .reo-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
+  .reo-k{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:10px 6px;font:inherit;font-size:11px;color:var(--text2);cursor:pointer;text-align:center;}
+  .reo-k b{display:block;font-size:22px;line-height:1.1;}
+  .reo-k.red b{color:var(--danger);}.reo-k.amber b{color:var(--warn);}.reo-k.green b{color:var(--success);}.reo-k.none b{color:var(--text3);}
+  .reo-k.on{box-shadow:inset 0 0 0 2px var(--accent);}
+  .reo-note{font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.45;}
+  .reo-empty{padding:24px 6px;color:var(--text2);font-size:14px;text-align:center;}
+  .reo-card{background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;}
+  .reo-card.red{border-left-color:var(--danger);}.reo-card.amber{border-left-color:var(--warn);}.reo-card.green{border-left-color:var(--success);}
+  .reo-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:8px;}
+  .reo-top b{font-size:15px;color:var(--accent2);}
+  .reo-name{font-size:12px;color:var(--text2);}
+  .reo-pill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:3px 8px;color:#fff;background:var(--text3);}
+  .reo-pill.red{background:var(--danger);}.reo-pill.amber{background:var(--warn);}.reo-pill.green{background:var(--success);}
+  .reo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 10px;font-size:14px;font-weight:600;}
+  .reo-grid span{display:block;font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;}
+  @media(max-width:520px){.reo-grid{grid-template-columns:repeat(2,1fr);}.reo-kpis{grid-template-columns:repeat(2,1fr);}}
+  .reo-short{margin-top:8px;font-size:12px;font-weight:700;color:var(--danger);}
+  .reo-grid{grid-template-columns:repeat(5,1fr)!important;}
+  @media(max-width:520px){.reo-grid{grid-template-columns:repeat(2,1fr)!important;}}
+  .reo-vend{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;}
   .xl-ask-btn{display:block;width:100%;margin:0 0 8px;padding:14px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface2,var(--surface));color:var(--text);font:inherit;font-size:16px;font-weight:600;cursor:pointer;text-align:center;}
   .xl-ask-btn.cur{background:var(--accent);border-color:var(--accent);color:#fff;}
   .xl-ask-btn span{font-size:11px;font-weight:500;opacity:.85;margin-left:6px;}
@@ -3534,6 +3557,7 @@ function renderStatsView(){
     <button class="stats-subtab${statsSubTab==='clients'?' active':''}" onclick="setStatsTab('clients')">By Client</button>
     <button class="stats-subtab${statsSubTab==='all'?' active':''}" onclick="setStatsTab('all')">All Items</button>
     <button class="stats-subtab${statsSubTab==='nostock'?' active':''}" onclick="setStatsTab('nostock')">No Stock</button>
+    <button class="stats-subtab${statsSubTab==='reorder'?' active':''}" onclick="setStatsTab('reorder')">🛒 Reorder</button>
   </div>`;
 
   if(statsSubTab==='overview'){
@@ -3691,10 +3715,122 @@ function renderStatsView(){
     if(!html.includes('no-stock-item'))
       html+=`<div style="color:var(--success);font-size:12px;padding:20px 0">All items have stock assigned!</div>`;
   }
+  else if(statsSubTab==='reorder'){html+=reorderHtml(summary);leadTimeAuto();}
 
   document.getElementById('main-content').innerHTML=html;
 }
 
+/* =====================================================================
+   REORDER — Phase 1 (alerts only; the official PO is still made in Yooz)
+   Lead time  = real days from PO to receipt, last 12 months, P90 (9 of 10 orders arrive within it),
+                from the flow WMS_Yooz_LeadTime (Databricks, svc account), cached a week.
+   Use / day  = what was RECEIVED in the last 30 days ÷ 30 (Yooz POs already in the app).
+   Stock      = live inventory. Open POs = Yooz lines not received yet.
+   Order when: (stock + open POs) ÷ use/day  <  lead time P90 + REO_SAFETY_DAYS.
+   Suggested  = enough to cover lead time + safety + REO_REVIEW_DAYS, minus what we have.
+   Codes are grouped by family: PCA / -B- / -P- versions count together (same box or tray, other vendor).
+   Min / Max / MOQ from the Planning Sheet will replace the estimate later.
+   ===================================================================== */
+const LEADTIME_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/f4591880337f47dd8415123e8d319069/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=5UfmzITuycDD1sM_vr8qxbYoqLcv_5YWz7Y0SdnM_rw';
+const LEADTIME_KEY='wms_leadtime';
+const REO_SAFETY_DAYS=5,REO_REVIEW_DAYS=14,REO_USE_DAYS=30;
+let ltFetch={busy:false,err:'',tried:0},reoFilter='urgent';
+function loadLeadTime(){try{return JSON.parse(localStorage.getItem(LEADTIME_KEY)||'null');}catch(e){return null;}}
+function reoBase(c){return String(c||'').toUpperCase().replace(/-S$/,'').replace('PCA','').replace(/-(B|P)-/,'-');}
+async function loadLeadTimeFromFlow(manual){
+  if(!LEADTIME_FLOW_URL||ltFetch.busy)return;
+  ltFetch.busy=true;ltFetch.err='';ltFetch.tried=Date.now();
+  if(currentView==='stats'&&statsSubTab==='reorder')renderStatsView();
+  try{
+    const res=await fetch(LEADTIME_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const b=await res.json();const st=b&&b.status&&b.status.state;
+    if(st!=='SUCCEEDED')throw new Error(st==='PENDING'||st==='RUNNING'?'Databricks is starting up — tap ⟳ in a minute':(b&&b.status&&b.status.error&&b.status.error.message)||'no data');
+    const cols=b.manifest.schema.columns.map(c=>c.name);
+    const rows=((b.result&&b.result.data_array)||[]).map(a=>{const o={};cols.forEach((c,i)=>o[c]=a[i]);return o;})
+      .filter(r=>r.code&&r.plant).map(r=>({code:String(r.code).toUpperCase(),plant:r.plant,vendor:String(r.vendor||''),descr:String(r.descr||''),
+        pos:numv(r.pos),ltAvg:numv(r.lt_avg),lt:numv(r.lt_p90),ltReq:numv(r.lt_requested),onTime:numv(r.pct_on_time),pctQty:numv(r.pct_qty),qtyAvg:numv(r.qty_avg),last:String(r.last_po||'').slice(0,10)}));
+    if(!rows.length)throw new Error('the flow returned no rows');
+    try{localStorage.setItem(LEADTIME_KEY,JSON.stringify({loaded:new Date().toISOString(),rows}));}catch(e){}
+    if(manual)showToast('Lead times updated: '+rows.length+' code/vendor rows.','success');
+  }catch(e){ltFetch.err=e.message;if(manual)showToast('Could not load lead times: '+e.message,'error');}
+  finally{ltFetch.busy=false;if(currentView==='stats'&&statsSubTab==='reorder')renderStatsView();}
+}
+function leadTimeAuto(){   // once a week; after a failure wait 10 min before trying again by itself
+  const d=loadLeadTime();if(ltFetch.busy||Date.now()-ltFetch.tried<10*60000)return;
+  if(!d||Date.now()-new Date(d.loaded).getTime()>7*864e5)setTimeout(()=>loadLeadTimeFromFlow(false),50);
+  if(typeof yoozAutoRefresh==='function')yoozAutoRefresh();   // use / day and open POs come from the Yooz POs
+}
+function setReoFilter(f){reoFilter=f;renderStatsView();}
+function reorderRows(summary){
+  const lt=(loadLeadTime()||{}).rows||[],yz=loadYooz(),lines=(yz&&yz.lines||[]).filter(l=>l.plant===currentPlant);
+  const today=new Date();today.setHours(0,0,0,0);const since=new Date(today.getTime()-REO_USE_DAYS*864e5);
+  const fam={};
+  const F=b=>fam[b]||(fam[b]={base:b,codes:new Set(),stock:0,open:0,recv:0,lt:[]});
+  ITEMS.forEach(it=>{if(it.disc)return;const f=F(reoBase(it.code));f.codes.add(it.code);const q=summary[it.code];if(q)f.stock+=q.qty;});
+  lines.forEach(l=>{const f=fam[reoBase(l.code)];if(!f)return;
+    if(!l.recv){const o=Math.max(0,l.ordered-l.received);f.open+=o;}
+    else{const d=new Date(l.recv+'T00:00:00');if(d>=since)f.recv+=l.received;}});
+  lt.filter(r=>r.plant===currentPlant).forEach(r=>{const f=fam[r.code];if(f)f.lt.push(r);});
+  // the week ahead from today's production plan (if it was loaded with the schedule detail)
+  const dm=planData&&planData.day===isoToday()&&planData.dm&&planData.dm.codes?planData.dm:null;
+  const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const H=dm?Math.max(1,Math.round((new Date(dm.end+'T00:00:00')-today)/864e5)+1):0;   // days the plan covers
+  return Object.values(fam).filter(f=>f.lt.length).map(f=>{
+    const main=f.lt.slice().sort((a,b)=>b.pos-a.pos)[0];          // vendor with most POs in 12 months
+    const hist=f.recv/REO_USE_DAYS,have=f.stock+f.open,L=main.lt||main.ltAvg||0;
+    const it=ITEMS.find(i=>i.code===f.base)||ITEMS.find(i=>reoBase(i.code)===f.base);
+    // planned use per day (codes of the same family added together)
+    const pday={};let ptot=0;
+    if(dm)Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t;Object.entries(o.d).forEach(([k,v])=>pday[k]=(pday[k]||0)+v);});
+    const rate=hist>0?hist:(ptot>0?ptot/H:0);                       // after the plan ends: what we usually use
+    const r={...f,codes:[...f.codes],main,vendors:f.lt.length,use:hist,rate,have,L,ptot,planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
+    if(rate>0||ptot>0){
+      const dem=i=>{const d=new Date(today.getTime()+i*864e5);return i<H?(pday[ymd(d)]||0):rate;};
+      let av=have,cover=null;
+      for(let i=0;i<400;i++){const x=dem(i);if(av<x){cover=i+(x>0?av/x:0);break;}av-=x;}
+      if(cover==null)cover=400;
+      r.cover=cover;r.left=cover-(L+REO_SAFETY_DAYS);
+      r.orderBy=new Date(today.getTime()+Math.max(0,Math.floor(r.left))*864e5);
+      let need=0;for(let i=0;i<L+REO_SAFETY_DAYS+REO_REVIEW_DAYS;i++)need+=dem(i);
+      r.sug=Math.max(0,need-have);const step=r.sug>=1000?100:r.sug>=100?10:1;r.sug=Math.ceil(r.sug/step)*step;
+      r.short=ptot>0&&have<ptot;                                      // not even enough for the plan already scheduled
+      r.st=r.short||r.left<=0?'red':r.left<=7?'amber':'green';
+    }else r.st='none';
+    return r;
+  }).sort((a,b)=>({red:0,amber:1,green:2,none:3}[a.st]-{red:0,amber:1,green:2,none:3}[b.st])||((a.left??999)-(b.left??999)));
+}
+function reorderHtml(summary){
+  const d=loadLeadTime(),yz=loadYooz();
+  const f0=n=>Math.round(n).toLocaleString('en-US'),f1=n=>n>=10?f0(n):(Math.round(n*10)/10).toLocaleString('en-US');
+  const ds=dt=>dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  let h=`<div class="reo-head"><div class="reo-src">${ltFetch.busy?'⏳ Loading lead times from Yooz…':d?'Lead times from Yooz · '+new Date(d.loaded).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'No lead times yet'}
+      ${ltFetch.err?`<span style="color:var(--danger)"> · ⚠ ${poEsc(ltFetch.err)}</span>`:''} · <a href="#" onclick="loadLeadTimeFromFlow(true);return false">⟳ Refresh</a>
+      ${yz?'':' · <span style="color:var(--danger)">Open Receiving once to load the Yooz POs (needed for use / day)</span>'}</div></div>`;
+  if(!d)return h+`<div class="reo-empty">${ltFetch.busy?'Loading…':'Tap ⟳ Refresh to load the lead times.'}</div>`;
+  const rows=reorderRows(summary);
+  const n=s=>rows.filter(r=>r.st===s).length;
+  h+=`<div class="reo-kpis"><button class="reo-k red${reoFilter==='urgent'?' on':''}" onclick="setReoFilter('urgent')"><b>${n('red')}</b>Order now</button>
+    <button class="reo-k amber${reoFilter==='urgent'?' on':''}" onclick="setReoFilter('urgent')"><b>${n('amber')}</b>This week</button>
+    <button class="reo-k green${reoFilter==='all'?' on':''}" onclick="setReoFilter('all')"><b>${n('green')}</b>OK</button>
+    <button class="reo-k none${reoFilter==='all'?' on':''}" onclick="setReoFilter('all')"><b>${n('none')}</b>No recent use</button></div>
+    <div class="reo-note">${planData&&planData.day===isoToday()&&planData.dm?'Uses today\'s production plan day by day until '+planData.dm.end.slice(5).replace('-','/')+', then the usual use (received in the last '+REO_USE_DAYS+' days)':'<span style="color:var(--warn)">No production plan for today with the schedule detail — using only the usual use (received in the last '+REO_USE_DAYS+' days). Load today\'s plan in Daily Plan.</span>'} · lead time = P90 of the last 12 months · ${REO_SAFETY_DAYS} safety days · suggested qty covers ${REO_REVIEW_DAYS} days after arrival. The official PO is still made in Yooz.</div>`;
+  const show=rows.filter(r=>reoFilter==='all'||r.st==='red'||r.st==='amber');
+  if(!show.length)h+=`<div class="reo-empty">✓ Nothing to order this week. <a href="#" onclick="setReoFilter('all');return false">Show all</a></div>`;
+  h+=show.map(r=>{const m=r.main;const tag={red:'Order now',amber:'This week',green:'OK',none:'No recent use'}[r.st];
+    const slowByUs=m.ltReq&&m.lt>=15&&m.ltReq>=m.lt*0.75;
+    return `<div class="reo-card ${r.st}"><div class="reo-top"><span class="reo-pill ${r.st}">${tag}</span><b>${poEsc(r.codes.join(' + '))}</b><span class="reo-name">${poEsc(r.name||'')}</span></div>
+      <div class="reo-grid">
+        <div><span>Stock</span>${f0(r.stock)}</div><div><span>Open POs</span>${r.open?f0(r.open):'—'}</div>
+        <div><span>Planned to ${r.planEnd?r.planEnd.slice(5).replace('-','/'):'—'}</span>${r.ptot?f1(r.ptot):'—'}</div><div><span>Use / day (30 d)</span>${r.use?f1(r.use):'—'}</div>
+        <div><span>Covers</span>${r.st!=='none'?(r.cover>=400?'400+':f0(r.cover))+' days':'—'}</div>
+        <div><span>Lead time</span>${r.L} days</div><div><span>Order by</span>${r.st!=='none'?(r.left<=0?'<b style="color:var(--danger)">Today</b>':ds(r.orderBy)):'—'}</div>
+        <div><span>Suggested</span>${r.st!=='none'&&r.sug?'~'+f0(r.sug):'—'}</div><div><span>Usual order</span>${m.qtyAvg?f0(m.qtyAvg):'—'}</div>
+      </div>
+      ${r.short?`<div class="reo-short">⚠ Not enough for the production already planned: need ${f1(r.ptot)}, have ${f0(r.have)} (stock + open POs)</div>`:''}
+      <div class="reo-vend">${poEsc(m.vendor)} · ${m.onTime}% on time · ${m.pos} PO(s) in 12 months${r.vendors>1?' · '+r.vendors+' vendors':''}${m.pos<5?' · <span style="color:var(--warn)">few POs — rough lead time</span>':''}${slowByUs?' · <span style="color:var(--warn)">we usually ask for ~'+Math.round(m.ltReq)+' days — the vendor may be faster</span>':''}</div></div>`;}).join('');
+  return h;
+}
 function setStatsTab(tab){
   statsSubTab=tab;
   renderStatsView();
@@ -4432,6 +4568,44 @@ function parseSleeveLineSheet(rows,retailOnly){
 /* Same numbers as the "Boxes (Total)" / "Box Total" pivot, calculated straight from the schedule data
    ("Input" in NJ, "lnput" in GA): orders that have a Line Priority = today's production.
    Verified: NJ Oct-14 file → 19,789 (identical per code to the pivot); GA Oct-19 → Line Priority rows = Day "Monday". */
+/* Direct-material demand of the coming days, from the schedule sheet (Input / lnput).
+   Each order row already says how much of each material it uses, in inventory units:
+   boxes = Open Cs · film = "QTY (m per roll)" (rolls) · patty paper, bags, sleeves = "(cases)" · trays = units.
+   Production day = the weekday in "Day" on or before the Inv Date; blank Day → the day before the Inv Date.
+   (Labels are left out: the plan counts them in rolls, Yooz in labels.) */
+function dmFromSchedule(wb,baseDay){
+  const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));if(!sheet)return null;
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
+  const hr=rows.findIndex(r=>r.some(v=>String(v).trim()==='Box Code'));if(hr<0)return null;
+  const H=rows[hr].map(v=>String(v).trim());const col=n=>H.indexOf(n);
+  const cQty=col('Open Cs')>-1?col('Open Cs'):col('Column2'),cInv=col('Inv Date'),cDay=col('Day');
+  if(cQty<0||cInv<0)return null;
+  const PAIRS=[['Box Code',cQty],['Forming Film Code',col('Forming Film QTY (m per roll)')],['Non-Forming Film Code',col('Non-Forming Film QTY (m per roll)')],
+    [col('Patty Paper Code')>-1?'Patty Paper Code':'Patty Paper',col('Patty Paper QTY (cases)')],['Plastic Bag Code',col('Plastic Bag QTY (cases)')],
+    ['Sleeve Code',col('Sleeve Code QTY (cases)')],['Tray Code',col('Tray Code QTY')]].map(([n,q])=>[col(n),q]).filter(([c,q])=>c>-1&&q>-1);
+  const DN=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  const base=new Date(baseDay+'T00:00:00');
+  const toDate=v=>{if(typeof v==='number'&&v>20000){const d=new Date(Math.round((v-25569)*864e5));return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());}
+    const m=String(v).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);if(!m)return null;const y=+m[3]<100?2000+ +m[3]:+m[3];return new Date(y,+m[1]-1,+m[2]);};
+  const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const codes={};let end=baseDay;
+  for(let i=hr+1;i<rows.length;i++){
+    const r=rows[i];if(!(Number(r[cQty])>0))continue;
+    const inv=toDate(r[cInv]);if(!inv)continue;
+    let pd=new Date(inv);const dn=cDay>-1?DN.indexOf(String(r[cDay]).trim().toLowerCase()):-1;
+    if(dn>=0){let k=0;while(pd.getDay()!==dn&&k++<7)pd.setDate(pd.getDate()-1);}else pd.setDate(pd.getDate()-1);
+    if(pd<base)pd=new Date(base);
+    const key=ymd(pd);if(key>end)end=key;
+    PAIRS.forEach(([cc,qc])=>{
+      let code=String(r[cc]||'').trim().toUpperCase();if(!/^[A-Z]+\d/.test(code))return;
+      if(PLAN_CODE_ALIAS[code])code=PLAN_CODE_ALIAS[code];
+      const v=Number(r[qc]);if(!(v>0))return;
+      const o=codes[code]||(codes[code]={t:0,d:{}});o.t+=v;o.d[key]=(o.d[key]||0)+v;
+    });
+  }
+  Object.values(codes).forEach(o=>{o.t=Math.round(o.t*100)/100;Object.keys(o.d).forEach(k=>o.d[k]=Math.round(o.d[k]*100)/100);});
+  return {base:baseDay,end,codes};
+}
 function boxesFromSchedule(wb){
   const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));
   if(!sheet)return null;
@@ -4587,7 +4761,8 @@ function processPlanWorkbook(wb,fileName){
   }).sort((a,b)=>a.code.localeCompare(b.code));
   meta.sleeveLines=currentPlant==='GA'?sleeveLines:['Line 22','Line 23'];   // NJ keeps its two fixed columns
   if(currentPlant==='GA'&&skippedPhys.size)meta.sleeveSkipped=[...skippedPhys];
-  planData={importedAt:new Date().toISOString(),source:fileName,meta,items,sleeves,byLine:sched?sched.byLine:null,lineSeq:sched?sched.lineSeq:null};
+  let dm=null;try{dm=dmFromSchedule(wb,isoToday());}catch(e){console.error(e);}
+  planData={importedAt:new Date().toISOString(),source:fileName,meta,items,sleeves,byLine:sched?sched.byLine:null,lineSeq:sched?sched.lineSeq:null,dm};
   planData.day=isoToday();planData.by=planDevice();planData.updatedAt=new Date().toISOString();
   savePlanDia();
   addLog('PLAN IMPORT','Planning imported from "'+fileName+'" ('+sheetName+') — '+items.length+' box codes'+(sleeves.length?', '+sleeves.length+' sleeve codes':''));
@@ -5119,7 +5294,7 @@ async function loadYoozFromFlow(manual){
     if(manual){addLog('YOOZ LOAD','Databricks — '+data.lines.length+' PO line(s) · '+poLines(data).length+' DM line(s) for '+currentPlant);
       showToast('POs updated from Yooz: '+poLines(data).length+' line(s) for '+currentPlant+'.','success');}
   }catch(e){yoozFetch.err=e.message;if(manual)showToast('Could not refresh POs: '+e.message,'error');}
-  finally{yoozFetch.busy=false;if(currentView==='po')renderPoView(true);}
+  finally{yoozFetch.busy=false;if(currentView==='po')renderPoView(true);if(currentView==='stats'&&statsSubTab==='reorder')renderStatsView();}
 }
 /* once a day per device: Yooz only changes overnight */
 function yoozAutoRefresh(){
@@ -6919,7 +7094,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.13a';
+const APP_VERSION='2026.11.16b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
