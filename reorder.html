@@ -86,7 +86,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.17a</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.17d</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -199,7 +199,8 @@ function card(r){
       <div><span>Plan until ${r.planEnd?r.planEnd.slice(5).replace('-','/'):'—'}</span>${r.ptot?n1(r.ptot):'—'}</div>
       <div><span>Use / day</span>${r.dbar?n1(r.dbar):'—'}</div><div><span>Lead time</span>~${Math.round(r.Lavg||r.L)} days${r.L>Math.round(r.Lavg||r.L)?' (up to '+r.L+')':''}</div>
       <div><span>Safety stock</span>${r.ss?n0(r.ss)+' · '+n1(r.sdays)+' days':'—'}</div>
-      ${r.pack?`<div class="c-vend"><b>How it comes:</b> ${r.pack.pal?n0(r.pack.pal)+' trays per pallet (stock and POs in pallets)':n0(r.pack.p)+' '+unitOf(r)+' per pallet'+(r.pack.d>r.pack.p?' · usual delivery '+n0(r.pack.d)+' ('+Math.round(r.pack.d/r.pack.p)+' pallets)':'')}</div>`:(m.qtyAvg?`<div class="c-vend"><b>Usual order:</b> ${n0(m.qtyAvg)} (no pallet size saved yet)</div>`:'')}
+      ${r.pack?`<div class="c-vend"><b>How it comes:</b> ${n0(r.pack.p)+' '+unitOf(r)+' per pallet'+(r.pack.d>r.pack.p?' · usual delivery '+n0(r.pack.d)+' ('+Math.round(r.pack.d/r.pack.p)+' pallets)':'')}</div>`:(m.qtyAvg?`<div class="c-vend"><b>Usual order:</b> ${n0(m.qtyAvg)} (no pallet size saved yet)</div>`:'')}
+      ${r.y12?`<div class="c-vend"><b>Last 12 months:</b> ${n0(r.y12)} ${unitOf(r)==='rolls'?'':unitOf(r)||'units'} · ~${n0(r.y12/365)} / day (Power BI)</div>`:''}
       ${r.cls?`<div class="c-vend"><b>Priority ${r.cls}</b> · ${r.cls==='A'?'most used: biggest safety stock':r.cls==='B'?'medium use':'little use: small safety stock, no extra pallets'}</div>`:''}
       ${r.dmp!=null&&r.ptot?`<div class="c-vend">Direct Material Planning sheet (orders with a day already): ${n1(r.dmp)} · all open orders in the plan: ${n1(r.ptot)}</div>`:''}
       ${(r.coming||[]).length?`<div class="c-vend"><b>On the way:</b> ${r.coming.slice(0,6).map(x=>esc(x.po)+' · '+n0(x.qty)+' · '+dayTxt(x.date+'T12:00:00')+(x.planner?' (John\'s planner)':'')).join(' &nbsp;|&nbsp; ')}</div>`:''}

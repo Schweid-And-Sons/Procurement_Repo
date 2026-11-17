@@ -3769,7 +3769,10 @@ function leadTimeAuto(){   // once a week; after a failure wait 10 min before tr
 function setReoFilter(f){reoFilter=f;renderStatsView();}
 /* How each item comes (NJ, from Julian · Nov 17 2026). p = units per pallet, d = usual delivery
    (2 pallets double stacked when the supplier does it). Orders are always rounded to full pallets.
-   Trays: stock and POs are in PALLETS, the production plan in trays → plan ÷ 2,640. */
+   Trays: everything is shown in TRAYS (2,640 per pallet). The count and John's planner are in pallets,
+   Yooz and the production plan in trays → small numbers (< 500) are pallets and are × 2,640. */
+const TRAY_PAL=2640;
+function toUnits(code,q){q=+q||0;return /^T2[01]00/i.test(String(code))&&q>0&&q<500?q*TRAY_PAL:q;}
 const PACK_NJ={
   BX1000:{p:500,d:1000},BX1000PCA:{p:600,d:1200},BX1003:{p:500,d:1000},BX1050:{p:500,d:1000},BX1075:{p:500,d:500},
   BX1100:{p:500,d:1000},BX1200:{p:500,d:500},BX1300:{p:375,d:750},BX1350:{p:275,d:550},BX1400:{p:500,d:1000},
@@ -3777,10 +3780,14 @@ const PACK_NJ={
   BX2075:{p:750,d:750},BX2300:{p:500,d:500},BX3000:{p:500,d:1000},BX3050:{p:500,d:1000},BX3100:{p:750,d:750},
   BX3125:{p:375,d:750},BX3150:{p:500,d:1000},BX3200:{p:500,d:1000},BX3300:{p:500,d:500},BX6550:{p:500,d:500},
   BX7500:{p:375,d:750},BX7600:{p:375,d:750},BX7700PCA:{p:360,d:720},BX7800:{p:250,d:250},BX7900:{p:160,d:160},BX8200:{p:500,d:500},
-  T2000:{p:1,pal:2640,u:'pallets'},T2100:{p:1,pal:2640,u:'pallets'},
+  T2000:{p:2640,u:'trays'},T2100:{p:2640,u:'trays'},
   F1000:{p:18,d:18,u:'rolls'},F1400:{p:27,d:27,u:'rolls'},F1750:{p:27,d:27,u:'rolls'},F1900:{p:27,d:27,u:'rolls'},F1060:{p:10,d:30,u:'rolls'},
   P2000:{p:50,d:100,u:'cases'},P3100:{p:45,d:45,u:'cases'},P4100:{p:35,d:35,u:'cases'},
   BG1000:{p:50,d:50,u:'cases'},BG2000:{p:50,d:50,u:'cases'},STRWRAP:{p:12,d:48,u:'rolls'}};
+/* Use in the last 12 months (Power BI · Production Receipts · Nov 17 2025 – Nov 16 2026, no pork).
+   Units: boxes, trays, sleeves (pieces), patty paper (sheets), bags (bags). Used for the A/B/C priority
+   (ranking inside each category) and as use/day for boxes and trays when there is no plan and no receipts. */
+const USE12={"NJ":{"BG1000-1":494942,"BG2000-1":29244,"BX1000-1":400658,"BX1003-1":117688,"BX1050-1":151012,"BX1075-1":11918,"BX1100-1":636648,"BX1200-1":51752,"BX1300-1":128293,"BX1350-1":32898,"BX1400-1":264540,"BX1550-1":485,"BX1850-1":1059002,"BX1875-1":35082,"BX1900-1":20674,"BX2003-1":35546,"BX2050-1":48529,"BX2075-1":23311,"BX2300-1":4590,"BX2350-1":589,"BX3000-1":362962,"BX3050-1":177255,"BX3100-1":36365,"BX3125-1":2159,"BX3150-1":44104,"BX3200-1":114061,"BX3300-1":11536,"BX6550-1":17282,"BX7500-1":532632,"BX7600-1":347304,"BX7700-1":25503,"BX7800-1":13263,"BX7900-1":4446,"BX8000-1":302,"BX8200-1":30732,"BX9400-1":13,"P2000-1":45243935,"P3000-1":9660,"P3100-1":9700276,"P4000-1":17280,"P4100-1":39145942,"P6000-1":23625508,"SL1000-1":1488066,"SL1050-1":362400,"SL1500-1":957606,"SL1508-1":21930,"SL15099-1":224214,"SL15299-1":70302,"SL15906-1":190056,"SL1600-1":498654,"SL18908-1":29748,"SL1900-1":5424,"SL2000-1":22152,"SL2100-1":385164,"SL2150-1":155568,"SL2200-1":583992,"SL2250-1":874032,"SL3000-1":37038,"SL3505-1":14154,"SL4100-1":431562,"SL9905-1":1950,"T2000-1":5986624,"T2100-1":450084},"GA":{"BG1000-4":352909,"BG2000-4":45839,"BX1000-4":342833,"BX1003-4":139920,"BX1050-4":21758,"BX1075-4":55394,"BX1100-4":175205,"BX1200-4":40486,"BX1300-4":98845,"BX1350-4":49948,"BX1400-4":221429,"BX1850-4":1131425,"BX1875-4":404401,"BX1900-4":43525,"BX2003-4":66022,"BX2300-4":9956,"BX2350-4":25324,"BX3000-4":302788,"BX3050-4":172974,"BX3100-4":16326,"BX3125-4":1682,"BX3150-4":7706,"BX3200-4":106751,"BX3300-4":12253,"BX6500-4":81,"BX7800-4":37034,"BX7900-4":7866,"BX8000-4":13619,"BX8200-4":13993,"BX8300-4":3736,"P2000-4":28945102,"P4100-4":14281724,"P6000-4":22987828,"SL1000-4":2311314,"SL1050-4":91320,"SL1500-4":1026372,"SL1508-4":47868,"SL15099-4":258096,"SL15299-4":582216,"SL15906-4":529992,"SL1600-4":205680,"SL18512-4":9720,"SL18908-4":24288,"SL2000-4":82050,"SL2100-4":139104,"SL2150-4":67476,"SL2200-4":207786,"SL2250-4":1075968,"SL3000-4":1212,"SL4100-4":128088,"T2000-4":6054862,"T2100-4":907788}};
 const REO_Z={A:2.05,B:1.65,C:1.28},REO_MIN_DAYS={A:3,B:2,C:1},REO_MAX_SAFETY_DAYS=10,REO_A_ALWAYS=['BX1850-1','BX1000-1'];
 const DM_RACKS={NJ:131};
 function packFor(code,vendor){if(currentPlant!=='NJ')return null;const k=String(code).toUpperCase().replace(/-\d+$/,'').replace(/-(B|P)$/,'');
@@ -3790,10 +3797,10 @@ function reorderRows(summary){
   const today=new Date();today.setHours(0,0,0,0);const since=new Date(today.getTime()-REO_USE_DAYS*864e5);
   const fam={};
   const F=b=>fam[b]||(fam[b]={base:b,codes:new Set(),stock:0,open:0,recv:0,lt:[]});
-  ITEMS.forEach(it=>{if(it.disc)return;const f=F(reoBase(it.code));f.codes.add(it.code);if(!f.cat)f.cat=it.cat;const q=summary[it.code];if(q)f.stock+=q.qty;});
+  ITEMS.forEach(it=>{if(it.disc)return;const f=F(reoBase(it.code));f.codes.add(it.code);if(!f.cat)f.cat=it.cat;const q=summary[it.code];if(q)f.stock+=toUnits(it.code,q.qty);});
   lines.forEach(l=>{const f=fam[reoBase(l.code)];if(!f)return;
-    if(!l.recv){const o=Math.max(0,l.ordered-l.received);f.open+=o;}
-    else{const d=new Date(l.recv+'T00:00:00');if(d>=since)f.recv+=l.received;}});
+    if(!l.recv){const o=Math.max(0,l.ordered-l.received);f.open+=toUnits(l.code,o);}
+    else{const d=new Date(l.recv+'T00:00:00');if(d>=since)f.recv+=toUnits(l.code,l.received);}});
   lt.filter(r=>r.plant===currentPlant).forEach(r=>{const f=fam[r.code];if(f)f.lt.push(r);});
   // the week ahead from today's production plan (if it was loaded with the schedule detail)
   const dm=planData&&planData.day===isoToday()&&planData.dm&&planData.dm.codes?planData.dm:null;
@@ -3805,7 +3812,7 @@ function reorderRows(summary){
     const done=new Set(Object.values(allReceipts()).map(x=>baseKeyOf(x.key)));
     poGroups().forEach(g=>{if(done.has(g.key))return;
       g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
-        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:g.due,qty:q,po:g.po,planner:!!g.planner});});});
+        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:g.due,qty:toUnits(l.code,q),po:g.po,planner:!!g.planner});});});
   }catch(e){console.error(e);}
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
   const rows=Object.values(fam).filter(f=>f.lt.length).map(f=>{
@@ -3823,8 +3830,9 @@ function reorderRows(summary){
     let dmp=null;if(dm&&dm.dmp)Object.entries(dm.dmp).forEach(([c,v])=>{if(reoBase(c)===f.base)dmp=(dmp||0)+v/div;});
     const coming=(inc[f.base]||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
     const open=coming.reduce((a,x)=>a+x.qty,0);
-    const rate=hist>0?hist:(ptot>0?ptot/H:0);                       // after the plan ends: what we usually use
-    const r={base:f.base,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
+    const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
+    const rate=hist>0?hist:(ptot>0?ptot/H:y12day);                  // after the plan ends: what we usually use
+    const r={base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
       use:hist,rate,have:f.stock+open,L:P90,Lavg,ptot,dmp,pack:pk?{p:pk.p,d:pk.d||0,pal:pk.pal||0,u:pk.u||'boxes'}:null,
       planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
@@ -3852,7 +3860,7 @@ function reorderRows(summary){
       r.ss=ss;r.sdays=dbar?ss/dbar:0;
       // 3) the orders. Q = the usual delivery (full pallets); rush only to fill a real gap before a normal PO can arrive.
       const per=pk?pk.p:1;
-      const Q=pk&&pk.d?pk.d:Math.max(per,Math.ceil(Math.max(1,main.qtyAvg||rate*7)/per)*per);
+      const Q=pk&&pk.d?pk.d:Math.max(per,Math.ceil(Math.max(1,toUnits(f.base,main.qtyAvg)||rate*7)/per)*per);
       const L=Math.round(Lavg),orders=[];
       av=f.stock;let gap=0;
       for(let i=0;i<Math.min(L,N);i++){av+=arr[i]||0;av-=dem(i);if(-av>gap)gap=-av;}
@@ -3882,11 +3890,13 @@ function reorderRows(summary){
     };
     return r;
   });
-  // priority A / B / C inside each category by daily use: A = top 80% of the volume, B = next 15%, C = the rest.
+  // priority A / B / C inside each category: A = top 80% of the volume, B = next 15%, C = the rest.
   // BX1850 and BX1000 (retail / most used) are always A.
   const byCat={};rows.forEach(r=>{if(r.st!=='none')(byCat[r.cat]=byCat[r.cat]||[]).push(r);});
-  Object.values(byCat).forEach(list=>{list.sort((a,b)=>b.dbar-a.dbar);const tot=list.reduce((a,r)=>a+r.dbar,0)||1;let cum=0;
-    list.forEach(r=>{const before=cum/tot;cum+=r.dbar;r.cls=before<0.8?'A':before<0.95?'B':'C';if(REO_A_ALWAYS.includes(r.base))r.cls='A';});});
+  // ranked by the last 12 months of use (Power BI) when we have it, otherwise by today's daily use
+  const vol=r=>r.y12||r.dbar*365;
+  Object.values(byCat).forEach(list=>{list.sort((a,b)=>vol(b)-vol(a));const tot=list.reduce((a,r)=>a+vol(r),0)||1;let cum=0;
+    list.forEach(r=>{const before=cum/tot;cum+=vol(r);r.cls=before<0.8?'A':before<0.95?'B':'C';if(REO_A_ALWAYS.includes(r.base))r.cls='A';});});
   rows.forEach(r=>{if(r._calc){r._calc(r.cls||'C');delete r._calc;}});
   return rows.sort((a,b)=>({red:0,amber:1,green:2,none:3}[a.st]-{red:0,amber:1,green:2,none:3}[b.st])||((a.cls||'Z').localeCompare(b.cls||'Z'))||((a.left??999)-(b.left??999))||((a.cover??999)-(b.cover??999)));
 }
@@ -7197,7 +7207,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.17b';
+const APP_VERSION='2026.11.17d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
