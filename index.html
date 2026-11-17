@@ -897,12 +897,17 @@
   /* plant screen never cuts off at the top; on laptops (wide but short) the three plants sit side by side */
   #plant-overlay{align-items:flex-start!important;overflow-y:auto;padding:16px 0;box-sizing:border-box;}
   .plant-box{margin:auto;}
-  @media(min-width:760px) and (max-height:900px){
-    .plant-box{width:min(1240px,96vw);display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
-    .plant-box>.plant-btn{grid-column:span 3;}            /* NJ | GA on top */
-    .plant-box>.plant-btn.tool{grid-column:span 2;}       /* RECEIVING | BATCH | WASTE below */
-    .plant-box>.plant-brand,.plant-box>.plant-q,.plant-box>.plant-rem,.plant-box>.app-ver{grid-column:1/-1;}
-    .plant-btn{padding:22px 12px!important;}
+  /* 6 tiles, all the same size: tablet portrait = 2 × 3, tablet landscape / small laptop = 3 × 2 */
+  @media(min-width:600px){
+    .plant-box{width:min(760px,94vw);display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+    .plant-box>.plant-btn,.plant-box>.plant-btn.tool{grid-column:auto;justify-content:center;min-height:clamp(150px,22vh,210px);padding:18px 12px!important;}
+    .plant-box>.plant-brand,.plant-box>.plant-q,.plant-box>.plant-foot,.plant-box>.app-ver{grid-column:1/-1;}
+    .plant-btn .pb-code{font-size:clamp(34px,4.6vw,46px)!important;}
+  }
+  @media(min-width:760px) and (orientation:landscape),(min-width:760px) and (max-height:900px){
+    .plant-box{width:min(1180px,96vw);grid-template-columns:repeat(3,1fr);gap:16px;}
+    .plant-box>.plant-btn,.plant-box>.plant-btn.tool{min-height:clamp(140px,30vh,230px);}
+    .plant-btn .pb-code{font-size:clamp(32px,3.6vw,48px)!important;}
   }
 
   .app{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}
@@ -3723,15 +3728,13 @@ function renderStatsView(){
 }
 
 /* =====================================================================
-   REORDER — Phase 1 (alerts only; the official PO is still made in Yooz)
-   Lead time  = real days from PO to receipt, last 12 months, P90 (9 of 10 orders arrive within it),
-                from the flow WMS_Yooz_LeadTime (Databricks, svc account), cached a week.
-   Use / day  = what was RECEIVED in the last 30 days ÷ 30 (Yooz POs already in the app).
-   Stock      = live inventory. Open POs = Yooz lines not received yet.
-   Order when: (stock + open POs) ÷ use/day  <  lead time P90 + REO_SAFETY_DAYS.
-   Suggested  = enough to cover lead time + safety + REO_REVIEW_DAYS, minus what we have.
-   Codes are grouped by family: PCA / -B- / -P- versions count together (same box or tray, other vendor).
-   Min / Max / MOQ from the Planning Sheet will replace the estimate later.
+   REORDER / NEXT POs (shown in reorder.html; the official PO is still made in Yooz)
+   Have  = live stock + POs on the way by day (Yooz + John's planner).  Use = today's plan day by day, then the usual use.
+   Supplier = the one with the most recent PO. Lead time from Yooz (average, and P90 = 9 of 10 arrive within it).
+   Priority A/B/C inside each category by daily use (A = top 80% of volume; BX1850 and BX1000 always A).
+   Safety stock SS = z × √( L × σd² + d² × σL² ), z: A 2.05 · B 1.65 · C 1.28, kept between 1–3 and 10 days of use.
+   Order on the Friday before stock would dip under SS (L days ahead); deliveries on weekdays, the day they are needed.
+   Quantities in full pallets (PACK_NJ). Rush only for a real gap before a normal PO can arrive.
    ===================================================================== */
 const LEADTIME_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/f4591880337f47dd8415123e8d319069/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=5UfmzITuycDD1sM_vr8qxbYoqLcv_5YWz7Y0SdnM_rw';
 const LEADTIME_KEY='wms_leadtime';
@@ -3764,12 +3767,30 @@ function leadTimeAuto(){   // once a week; after a failure wait 10 min before tr
   if(typeof yoozAutoRefresh==='function')yoozAutoRefresh();   // use / day and open POs come from the Yooz POs
 }
 function setReoFilter(f){reoFilter=f;renderStatsView();}
+/* How each item comes (NJ, from Julian · Nov 17 2026). p = units per pallet, d = usual delivery
+   (2 pallets double stacked when the supplier does it). Orders are always rounded to full pallets.
+   Trays: stock and POs are in PALLETS, the production plan in trays → plan ÷ 2,640. */
+const PACK_NJ={
+  BX1000:{p:500,d:1000},BX1000PCA:{p:600,d:1200},BX1003:{p:500,d:1000},BX1050:{p:500,d:1000},BX1075:{p:500,d:500},
+  BX1100:{p:500,d:1000},BX1200:{p:500,d:500},BX1300:{p:375,d:750},BX1350:{p:275,d:550},BX1400:{p:500,d:1000},
+  BX1850:{p:375,d:750},BX1850PCA:{p:375,d:750},BX1900:{p:750,d:750},BX2003:{p:375,d:750},BX2050:{p:550,d:1100},
+  BX2075:{p:750,d:750},BX2300:{p:500,d:500},BX3000:{p:500,d:1000},BX3050:{p:500,d:1000},BX3100:{p:750,d:750},
+  BX3125:{p:375,d:750},BX3150:{p:500,d:1000},BX3200:{p:500,d:1000},BX3300:{p:500,d:500},BX6550:{p:500,d:500},
+  BX7500:{p:375,d:750},BX7600:{p:375,d:750},BX7700PCA:{p:360,d:720},BX7800:{p:250,d:250},BX7900:{p:160,d:160},BX8200:{p:500,d:500},
+  T2000:{p:1,pal:2640,u:'pallets'},T2100:{p:1,pal:2640,u:'pallets'},
+  F1000:{p:18,d:18,u:'rolls'},F1400:{p:27,d:27,u:'rolls'},F1750:{p:27,d:27,u:'rolls'},F1900:{p:27,d:27,u:'rolls'},F1060:{p:10,d:30,u:'rolls'},
+  P2000:{p:50,d:100,u:'cases'},P3100:{p:45,d:45,u:'cases'},P4100:{p:35,d:35,u:'cases'},
+  BG1000:{p:50,d:50,u:'cases'},BG2000:{p:50,d:50,u:'cases'},STRWRAP:{p:12,d:48,u:'rolls'}};
+const REO_Z={A:2.05,B:1.65,C:1.28},REO_MIN_DAYS={A:3,B:2,C:1},REO_MAX_SAFETY_DAYS=10,REO_A_ALWAYS=['BX1850-1','BX1000-1'];
+const DM_RACKS={NJ:131};
+function packFor(code,vendor){if(currentPlant!=='NJ')return null;const k=String(code).toUpperCase().replace(/-\d+$/,'').replace(/-(B|P)$/,'');
+  const pca=/PCA/i.test(vendor||'');return (pca&&PACK_NJ[k+'PCA'])||PACK_NJ[k]||null;}
 function reorderRows(summary){
   const lt=(loadLeadTime()||{}).rows||[],yz=loadYooz(),lines=(yz&&yz.lines||[]).filter(l=>l.plant===currentPlant);
   const today=new Date();today.setHours(0,0,0,0);const since=new Date(today.getTime()-REO_USE_DAYS*864e5);
   const fam={};
   const F=b=>fam[b]||(fam[b]={base:b,codes:new Set(),stock:0,open:0,recv:0,lt:[]});
-  ITEMS.forEach(it=>{if(it.disc)return;const f=F(reoBase(it.code));f.codes.add(it.code);const q=summary[it.code];if(q)f.stock+=q.qty;});
+  ITEMS.forEach(it=>{if(it.disc)return;const f=F(reoBase(it.code));f.codes.add(it.code);if(!f.cat)f.cat=it.cat;const q=summary[it.code];if(q)f.stock+=q.qty;});
   lines.forEach(l=>{const f=fam[reoBase(l.code)];if(!f)return;
     if(!l.recv){const o=Math.max(0,l.ordered-l.received);f.open+=o;}
     else{const d=new Date(l.recv+'T00:00:00');if(d>=since)f.recv+=l.received;}});
@@ -3778,29 +3799,96 @@ function reorderRows(summary){
   const dm=planData&&planData.day===isoToday()&&planData.dm&&planData.dm.codes?planData.dm:null;
   const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const H=dm?Math.max(1,Math.round((new Date(dm.end+'T00:00:00')-today)/864e5)+1):0;   // days the plan covers
-  return Object.values(fam).filter(f=>f.lt.length).map(f=>{
-    const main=f.lt.slice().sort((a,b)=>b.pos-a.pos)[0];          // vendor with most POs in 12 months
-    const hist=f.recv/REO_USE_DAYS,have=f.stock+f.open,L=main.lt||main.ltAvg||0;
+  // what is coming, by day: open Yooz POs + POs that are only in John's planner yet (the planner's delivery day wins)
+  const inc={};
+  try{
+    const done=new Set(Object.values(allReceipts()).map(x=>baseKeyOf(x.key)));
+    poGroups().forEach(g=>{if(done.has(g.key))return;
+      g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
+        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:g.due,qty:q,po:g.po,planner:!!g.planner});});});
+  }catch(e){console.error(e);}
+  const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
+  const rows=Object.values(fam).filter(f=>f.lt.length).map(f=>{
+    // active supplier = the one with the most recent PO (not the one with most POs: trays left Bunzl / Packaged)
+    const vs=f.lt.slice().sort((a,b)=>String(b.last).localeCompare(String(a.last))||b.pos-a.pos);
+    const main=vs[0];
+    const recent=vs.filter(v=>v.last&&(today-new Date(v.last+'T00:00:00'))/864e5<=90);   // suppliers used in the last 3 months
+    const P90=main.lt||main.ltAvg||0,Lavg=main.ltAvg||P90;
+    const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
+    const hist=f.recv/REO_USE_DAYS;
     const it=ITEMS.find(i=>i.code===f.base)||ITEMS.find(i=>reoBase(i.code)===f.base);
-    // planned use per day (codes of the same family added together)
+    const pk=packFor(f.base,main.vendor),div=pk&&pk.pal?pk.pal:1;                  // trays: plan in trays → pallets
     const pday={};let ptot=0;
-    if(dm)Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t;Object.entries(o.d).forEach(([k,v])=>pday[k]=(pday[k]||0)+v);});
+    if(dm)Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;Object.entries(o.d).forEach(([k,v])=>pday[k]=(pday[k]||0)+v/div);});
+    let dmp=null;if(dm&&dm.dmp)Object.entries(dm.dmp).forEach(([c,v])=>{if(reoBase(c)===f.base)dmp=(dmp||0)+v/div;});
+    const coming=(inc[f.base]||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const open=coming.reduce((a,x)=>a+x.qty,0);
     const rate=hist>0?hist:(ptot>0?ptot/H:0);                       // after the plan ends: what we usually use
-    const r={...f,codes:[...f.codes],main,vendors:f.lt.length,use:hist,rate,have,L,ptot,planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
-    if(rate>0||ptot>0){
-      const dem=i=>{const d=new Date(today.getTime()+i*864e5);return i<H?(pday[ymd(d)]||0):rate;};
-      let av=have,cover=null;
-      for(let i=0;i<400;i++){const x=dem(i);if(av<x){cover=i+(x>0?av/x:0);break;}av-=x;}
-      if(cover==null)cover=400;
-      r.cover=cover;r.left=cover-(L+REO_SAFETY_DAYS);
-      r.orderBy=new Date(today.getTime()+Math.max(0,Math.floor(r.left))*864e5);
-      let need=0;for(let i=0;i<L+REO_SAFETY_DAYS+REO_REVIEW_DAYS;i++)need+=dem(i);
-      r.sug=Math.max(0,need-have);const step=r.sug>=1000?100:r.sug>=100?10:1;r.sug=Math.ceil(r.sug/step)*step;
-      r.short=ptot>0&&have<ptot;                                      // not even enough for the plan already scheduled
-      r.st=r.short||r.left<=0?'red':r.left<=7?'amber':'green';
-    }else r.st='none';
+    const r={base:f.base,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
+      sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
+      use:hist,rate,have:f.stock+open,L:P90,Lavg,ptot,dmp,pack:pk?{p:pk.p,d:pk.d||0,pal:pk.pal||0,u:pk.u||'boxes'}:null,
+      planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
+    if(!(rate>0||ptot>0)){r.st='none';return r;}
+    const dem=i=>{const d=new Date(today.getTime()+i*864e5);return i<H?(pday[ymd(d)]||0):rate;};
+    // daily use and how much it moves (from the plan days; after the plan, the usual use)
+    const dd=[];for(let i=0;i<Math.max(H,1);i++)dd.push(dem(i));
+    const dbar=Math.max(rate,dd.reduce((a,x)=>a+x,0)/dd.length);
+    const sd=dd.length>2?Math.sqrt(dd.reduce((a,x)=>a+(x-dd.reduce((p,q)=>p+q,0)/dd.length)**2,0)/(dd.length-1)):dbar*0.3;
+    r.dbar=dbar;r.sd=sd;r.sL=sL;
+    const arr={};coming.forEach(x=>{const i=dayIdx(x.date);arr[i]=(arr[i]||0)+x.qty;});
+    const N=Math.max(P90+REO_REVIEW_DAYS+28,H+7,42);
+    // 1) with what we have and what is coming: until when are we covered?
+    let av=f.stock,short=null;
+    for(let i=0;i<=N;i++){av+=arr[i]||0;const x=dem(i);if(short==null&&av<x)short=i;av-=x;}
+    r.coverDay=short;
+    r.cover=short==null?N:short;
+    r.short=ptot>0&&short!=null&&short<H;
+    r.L0=Lavg;r.sdays=0;   // filled after the ABC class is known
+    r._calc=(cls)=>{
+      // 2) safety stock by priority:  SS = z × √( L × σd² + d² × σL² ), between the class minimum and 10 days of use
+      const z=REO_Z[cls];let ss=z*Math.sqrt(Lavg*sd*sd+dbar*dbar*sL*sL);
+      ss=Math.min(Math.max(ss,REO_MIN_DAYS[cls]*dbar),REO_MAX_SAFETY_DAYS*dbar);
+      if(!(ss>0))ss=REO_SAFETY_DAYS*dbar;
+      r.ss=ss;r.sdays=dbar?ss/dbar:0;
+      // 3) the orders. Q = the usual delivery (full pallets); rush only to fill a real gap before a normal PO can arrive.
+      const per=pk?pk.p:1;
+      const Q=pk&&pk.d?pk.d:Math.max(per,Math.ceil(Math.max(1,main.qtyAvg||rate*7)/per)*per);
+      const L=Math.round(Lavg),orders=[];
+      av=f.stock;let gap=0;
+      for(let i=0;i<Math.min(L,N);i++){av+=arr[i]||0;av-=dem(i);if(-av>gap)gap=-av;}
+      const rq=gap>0?Math.ceil(gap/per)*per:0;
+      if(rq)orders.push({orderBy:new Date(today),arrive:new Date(today.getTime()+L*864e5),qty:rq,rush:true});
+      av=f.stock+rq;
+      for(let i=0;i<=N&&orders.length<80;i++){
+        av+=arr[i]||0;const x=dem(i);
+        if(i>=L){let guard=0;
+          // placed on the last Friday before it is needed (John's big-order day); each delivery comes the day it is needed
+          const last=i-L,dw=new Date(today.getTime()+last*864e5).getDay();let ob=last-((dw-5+7)%7),early=false;
+          if(ob<0){ob=0;early=true;}
+          // deliveries on weekdays: a Sat/Sun delivery moves to the Friday before (or the Monday after if Friday is too soon)
+          let ad=Math.max(i,ob+L);const wd=new Date(today.getTime()+ad*864e5).getDay();
+          if(wd===6||wd===0){const fr=ad-(wd===6?1:2);ad=fr>=ob+L?fr:ad+(wd===6?2:1);}
+          while(av-x<ss&&guard++<30){orders.push({orderBy:new Date(today.getTime()+ob*864e5),arrive:new Date(today.getTime()+ad*864e5),qty:Q,rush:false,fri:!early,early});av+=Q;}}
+        av-=x;
+      }
+      // the rush PO only fills the gap; what can't wait for Friday is a normal PO placed today (deliveries spread over the days needed)
+      orders.forEach(o=>{o.pallets=pk?Math.ceil(o.qty/per-1e-9):null;});
+      r.Q=Q;r.orders=orders.filter(o=>(o.orderBy-today)/864e5<=28);
+      r.sug=r.orders.length?r.orders[0].qty:0;
+      r.orderBy=r.orders.length?r.orders[0].orderBy:null;
+      const first=r.orders.length?Math.round((r.orders[0].orderBy-today)/864e5):99;
+      r.left=first;
+      r.st=r.short||first<=0?'red':first<=7?'amber':'green';
+    };
     return r;
-  }).sort((a,b)=>({red:0,amber:1,green:2,none:3}[a.st]-{red:0,amber:1,green:2,none:3}[b.st])||((a.left??999)-(b.left??999)));
+  });
+  // priority A / B / C inside each category by daily use: A = top 80% of the volume, B = next 15%, C = the rest.
+  // BX1850 and BX1000 (retail / most used) are always A.
+  const byCat={};rows.forEach(r=>{if(r.st!=='none')(byCat[r.cat]=byCat[r.cat]||[]).push(r);});
+  Object.values(byCat).forEach(list=>{list.sort((a,b)=>b.dbar-a.dbar);const tot=list.reduce((a,r)=>a+r.dbar,0)||1;let cum=0;
+    list.forEach(r=>{const before=cum/tot;cum+=r.dbar;r.cls=before<0.8?'A':before<0.95?'B':'C';if(REO_A_ALWAYS.includes(r.base))r.cls='A';});});
+  rows.forEach(r=>{if(r._calc){r._calc(r.cls||'C');delete r._calc;}});
+  return rows.sort((a,b)=>({red:0,amber:1,green:2,none:3}[a.st]-{red:0,amber:1,green:2,none:3}[b.st])||((a.cls||'Z').localeCompare(b.cls||'Z'))||((a.left??999)-(b.left??999))||((a.cover??999)-(b.cover??999)));
 }
 function reorderHtml(summary){
   const d=loadLeadTime(),yz=loadYooz();
@@ -4606,7 +4694,20 @@ function dmFromSchedule(wb,baseDay){
     });
   }
   Object.values(codes).forEach(o=>{o.t=Math.round(o.t*100)/100;Object.keys(o.d).forEach(k=>o.d[k]=Math.round(o.d[k]*100)/100);});
-  return {base:baseDay,end,codes};
+  // what the "Direct Material Planning" sheet shows (its tables by production Day = only orders that already have a day)
+  const dmp={};
+  try{const dn=wb.SheetNames.find(n=>/direct material planning/i.test(n));
+    if(dn){const R2=XLSX.utils.sheet_to_json(wb.Sheets[dn],{header:1,defval:''});
+      R2.forEach((r,i)=>r.forEach((v,j)=>{
+        if(String(v).trim()!=='Row Labels')return;
+        const all=r.slice(j+1).map(x=>String(x).trim().toLowerCase());
+        const gt=all.indexOf('grand total');if(gt<0)return;
+        const hdr=all.slice(0,gt);                                     // only this table's own columns
+        if(!hdr.some(x=>DN.includes(x)))return;                       // only the tables by weekday
+        for(let k=i+1;k<R2.length;k++){const c=String(R2[k][j]||'').trim().toUpperCase();if(!c||c==='GRAND TOTAL')break;
+          if(!/^[A-Z]+\d/.test(c))continue;const v2=Number(R2[k][j+1+gt]);if(v2>0)dmp[c]=Math.round(((dmp[c]||0)+v2)*100)/100;}
+      }));}}catch(e){}
+  return {base:baseDay,end,codes,dmp};
 }
 function boxesFromSchedule(wb){
   const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));
@@ -7096,7 +7197,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.16c';
+const APP_VERSION='2026.11.17b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7162,9 +7263,10 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       if(!(planData&&planData.day===isoToday()&&planData.dm)&&PLAN_FILE_URL){try{await planAutoFetch(false);}catch(e){}}
       const yz=loadYooz();if(force||!yz||Date.now()-new Date(yz.loaded).getTime()>4*3600e3){try{await loadYoozFromFlow(false);}catch(e){}}
       const lt=loadLeadTime();if(force||!lt||Date.now()-new Date(lt.loaded).getTime()>7*864e5){try{await loadLeadTimeFromFlow(false);}catch(e){}}
+      const pl=loadPlanner();if(PLANNER_FLOW_URL&&(force||!pl||Date.now()-new Date(pl.loaded).getTime()>3600e3)){try{await loadPlannerFromFlow(false);}catch(e){}}
       const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:live.at||0,liveOn:!!live.on,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null};
+        stockAt:live.at||0,liveOn:!!live.on,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0};
     };
     window.addEventListener('message',async ev=>{
       const m=ev.data;if(ev.source!==window.parent||!m||m.type!=='wms-reorder-get')return;

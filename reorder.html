@@ -46,6 +46,15 @@
   .tab span{font-size:13px;font-weight:600;color:var(--text2);}
   .tab.now b{color:var(--danger);}.tab.week b{color:var(--warn);}.tab.all b{color:var(--text);}
   .tab.on{border-color:var(--accent);}
+  .cats{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .cat{flex:none;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;}
+  .cat.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .cat i{font-style:normal;opacity:.7;margin-left:4px;}
+  .fri{background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:12px;font-size:14px;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .fri b{font-size:15px;}
+  .fri .s{font-size:12px;color:var(--text3);}
+  .cls{display:inline-block;min-width:22px;text-align:center;border-radius:6px;padding:1px 6px;font-size:12px;font-weight:800;color:#fff;background:var(--text3);}
+  .cls.A{background:#7c3aed;}.cls.B{background:#2563eb;}.cls.C{background:#64748b;}
   .search{width:100%;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:11px 14px;font-size:16px;margin-bottom:12px;}
   .card{background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:6px solid var(--border);}
   .card.red{border-left-color:var(--danger);}.card.amber{border-left-color:var(--warn);}.card.green{border-left-color:var(--success);}
@@ -55,6 +64,8 @@
   .c-main{font-size:19px;font-weight:800;margin-top:6px;}
   .card.red .c-main{color:var(--danger);}.card.amber .c-main{color:var(--warn);}.card.green .c-main{color:var(--success);}.card.none .c-main{color:var(--text3);}
   .c-sub{font-size:14px;color:var(--text2);margin-top:3px;line-height:1.4;}
+  .c-orders{margin-top:8px;font-size:13px;color:var(--text2);line-height:1.6;background:var(--surface2);border-radius:10px;padding:6px 10px;}
+  .c-orders .late{color:var(--danger);font-weight:700;}
   .c-alert{font-size:13px;font-weight:700;color:var(--danger);margin-top:6px;}
   .c-more{border:none;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:8px 0 0;cursor:pointer;}
   .c-det{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:14px;font-weight:600;}
@@ -75,15 +86,18 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.16c</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.17a</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
-  <details class="how"><summary>How is this calculated?</summary><ul>
-    <li><b>Stock</b> is the live inventory. <b>Open POs</b> are Yooz orders not received yet.</li>
-    <li>It takes away what <b>today's production plan</b> needs, day by day, and after the plan ends what we <b>usually use</b> (what was received in the last 30 days).</li>
-    <li><b>Lead time</b> = the days in which 9 out of 10 orders from that supplier arrived in the last 12 months (from Yooz).</li>
-    <li><b>Order by</b> = the last day to place the PO so it arrives with 5 days to spare. <b>About</b> = enough for 2 weeks after it arrives.</li>
-    <li>It is a check, not a PO: the official PO is still made in Yooz.</li>
+  <details class="how"><summary>How does it work? (short version)</summary><ul>
+    <li><b>What we have:</b> the live inventory + the POs already on the way (Yooz and John's planner, each on its delivery day).</li>
+    <li><b>What we will use:</b> today's production plan, day by day. After the plan ends, what we usually use.</li>
+    <li><b>Covered until</b> = the last day we have enough.</li>
+    <li><b>Safety stock</b> = a cushion so a late truck or an extra run doesn't stop the line. Bigger for <b>A</b> items (the most used, like BX1850 and BX1000), smaller for <b>C</b> items (little use, so they don't fill the racks).</li>
+    <li><b>When to order:</b> the supplier's usual delivery time before the day we would dip into the cushion. Orders go on the <b>Friday</b> before; each delivery is set for the day it's needed.</li>
+    <li><b>How much:</b> always <b>full pallets</b>, the way the supplier ships it (e.g. BX1850 = 750, two pallets double stacked).</li>
+    <li><b>Rush</b> only when we would run out before a normal order can arrive.</li>
+    <li>It's a guide, not the PO: the official PO is still made in Yooz.</li>
   </ul></details>
 </div>
 <iframe id="helper" title="data" style="display:none" aria-hidden="true"></iframe>
@@ -101,7 +115,7 @@ document.getElementById('plant-name').textContent=PLANT==='NJ'?'NEW JERSEY':'GEO
 document.documentElement.style.setProperty('--plant',PLANT==='NJ'?'#1d4ed8':'#15803d');
 (o=>{const a=document.getElementById('plant-switch');a.textContent='⇄ '+o;a.href='reorder.html?plant='+o;})(PLANT==='NJ'?'GA':'NJ');
 
-let data=null,tab=null,q='',open=new Set(),reqId=0,busy=false,ready=false,pendingAsk=null;
+let data=null,tab=null,cat='ALL',q='',open=new Set(),reqId=0,busy=false,ready=false,pendingAsk=null;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n0=n=>Math.round(+n||0).toLocaleString('en-US');
 const n1=n=>(+n||0)>=10?n0(n):(Math.round((+n||0)*10)/10).toLocaleString('en-US');
@@ -128,7 +142,7 @@ frame.src='index.html?reorderdata='+PLANT;
 try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<12*3600e3){data=last.data;const c=counts();tab=c.red?'now':c.amber?'week':'all';}}catch(e){}
 ask(false);render();
 
-function counts(){const r=(data&&data.rows)||[];return {red:r.filter(x=>x.st==='red').length,amber:r.filter(x=>x.st==='amber').length,all:r.length};}
+function counts(){const r=((data&&data.rows)||[]).filter(inCat);return {red:r.filter(x=>x.st==='red').length,amber:r.filter(x=>x.st==='amber').length,all:r.length};}
 function setTab(t){tab=t;render();window.scrollTo({top:0});}
 function toggle(code){open.has(code)?open.delete(code):open.add(code);render();}
 function onSearch(v){q=v.trim().toLowerCase();render(true);}
@@ -139,38 +153,77 @@ function statusLine(){
   p.push(data.liveOn?'Stock '+(data.stockAt?timeTxt(data.stockAt):'—'):'<span class="warn">Stock from this device only</span>');
   p.push(data.plan?'Plan until '+dayTxt(data.plan.end+'T12:00:00').replace(/^\w+, /,''):'<span class="warn">No production plan for today — using usual use only</span>');
   p.push(data.yzAt?'Yooz POs '+timeTxt(data.yzAt):'<span class="bad">Yooz POs not loaded</span>');
+  if(data.plannerAt)p.push("John's planner "+timeTxt(data.plannerAt));
   if(data.ltErr)p.push('<span class="bad">Lead times: '+esc(data.ltErr)+'</span>');
   if(data.yzErr)p.push('<span class="bad">Yooz: '+esc(data.yzErr)+'</span>');
   if(data.err)p.push('<span class="bad">'+esc(data.err)+'</span>');
   return (busy?'⏳ Updating… · ':'')+p.join(' · ');
 }
+const CATS=[['ALL','All'],['BOXES','Boxes'],['TRAYS','Trays'],['FILM','Film'],['SLEEVES','Sleeves'],['PATTY PAPER','Patty paper'],['OTHER','Other']];
+const catOf=r=>{const c=String(r.cat||'').toUpperCase();return CATS.some(x=>x[0]===c)?c:'OTHER';};
+const inCat=r=>cat==='ALL'||catOf(r)===cat;
+const unitOf=r=>(r.pack&&r.pack.u)||(catOf(r)==='BOXES'?'boxes':'');
+/* "~1,500 boxes · 3 pallets" */
+function qtyTxt(r,qty,pal){let u=unitOf(r);if(u==='pallets'&&Math.round(qty)===1)u='pallet';let t='~'+n0(qty)+(u?' '+u:'');
+  if(pal&&!/^pallet/.test(u))t+=' · '+pal+' pallet'+(pal>1?'s':'');return t;}
+function setCat(c){cat=c;const k=counts();if(tab==='now'&&!k.red)tab=k.amber?'week':'all';render();}
+const addDays=n=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d;};
+/* POs placed and arriving the same day are one delivery: show them together */
+function groupOrders(os){const out=[];(os||[]).forEach(o=>{const l=out[out.length-1];
+  if(l&&+new Date(l.orderBy)===+new Date(o.orderBy)&&!!l.rush===!!o.rush&&!!l.early===!!o.early){l.qty+=o.qty;l.n++;l.pallets=(l.pallets||0)+(o.pallets||0);
+    const a=l.dl.find(x=>+x.d===+new Date(o.arrive));if(a)a.q+=o.qty;else l.dl.push({d:new Date(o.arrive),q:o.qty});}
+  else out.push({...o,n:1,dl:[{d:new Date(o.arrive),q:o.qty}]});});return out;}
+/* one PO, deliveries on several days (how John splits a Friday order over the week) */
+function dlTxt(o){return o.dl.length<2?'arrives ~'+dayTxt(o.arrive):'deliveries '+o.dl.map(x=>dayTxt(x.d)+' ~'+n0(x.q)).join(' · ');}
 function mainLine(r){
-  const about=r.sug?' · about '+n0(r.sug):'';
-  if(r.st==='red')return 'Order today'+about;
-  if(r.st==='amber')return 'Order by '+dayTxt(r.orderBy)+about;
-  if(r.st==='green')return 'OK — order by '+dayTxt(r.orderBy);
-  return 'No recent use';
+  const o=groupOrders(r.orders)[0];
+  if(r.st==='none')return 'No recent use';
+  if(!o)return 'OK — nothing to order for the next 4 weeks';
+  const q=' · '+qtyTxt(r,o.qty,o.pallets)+(o.rush?' · rush':o.early?' · can\'t wait for Friday':'');
+  if(new Date(o.orderBy)<=addDays(0))return 'Order today'+q;
+  return (o.fri?'Friday order · ':'Order by ')+dayTxt(o.orderBy)+q;
 }
 function subLine(r){
   if(r.st==='none')return 'Nothing planned and nothing received in 30 days.';
-  const lasts=r.cover>=400?'Lasts months':r.cover<1?'Runs out today':'Lasts about '+n0(r.cover)+' day'+(Math.round(r.cover)===1?'':'s');
-  return lasts+' · the supplier takes up to '+r.L+' days';
+  const cov=r.coverDay==null?'Covered for the next 6 weeks':r.coverDay<=0?'Not covered today':'Covered until '+dayTxt(addDays(r.coverDay-1));
+  return cov+' (stock + POs on the way) · the supplier takes up to '+r.L+' days';
+}
+function nextOrders(r){
+  const os=groupOrders(r.orders);if(os.length<2&&!(os[0]&&os[0].rush))return '';
+  return '<div class="c-orders">'+os.slice(0,4).map((o,i)=>`<div><b>${i===0?'1st':i===1?'2nd':i===2?'3rd':(i+1)+'th'} PO</b> · ${new Date(o.orderBy)<=addDays(0)?'order today'+(o.early?' (can\'t wait for Friday)':''):(o.fri?'Friday order · ':'order by ')+dayTxt(o.orderBy)} · ${qtyTxt(r,o.qty,o.pallets)}${o.rush?' <span class="late">rush — ask the supplier for the earliest delivery</span>':' · '+dlTxt(o)}</div>`).join('')+'</div>';
 }
 function card(r){
   const key=r.base,m=r.main||{};
   const det=open.has(key)?`<div class="c-det">
       <div><span>Stock</span>${n0(r.stock)}</div><div><span>Open POs</span>${r.open?n0(r.open):'—'}</div>
       <div><span>Plan until ${r.planEnd?r.planEnd.slice(5).replace('-','/'):'—'}</span>${r.ptot?n1(r.ptot):'—'}</div>
-      <div><span>Usual use / day</span>${r.use?n1(r.use):'—'}</div><div><span>Lead time</span>${r.L} days</div><div><span>Usual order</span>${m.qtyAvg?n0(m.qtyAvg):'—'}</div>
-      <div class="c-vend">${esc(m.vendor||'')} · ${m.onTime!=null?m.onTime+'% on time':''} · ${m.pos||0} POs in 12 months${r.vendors>1?' · '+r.vendors+' suppliers':''}${m.pos<5?' · few POs, rough lead time':''}</div>
+      <div><span>Use / day</span>${r.dbar?n1(r.dbar):'—'}</div><div><span>Lead time</span>~${Math.round(r.Lavg||r.L)} days${r.L>Math.round(r.Lavg||r.L)?' (up to '+r.L+')':''}</div>
+      <div><span>Safety stock</span>${r.ss?n0(r.ss)+' · '+n1(r.sdays)+' days':'—'}</div>
+      ${r.pack?`<div class="c-vend"><b>How it comes:</b> ${r.pack.pal?n0(r.pack.pal)+' trays per pallet (stock and POs in pallets)':n0(r.pack.p)+' '+unitOf(r)+' per pallet'+(r.pack.d>r.pack.p?' · usual delivery '+n0(r.pack.d)+' ('+Math.round(r.pack.d/r.pack.p)+' pallets)':'')}</div>`:(m.qtyAvg?`<div class="c-vend"><b>Usual order:</b> ${n0(m.qtyAvg)} (no pallet size saved yet)</div>`:'')}
+      ${r.cls?`<div class="c-vend"><b>Priority ${r.cls}</b> · ${r.cls==='A'?'most used: biggest safety stock':r.cls==='B'?'medium use':'little use: small safety stock, no extra pallets'}</div>`:''}
+      ${r.dmp!=null&&r.ptot?`<div class="c-vend">Direct Material Planning sheet (orders with a day already): ${n1(r.dmp)} · all open orders in the plan: ${n1(r.ptot)}</div>`:''}
+      ${(r.coming||[]).length?`<div class="c-vend"><b>On the way:</b> ${r.coming.slice(0,6).map(x=>esc(x.po)+' · '+n0(x.qty)+' · '+dayTxt(x.date+'T12:00:00')+(x.planner?' (John\'s planner)':'')).join(' &nbsp;|&nbsp; ')}</div>`:''}
+      <div class="c-vend"><b>Supplier${(r.sup||[]).length>1?'s (both used in the last 3 months)':''}:</b> ${((r.sup||[]).length?r.sup:[m]).map(v=>esc(v.vendor||'')+(v.ltAvg?' · ~'+Math.round(v.ltAvg)+' days':'')+(v.lt?' (up to '+v.lt+')':'')+(v.onTime!=null?' · '+v.onTime+'% on time':'')+(v.last?' · last PO '+dayTxt(v.last+'T12:00:00').replace(/^\w+, /,''):'')).join(' &nbsp;|&nbsp; ')}${m.pos<5?' · few POs, rough lead time':''}</div>
     </div>`:'';
   return `<div class="card ${r.st}">
-    <div class="c-top"><span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
+    <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
     <div class="c-main">${mainLine(r)}</div>
     <div class="c-sub">${subLine(r)}</div>
-    ${r.short?`<div class="c-alert">⚠ Not enough for the production already planned (needs ${n1(r.ptot)}, have ${n0(r.have)})</div>`:''}
+    ${nextOrders(r)}
+    ${r.short?`<div class="c-alert">⚠ Runs short on ${dayTxt(addDays(r.coverDay))}, inside the days already planned — before the next PO arrives</div>`:''}
     <button class="c-more" onclick="toggle('${esc(key).replace(/'/g,'')}')">${open.has(key)?'Hide details ▴':'Details ▾'}</button>${det}
   </div>`;
+}
+/* what to order today and on the next Friday, all categories, in pallets */
+function friBox(){
+  const rows=(data&&data.rows)||[];if(!rows.length)return '';
+  const t0=addDays(0),dw=t0.getDay(),fri=addDays((5-dw+7)%7);
+  const sum=pred=>{let items=0,pal=0,noPal=0;rows.forEach(r=>{const os=(r.orders||[]).filter(pred);if(!os.length)return;items++;
+    os.forEach(o=>{if(r.pack&&r.pack.u==='pallets')pal+=o.qty;else if(o.pallets)pal+=o.pallets;else noPal++;});});return {items,pal,noPal};};
+  const td=sum(o=>new Date(o.orderBy)<=t0),fr=+fri===+t0?null:sum(o=>+new Date(o.orderBy)===+fri);
+  const line=(lbl,x)=>x&&x.items?`<div><b>${lbl}:</b> ${x.items} item${x.items>1?'s':''} · ~${n0(x.pal)} pallets${x.noPal?' (+'+x.noPal+' without pallet size)':''}</div>`:'';
+  const body=line('Order today',td)+line('Friday order ('+dayTxt(fri)+')',fr);
+  return `<div class="fri">${body||'<div><b>Nothing to order today or this Friday.</b></div>'}${data.racks?`<div class="s">Direct Materials has ${data.racks} rack positions (floor and Finished Goods racks are borrowed). Pallets arrive spread over the week.</div>`:''}</div>`;
 }
 function render(keepFocus){
   document.getElementById('status').innerHTML=statusLine();
@@ -178,17 +231,19 @@ function render(keepFocus){
   const body=document.getElementById('body');
   if(!data){if(!busy)body.innerHTML='<div class="empty"><b>⚠</b>Could not load the data. Tap ⟳ Refresh.</div>';return;}
   const c=counts();
-  let rows=data.rows||[];
+  let rows=(data.rows||[]).filter(inCat);
   if(tab==='now')rows=rows.filter(r=>r.st==='red');else if(tab==='week')rows=rows.filter(r=>r.st==='amber');
-  if(q)rows=(data.rows||[]).filter(r=>((r.codes||[]).join(' ')+' '+r.name+' '+((r.main||{}).vendor||'')).toLowerCase().includes(q));
+  if(q)rows=(data.rows||[]).filter(inCat).filter(r=>((r.codes||[]).join(' ')+' '+r.name+' '+((r.main||{}).vendor||'')).toLowerCase().includes(q));
   const list=rows.length?rows.map(card).join(''):
     `<div class="empty"><b>✓</b>${q?'Nothing matches “'+esc(q)+'”.':tab==='now'?'Nothing to order today.':tab==='week'?'Nothing else to order this week.':'No items with lead times yet.'}</div>`;
   const tabs=`<div class="tabs">
     <button class="tab now${tab==='now'&&!q?' on':''}" onclick="setTab('now')"><b>${c.red}</b><span>Order today</span></button>
     <button class="tab week${tab==='week'&&!q?' on':''}" onclick="setTab('week')"><b>${c.amber}</b><span>This week</span></button>
     <button class="tab all${tab==='all'&&!q?' on':''}" onclick="setTab('all')"><b>${c.all}</b><span>All items</span></button></div>`;
+  const cc=c2=>(data.rows||[]).filter(r=>c2==='ALL'||catOf(r)===c2).length;
+  const cats=`<div class="cats">${CATS.filter(([k])=>k==='ALL'||cc(k)).map(([k,l])=>`<button class="cat${cat===k?' on':''}" onclick="setCat('${k}')">${l}<i>${cc(k)}</i></button>`).join('')}</div>`;
   if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;document.querySelector('.tabs').outerHTML=tabs;return;}
-  body.innerHTML=tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
+  body.innerHTML=friBox()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
 }
 
 /* refresh when coming back to the page */
