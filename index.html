@@ -3767,7 +3767,7 @@ function leadTimeAuto(){   // once a week; after a failure wait 10 min before tr
   if(typeof yoozAutoRefresh==='function')yoozAutoRefresh();   // use / day and open POs come from the Yooz POs
 }
 function setReoFilter(f){reoFilter=f;renderStatsView();}
-/* How each item comes (NJ, from Julian · Nov 17 2026). p = units per pallet, d = usual delivery
+/* How each item comes (from Julian · Nov 17 2026). Same standard for NJ and GA. p = units per pallet, d = usual delivery
    (2 pallets double stacked when the supplier does it). Orders are always rounded to full pallets.
    Trays: everything is shown in TRAYS (2,640 per pallet). The count and John's planner are in pallets,
    Yooz and the production plan in trays → small numbers (< 500) are pallets and are × 2,640. */
@@ -3776,7 +3776,7 @@ function toUnits(code,q){q=+q||0;return /^T2[01]00/i.test(String(code))&&q>0&&q<
 const PACK_NJ={
   BX1000:{p:500,d:1000},BX1000PCA:{p:600,d:1200},BX1003:{p:500,d:1000},BX1050:{p:500,d:1000},BX1075:{p:500,d:500},
   BX1100:{p:500,d:1000},BX1200:{p:500,d:500},BX1300:{p:375,d:750},BX1350:{p:275,d:550},BX1400:{p:500,d:1000},
-  BX1850:{p:375,d:750},BX1850PCA:{p:375,d:750},BX1900:{p:750,d:750},BX2003:{p:375,d:750},BX2050:{p:550,d:1100},
+  BX1850:{p:375,d:750},BX1875:{p:1000,d:1000},BX1850PCA:{p:375,d:750},BX1900:{p:750,d:750},BX2003:{p:375,d:750},BX2050:{p:550,d:1100},
   BX2075:{p:750,d:750},BX2300:{p:500,d:500},BX3000:{p:500,d:1000},BX3050:{p:500,d:1000},BX3100:{p:750,d:750},
   BX3125:{p:375,d:750},BX3150:{p:500,d:1000},BX3200:{p:500,d:1000},BX3300:{p:500,d:500},BX6550:{p:500,d:500},
   BX7500:{p:375,d:750},BX7600:{p:375,d:750},BX7700PCA:{p:360,d:720},BX7800:{p:250,d:250},BX7900:{p:160,d:160},BX8200:{p:500,d:500},
@@ -3821,8 +3821,8 @@ async function reoSaveMark(key,mark){   // mark = {base,ob,qty,dl,done,edited,ru
   localStorage.setItem('wms_reomarks_'+currentPlant,JSON.stringify(marks));
   await planPost({key:currentPlant+'|reomarks',plant:currentPlant,kind:'reomarks',day:REO_MARK_DAY,status:'',batchNo:'',meatBlock:'',updatedAt:now,updatedBy:planDevice(),json:JSON.stringify({plant:currentPlant,marks})});
 }
-function packFor(code,vendor){if(currentPlant!=='NJ')return null;const k=String(code).toUpperCase().replace(/-\d+$/,'').replace(/-(B|P)$/,'');
-  const pca=/PCA/i.test(vendor||'');return (pca&&PACK_NJ[k+'PCA'])||PACK_NJ[k]||null;}
+function packFor(code,vendor){const k=String(code).toUpperCase().replace(/-\d+$/,'').replace(/-(B|P)$/,'');   // GA uses the same standard as NJ
+  const pca=/PCA/i.test(vendor||'');return (pca&&PACK_NJ[k+'PCA'])||PACK_NJ[k]||(/^F\d/.test(k)?{p:27,d:27,u:'rolls'}:null);}   // any other film: 27 rolls per pallet
 function reorderRows(summary){
   const lt=(loadLeadTime()||{}).rows||[],yz=loadYooz(),lines=(yz&&yz.lines||[]).filter(l=>l.plant===currentPlant);
   const today=new Date();today.setHours(0,0,0,0);const since=new Date(today.getTime()-REO_USE_DAYS*864e5);
@@ -3906,8 +3906,11 @@ function reorderRows(summary){
       if(!(ss>0))ss=REO_SAFETY_DAYS*dbar;
       r.ss=ss;r.sdays=dbar?ss/dbar:0;
       // 3) the orders. Q = the usual delivery (full pallets); rush only to fill a real gap before a normal PO can arrive.
-      const per=pk?pk.p:1;
-      const Q=pk&&pk.d?pk.d:Math.max(per,Math.ceil(Math.max(1,toUnits(f.base,main.qtyAvg)||rate*7)/per)*per);
+      // no pallet size saved yet: round to a clean number (100 / 50 / 10) instead of the raw Yooz average (e.g. 7,296)
+      const raw=Math.max(1,toUnits(f.base,main.qtyAvg)||rate*7),step=raw>=1000?100:raw>=200?50:10;
+      const per=pk?pk.p:step;
+      const Q=pk&&pk.d?pk.d:pk?Math.max(per,Math.ceil(raw/per)*per):Math.max(step,Math.round(raw/step)*step);
+      r.noPack=!pk;
       const L=Math.round(Lavg),orders=[];
       const inA=i=>(arr[i]||0)+(arrM[i]||0);
       av=f.stock;let gap=0;
@@ -7271,7 +7274,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18c';
+const APP_VERSION='2026.11.18e';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
