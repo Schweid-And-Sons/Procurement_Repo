@@ -3796,7 +3796,8 @@ const DM_RACKS={NJ:131};
 const REO_HOLIDAYS=[['2026-01-01','New Year'],['2026-05-25','Memorial Day'],['2026-07-03','Independence Day'],['2026-09-07','Labor Day'],
   ['2026-11-26','Thanksgiving'],['2026-11-27','Day after Thanksgiving'],['2026-12-25','Christmas Day']];
 const REO_CFG_DAY='2000-01-03',REO_MARK_DAY='2000-01-04';
-function reoCfgDefault(){return {days:[false,false,true,true,true,true,false],holidays:REO_HOLIDAYS.map(([d,n])=>({d,n})),extra:{},by:'',at:''};}
+const REO_SS_DAYS={A:3,B:2,C:1};   // safety stock in days of use, by priority (editable in Next POs → Settings)
+function reoCfgDefault(){return {days:[false,false,true,true,true,true,false],holidays:REO_HOLIDAYS.map(([d,n])=>({d,n})),extra:{},ss:Object.assign({},REO_SS_DAYS),by:'',at:''};}
 function loadReoCfg(){try{const o=JSON.parse(localStorage.getItem('wms_reocfg_'+currentPlant)||'null');if(o&&Array.isArray(o.days))return o;}catch(e){}return reoCfgDefault();}
 function loadReoMarks(){try{return JSON.parse(localStorage.getItem('wms_reomarks_'+currentPlant)||'null')||{};}catch(e){return {};}}
 async function reoReadShared(){
@@ -3857,9 +3858,12 @@ function reorderRows(summary){
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
   const rows=Object.values(fam).filter(f=>f.lt.length).map(f=>{
     // active supplier = the one with the most recent PO (not the one with most POs: trays left Bunzl / Packaged)
+    // supplier: among the ones used in the last 3 months, the one we order from the most (Sonic over PCA for BX1850);
+    // if none in 3 months, the one with the most recent PO (trays left Bunzl / Packaged)
     const vs=f.lt.slice().sort((a,b)=>String(b.last).localeCompare(String(a.last))||b.pos-a.pos);
-    const main=vs[0];
-    const recent=vs.filter(v=>v.last&&(today-new Date(v.last+'T00:00:00'))/864e5<=90);   // suppliers used in the last 3 months
+    const recent=vs.filter(v=>v.last&&(today-new Date(v.last+'T00:00:00'))/864e5<=90);
+    const main=recent.length?recent.slice().sort((a,b)=>b.pos-a.pos)[0]:vs[0];
+    const fast=(recent.length?recent:[main]).filter(v=>v.ltAvg||v.lt).sort((a,b)=>(a.ltAvg||a.lt)-(b.ltAvg||b.lt))[0]||main;   // rush: the quickest one
     const P90=main.lt||main.ltAvg||0,Lavg=main.ltAvg||P90;
     const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
     const hist=f.recv/REO_USE_DAYS;
@@ -3877,7 +3881,9 @@ function reorderRows(summary){
       use:hist,rate,have:f.stock+open,L:P90,Lavg,ptot,dmp,pack:pk?{p:pk.p,d:pk.d||0,pal:pk.pal||0,u:pk.u||'boxes'}:null,
       planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
     if(!(rate>0||ptot>0)){r.st='none';return r;}
-    const dem=i=>{const d=new Date(today.getTime()+i*864e5);return i<H?(pday[ymd(d)]||0):rate;};
+    // after the plan: the usual use, only on production days (Mon–Fri, no holidays) — the same total per week,
+    // so a weekend doesn't look like a shortage
+    const dem=i=>{const d=new Date(today.getTime()+i*864e5);if(i<H)return pday[ymd(d)]||0;const w=d.getDay();return w===0||w===6||hol.has(ymd(d))?0:rate*7/5;};
     // daily use and how much it moves (from the plan days; after the plan, the usual use)
     const dd=[];for(let i=0;i<Math.max(H,1);i++)dd.push(dem(i));
     const dbar=Math.max(rate,dd.reduce((a,x)=>a+x,0)/dd.length);
@@ -3890,33 +3896,41 @@ function reorderRows(summary){
       const inYooz=m.done&&yzAt>new Date(m.at).getTime()+2*3600e3;
       const lastD=m.dl&&m.dl.length?m.dl[m.dl.length-1].d:m.ob;if(m.done&&new Date(lastD+'T00:00:00')<today)return;   // created and already delivered: done
       fixed.push(Object.assign({key:k,orderBy:new Date(m.ob<ymd(today)?ymd(today)+'T00:00:00':m.ob+'T00:00:00'),arrive:new Date((m.dl&&m.dl[0]?m.dl[0].d:m.ob)+'T00:00:00'),fixed:true},m));
-      if(!inYooz)(m.dl||[]).forEach(x=>{const i=dayIdx(x.d);arrM[i]=(arrM[i]||0)+(+x.q||0);});});
+      // counted like the suggestion it replaces: from the day it could first arrive (order day + lead time),
+      // even if receiving moved the truck to the next receiving day
+      const obI=dayIdx(m.ob<ymd(today)?ymd(today):m.ob)+Math.round(Lavg);
+      if(!inYooz)(m.dl||[]).forEach(x=>{const i=Math.min(dayIdx(x.d),Math.max(obI,0));arrM[i]=(arrM[i]||0)+(+x.q||0);});});
     const N=Math.max(P90+REO_REVIEW_DAYS+28,H+7,42);
     // 1) with what we have and what is coming: until when are we covered?
     let av=f.stock,short=null;
     for(let i=0;i<=N;i++){av+=arr[i]||0;const x=dem(i);if(short==null&&av<x)short=i;av-=x;}
     r.coverDay=short;
+    // the plan day by day (what production needs each day, what arrives, what is left at the end of the day)
+    {let left=f.stock;r.plan=[];for(let i=0;i<H;i++){const inc=arr[i]||0,need=dem(i);left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left});}}
     r.cover=short==null?N:short;
     r.short=ptot>0&&short!=null&&short<H;
     r.L0=Lavg;r.sdays=0;   // filled after the ABC class is known
     r._calc=(cls)=>{
-      // 2) safety stock by priority:  SS = z × √( L × σd² + d² × σL² ), between the class minimum and 10 days of use
-      const z=REO_Z[cls];let ss=z*Math.sqrt(Lavg*sd*sd+dbar*dbar*sL*sL);
-      ss=Math.min(Math.max(ss,REO_MIN_DAYS[cls]*dbar),REO_MAX_SAFETY_DAYS*dbar);
-      if(!(ss>0))ss=REO_SAFETY_DAYS*dbar;
-      r.ss=ss;r.sdays=dbar?ss/dbar:0;
+      // 2) safety stock = days of use by priority (Settings, same for every device; default A 3 · B 2 · C 1).
+      //    The statistical formula z × √( L × σd² + d² × σL² ) is only shown as a reference until we have daily usage:
+      //    with 4 plan days and long PCA lead times it gave up to 10 days, far too much.
+      const own=cfg.ssItem&&cfg.ssItem[f.base]!=null;                   // this item has its own cushion ("too big?")
+      const ssd=own?+cfg.ssItem[f.base]:(cfg.ss&&cfg.ss[cls]!=null?+cfg.ss[cls]:REO_SS_DAYS[cls]);r.ssOwn=own;
+      const ss=ssd*dbar;
+      const z=REO_Z[cls];r.ssFormulaDays=dbar?Math.min(z*Math.sqrt(Lavg*sd*sd+dbar*dbar*sL*sL)/dbar,30):0;
+      r.ss=ss;r.sdays=ssd;
       // 3) the orders. Q = the usual delivery (full pallets); rush only to fill a real gap before a normal PO can arrive.
       // no pallet size saved yet: round to a clean number (100 / 50 / 10) instead of the raw Yooz average (e.g. 7,296)
       const raw=Math.max(1,toUnits(f.base,main.qtyAvg)||rate*7),step=raw>=1000?100:raw>=200?50:10;
       const per=pk?pk.p:step;
       const Q=pk&&pk.d?pk.d:pk?Math.max(per,Math.ceil(raw/per)*per):Math.max(step,Math.round(raw/step)*step);
       r.noPack=!pk;
-      const L=Math.round(Lavg),orders=[];
+      const L=Math.round(Lavg),Lr=Math.max(1,Math.round(fast.ltAvg||fast.lt||Lavg)),orders=[];
       const inA=i=>(arr[i]||0)+(arrM[i]||0);
       av=f.stock;let gap=0;
       for(let i=0;i<Math.min(L,N);i++){av+=inA(i);av-=dem(i);if(-av>gap)gap=-av;}
       const rq=gap>0?Math.ceil(gap/per)*per:0;
-      if(rq)orders.push({orderBy:new Date(today),arrive:dOf(fixArrive(L,L)),qty:rq,rush:true});
+      if(rq)orders.push({orderBy:new Date(today),arrive:dOf(fixArrive(Math.min(Lr,L),Math.min(Lr,L))),qty:rq,rush:true,via:fast.vendor});
       av=f.stock+rq;
       for(let i=0;i<=N&&orders.length<80;i++){
         av+=inA(i);const x=dem(i);
@@ -3927,7 +3941,9 @@ function reorderRows(summary){
           // deliveries only on receiving days (default Tue–Fri, no holidays): move to the receiving day before
           // (Friday can take more), or to the next one if the supplier can't make it sooner
           const ad=fixArrive(Math.max(i,ob+L),ob+L);
-          while(av-x<ss&&guard++<30){orders.push({orderBy:new Date(today.getTime()+ob*864e5),arrive:new Date(today.getTime()+ad*864e5),qty:Q,rush:false,fri:!early,early});av+=Q;}}
+          // a PO that can't wait for Friday only has to keep us running (half the cushion); the Friday POs rebuild the full cushion
+          const tgt=early?ss*0.5:ss;
+          while(av-x<tgt&&guard++<30){orders.push({orderBy:new Date(today.getTime()+ob*864e5),arrive:new Date(today.getTime()+ad*864e5),qty:Q,rush:false,fri:!early,early});av+=Q;}}
         av-=x;
       }
       // the rush PO only fills the gap; what can't wait for Friday is a normal PO placed today (deliveries spread over the days needed)
@@ -3936,7 +3952,7 @@ function reorderRows(summary){
       const fk=new Set(fixed.map(m=>m.key));
       fixed.forEach(m=>{m.pallets=pk?Math.ceil(m.qty/per-1e-9):null;});
       r.per=per;r.Q=Q;r.orders=fixed.concat(orders.map(o=>{if(fk.has(o.key))o.key+='|+';return o;})).filter(o=>(o.orderBy-today)/864e5<=28).sort((a,b)=>a.orderBy-b.orderBy||(b.rush?1:0)-(a.rush?1:0));
-      const todo=r.orders.filter(o=>!o.done);
+      const todo=r.orders.filter(o=>!o.done&&!o.pending);           // pending = someone is on it (not counted as "to order")
       r.sug=todo.length?todo[0].qty:0;
       r.orderBy=todo.length?todo[0].orderBy:null;
       const first=todo.length?Math.round((todo[0].orderBy-today)/864e5):99;
@@ -7274,7 +7290,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18e';
+const APP_VERSION='2026.11.18h';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

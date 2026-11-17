@@ -63,6 +63,11 @@
   .o-btn.ok{background:var(--success);border-color:var(--success);color:#fff;}
   .o-tag{font-size:12px;font-weight:700;color:var(--success);}
   .o-tag.ed{color:var(--accent);}
+  .o-tag.pe{color:var(--warn);}
+  .st{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text2);}
+  .st.on.none{background:var(--text3);border-color:var(--text3);color:#fff;}
+  .st.on.pend{background:var(--warn);border-color:var(--warn);color:#fff;}
+  .st.on.done{background:var(--success);border-color:var(--success);color:#fff;}
   .tools{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
   .tool-btn{border:none;background:var(--surface2);border-radius:10px;padding:8px 12px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);}
   .ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
@@ -84,6 +89,32 @@
   .lst button{border:none;background:none;color:var(--danger);font-size:18px;cursor:pointer;}
   .sec{font-size:13px;font-weight:700;color:var(--text2);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:200;max-width:90vw;}
+  .pd{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px;}
+  .pd th,.pd td{text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);}
+  .pd th:first-child,.pd td:first-child{text-align:left;}
+  .pd th{font-size:11px;color:var(--text3);font-weight:600;}
+  #print{display:none;}
+  @media print{
+    body{background:#fff!important;color:#000!important;}
+    body>*:not(#print){display:none!important;}
+    #print{display:block!important;font:11pt -apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#000;}
+    @page{size:landscape;margin:12mm;}
+  }
+  #print h1{font-size:18pt;margin:0 0 2px;}
+  #print .meta{font-size:9pt;color:#444;margin-bottom:10px;}
+  #print h2{font-size:13pt;margin:14px 0 4px;padding:4px 8px;background:#e5e7eb;border-radius:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #print table{width:100%;border-collapse:collapse;page-break-inside:auto;}
+  #print tr{page-break-inside:avoid;}
+  #print th{font-size:8.5pt;text-align:left;border-bottom:2px solid #000;padding:4px 5px;}
+  #print td{border-bottom:1px solid #bbb;padding:5px;vertical-align:top;font-size:9.5pt;}
+  #print td.code{font-size:12pt;font-weight:800;white-space:nowrap;}
+  #print td.qty{font-size:13pt;font-weight:800;text-align:right;white-space:nowrap;}
+  #print td.pal{font-size:13pt;font-weight:800;text-align:center;}
+  #print td.box{font-size:16pt;text-align:center;width:28px;}
+  #print tr.rush td{background:#fee2e2;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #print .cls{display:inline-block;border:1.5px solid #000;border-radius:4px;padding:0 5px;font-weight:800;}
+  #print .tot td{font-weight:800;border-bottom:2px solid #000;}
+  #print .foot{font-size:8.5pt;color:#444;margin-top:10px;}
   .search{width:100%;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:11px 14px;font-size:16px;margin-bottom:12px;}
   .card{background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:6px solid var(--border);}
   .card.red{border-left-color:var(--danger);}.card.amber{border-left-color:var(--warn);}.card.green{border-left-color:var(--success);}
@@ -115,19 +146,20 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18e</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18j</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
     <li><b>What we have:</b> the live inventory + the POs already on the way (Yooz and John's planner, each on its delivery day).</li>
     <li><b>What we will use:</b> today's production plan, day by day. After the plan ends, what we usually use.</li>
     <li><b>Covered until</b> = the last day we have enough.</li>
-    <li><b>Safety stock</b> = a cushion so a late truck or an extra run doesn't stop the line. Bigger for <b>A</b> items (the most used, like BX1850 and BX1000), smaller for <b>C</b> items (little use, so they don't fill the racks).</li>
+    <li><b>Safety stock</b> = a cushion so a late truck or an extra run doesn't stop the line, in <b>days of use</b>: by default <b>A 3 · B 2 · C 1</b> (A = most used, like BX1850 and BX1000). You can change it in ⚙️ Settings (PIN).</li>
+    <li><b>Supplier</b> = the one we order from the most in the last 3 months. A <b>rush</b> PO uses the quickest one.</li>
     <li><b>When to order:</b> the supplier's usual delivery time before the day we would dip into the cushion. Orders go on the <b>Friday</b> before; each delivery is set for the day it's needed, <b>never on Monday</b> (moved to the Friday before, or Tuesday). Friday can take bigger deliveries.</li>
     <li><b>How much:</b> always <b>full pallets</b>, the way the supplier ships it (e.g. BX1850 = 750, two pallets double stacked).</li>
     <li><b>Rush</b> only when we would run out before a normal order can arrive.</li>
-    <li><b>✓ Created in Yooz:</b> tap it after you make the PO, so nobody orders it twice. <b>✏️ Change quantity</b> if you order a different amount; the next POs adjust. Both need the PIN and show on every device.</li>
-    <li><b>📅 Receiving days</b> and holidays are the same for every device (PIN). <b>⬇ Excel</b> downloads the list to share.</li>
+    <li>Each PO has a status, the same on every device (PIN): <b>Not ordered</b> · <b>⏳ Pending</b> (someone is on it, e.g. waiting for the supplier) · <b>✅ Created</b> (made in Yooz, so nobody orders it twice). <b>✏️ Qty</b> changes the amount; the next POs adjust. The first 2 POs show; tap “Show more” for the ones ahead.</li>
+    <li><b>📅 Receiving days</b> and holidays are the same for every device (PIN). <b>⬇ Excel</b> downloads the list to share; <b>🖨 Print</b> gives a big, clear list by order day (or Save as PDF).</li>
     <li>It's a guide, not the PO: the official PO is still made in Yooz.</li>
   </ul></details>
 </div>
@@ -164,7 +196,7 @@ window.addEventListener('message',ev=>{
   if(ev.source!==frame.contentWindow)return;const m=ev.data||{};
   if(m.type==='wms-reorder-ready'){ready=true;bootS=(Date.now()-bootT)/1000;if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
   if(m.type==='wms-reorder-data'&&m.id===reqId){busy=!!m.partial;data=m;
-    if(m.saveErr)toast('⚠ '+m.saveErr);else if(m.saved)toast(m.saved==='cfg'?'✓ Receiving days saved for every device':'✓ Saved for every device');
+    if(m.saveErr)toast('⚠ '+m.saveErr);else if(m.saved)toast(m.saved==='cfg'?'✓ Settings saved for every device':'✓ Saved for every device');
     if(!tab){const c=counts();tab=c.red?'now':c.amber?'week':'all';}
     if(!m.partial){lastAt=Date.now();try{localStorage.setItem('reorder_last_'+PLANT,JSON.stringify({at:lastAt,data:m}));}catch(e){}}
     render();}
@@ -220,9 +252,9 @@ function groupOrders(os){const out=[];(os||[]).forEach(o=>{const l=out.find(x=>x
 /* one PO, deliveries on several days (how John splits a Friday order over the week) */
 function dlTxt(o){return o.dl.length<2?'arrives ~'+dayTxt(o.dl[0]?o.dl[0].d:o.arrive):'deliveries '+o.dl.map(x=>dayTxt(x.d)+' ~'+n0(x.q)).join(' · ');}
 function mainLine(r){
-  const all=groupOrders(r.orders),o=all.find(x=>!x.done);
+  const all=groupOrders(r.orders),o=all.find(x=>!x.done&&!x.pending);
   if(r.st==='none')return 'No recent use';
-  if(!o)return all.length?'✓ All POs created — nothing else for 4 weeks':'OK — nothing to order for the next 4 weeks';
+  if(!o)return all.length?(all.some(x=>x.pending)?'⏳ Pending POs — nothing else to order now':'✓ All POs created — nothing else for 4 weeks'):'OK — nothing to order for the next 4 weeks';
   const q=' · '+qtyTxt(r,o.qty,o.pallets)+(o.rush?' · rush':o.early?' · can\'t wait for Friday':'');
   if(new Date(o.orderBy)<=addDays(0))return 'Order today'+q;
   return whenTxt(o)+dayTxt(o.orderBy)+q;
@@ -234,33 +266,68 @@ function subLine(r){
 }
 const whenTxt=o=>o.fri?(new Date(o.orderBy).getDay()===5?'Friday order · ':'Order day (holiday Friday) · '):'Order by ';
 const ordTxt=['1st','2nd','3rd','4th','5th','6th'];
+const moreOpen=new Set();
+function stateChips(r,o){const k=esc(o.key||'').replace(/'/g,''),b=esc(r.base);
+  const st=o.done?'done':o.pending?'pend':'none';
+  const c=(v,l)=>`<button class="st${st===v?' on '+v:''}" onclick="setState('${b}','${k}','${v}')">${l}</button>`;
+  return `<div class="o-acts">${c('none','Not ordered')}${c('pend','⏳ Pending')}${c('done','✅ Created')}<button class="o-btn" onclick="editQty('${b}','${k}')">✏️ Qty</button></div>`;}
 function nextOrders(r){
   const os=groupOrders(r.orders);if(!os.length)return '';
-  return '<div class="c-orders">'+os.slice(0,5).map((o,i)=>{
-    const when=new Date(o.orderBy)<=addDays(0)&&!o.done?'order today'+(o.early?' (can\'t wait for Friday)':''):whenTxt(o)+dayTxt(o.orderBy);
-    const tag=o.done?`<span class="o-tag">✅ Created${o.by?' by '+esc(o.by):''}${o.at?' · '+timeTxt(o.at):''}</span>`:o.edited?`<span class="o-tag ed">✏️ Quantity changed${o.by?' by '+esc(o.by):''}</span>`:'';
-    const k=esc(o.key||'').replace(/'/g,'');
-    const acts=o.done?`<div class="o-acts"><button class="o-btn" onclick="undoMark('${k}')">↩ Undo</button></div>`
-      :`<div class="o-acts"><button class="o-btn ok" onclick="markCreated('${esc(r.base)}','${k}')">✓ Created in Yooz</button><button class="o-btn" onclick="editQty('${esc(r.base)}','${k}')">✏️ Change quantity</button></div>`;
-    return `<div class="o-row${o.done?' done':''}"><b>${ordTxt[i]||(i+1)+'th'} PO</b> · ${when} · ${qtyTxt(r,o.qty,o.pallets)}${o.rush?' <span class="late">rush — ask the supplier for the earliest delivery</span>':''} · ${dlTxt(o)} ${tag}${acts}</div>`;}).join('')+'</div>';
+  const showN=moreOpen.has(r.base)?6:2;
+  const rows=os.slice(0,showN).map((o,i)=>{
+    const when=new Date(o.orderBy)<=addDays(0)&&!o.done&&!o.pending?'order today'+(o.early?' (can\'t wait for Friday)':''):whenTxt(o)+dayTxt(o.orderBy);
+    const who=(o.by?' by '+esc(o.by):'')+(o.at?' · '+timeTxt(o.at):'');
+    const tag=o.done?`<span class="o-tag">✅ Created${who}</span>`:o.pending?`<span class="o-tag pe">⏳ Pending${who}</span>`:o.edited?`<span class="o-tag ed">✏️ Quantity changed${who}</span>`:'';
+    const dd=r.dbar?o.qty/r.dbar:0;
+    return `<div class="o-row${o.done?' done':''}"><b>${ordTxt[i]||(i+1)+'th'} PO</b> · ${when} · ${qtyTxt(r,o.qty,o.pallets)}${dd>=0.5?' <span style="color:var(--text3)">(≈ '+n1(dd)+' days of use)</span>':''}${o.rush?' <span class="late">rush'+(o.via?' ('+esc(o.via)+')':'')+' — ask for the earliest delivery</span>':''} · ${dlTxt(o)} ${tag}${stateChips(r,o)}</div>`;}).join('');
+  const more=os.length>2?`<button class="c-more" onclick="moreOpen.has('${esc(r.base)}')?moreOpen.delete('${esc(r.base)}'):moreOpen.add('${esc(r.base)}');render()">${moreOpen.has(r.base)?'Show fewer POs ▴':'Show '+(Math.min(os.length,6)-2)+' more PO(s) ahead ▾'}</button>`:'';
+  return '<div class="c-orders">'+rows+more+'</div>';
 }
+/* the plan day by day: what production needs, what arrives, what is left */
+function planDays(r){
+  if(!(r.plan&&r.plan.length&&r.ptot))return '';
+  const u=unitOf(r)||'';
+  const rows=r.plan.map(x=>`<tr><td>${dayTxt(x.d+'T12:00:00')}</td><td>${n0(x.need)}</td><td>${x.inc?'+'+n0(x.inc):'—'}</td><td style="color:${x.left<0?'var(--danger)':x.left<(r.ss||0)?'var(--warn)':'inherit'}">${n0(x.left)}</td></tr>`).join('');
+  return `<div class="c-vend" style="color:var(--text2)"><b>📅 Production plan, day by day</b> (${u}) — what will be <b>used</b>, not what is missing:
+    <table class="pd"><tr><th>Day</th><th>Needs</th><th>Arrives</th><th>Left at night</th></tr>${rows}
+    <tr><td><b>Total</b></td><td><b>${n0(r.ptot)}</b></td><td></td><td></td></tr></table>
+    ${r.dmp!=null?`Eleni's Direct Material Planning sheet shows ${n0(r.dmp)} (only orders that already have a day); the plan has ${n0(r.ptot)} in total.`:''}
+    <i style="color:var(--warn);font-style:normal">Orange</i> = below the cushion · <i style="color:var(--danger);font-style:normal">red</i> = runs out.</div>`;
+}
+/* "too big?": lower (or raise) the cushion for this item only, or for its whole priority — shared with every device */
+function tooBig(base){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return;
+  const cfg=JSON.parse(JSON.stringify(data.cfg||{}));cfg.ss=cfg.ss||{A:3,B:2,C:1};cfg.ssItem=cfg.ssItem||{};
+  window._tb={r,cfg,v:+(r.sdays||0)};
+  withPin(drawTooBig);}
+function drawTooBig(){const t=window._tb,r=t.r;
+  sheet(`<h2>🔧 Order too big?</h2><div class="hint"><b>${esc(r.codes.join(' + '))}</b> · priority ${r.cls||'—'}<br>
+    The cushion (safety stock) is extra stock kept on top of what production uses. A smaller cushion = smaller orders, but less protection if a truck is late.</div>
+    <div class="hint">Now: <b>${n1(t.v)} days</b> ≈ ${n0(t.v*(r.dbar||0))} ${unitOf(r)||''}${r.ssOwn?' (own setting for this item)':' (setting for all priority '+(r.cls||'')+' items)'}</div>
+    <div class="row2"><button class="big gray" onclick="window._tb.v=Math.max(0,window._tb.v-0.5);drawTooBig()">− ½ day</button><button class="big gray" onclick="window._tb.v=Math.min(30,window._tb.v+0.5);drawTooBig()">+ ½ day</button></div>
+    <button class="big" onclick="saveTooBig('item')">Save for this item only</button>
+    <button class="big gray" onclick="saveTooBig('all')">Save for all priority ${r.cls||''} items</button>
+    ${r.ssOwn?'<button class="big gray" onclick="saveTooBig(\'reset\')">Back to the priority setting</button>':''}
+    <button class="big gray" onclick="closeSheet()">Cancel</button>`);}
+function saveTooBig(mode){const t=window._tb,c=t.cfg;
+  if(mode==='item')c.ssItem[t.r.base]=t.v;else if(mode==='reset')delete c.ssItem[t.r.base];else{c.ss[t.r.cls||'C']=t.v;delete c.ssItem[t.r.base];}
+  closeSheet();sendSave({type:'wms-reorder-cfg',cfg:c});}
 function card(r){
   const key=r.base,m=r.main||{};
   const det=open.has(key)?`<div class="c-det">
       <div><span>Stock</span>${n0(r.stock)}</div><div><span>Open POs</span>${r.open?n0(r.open):'—'}</div>
       <div><span>Plan until ${r.planEnd?r.planEnd.slice(5).replace('-','/'):'—'}</span>${r.ptot?n1(r.ptot):'—'}</div>
       <div><span>Use / day</span>${r.dbar?n1(r.dbar):'—'}</div><div><span>Lead time</span>~${Math.round(r.Lavg||r.L)} days${r.L>Math.round(r.Lavg||r.L)?' (up to '+r.L+')':''}</div>
-      <div><span>Safety stock</span>${r.ss?n0(r.ss)+' · '+n1(r.sdays)+' days':'—'}</div>
+      <div><span>Safety stock${r.ssOwn?' (own)':''}</span>${r.ss?n0(r.ss)+' · '+n1(r.sdays)+' days':'—'}</div>
       ${r.pack?`<div class="c-vend"><b>How it comes:</b> ${n0(r.pack.p)+' '+unitOf(r)+' per pallet'+(r.pack.d>r.pack.p?' · usual delivery '+n0(r.pack.d)+' ('+Math.round(r.pack.d/r.pack.p)+' pallets)':'')}</div>`:(m.qtyAvg?`<div class="c-vend"><b>Usual order:</b> ${n0(m.qtyAvg)} (no pallet size saved yet)</div>`:'')}
       ${r.y12?`<div class="c-vend"><b>Last 12 months:</b> ${n0(r.y12)} ${unitOf(r)==='rolls'?'':unitOf(r)||'units'} · ~${n0(r.y12/365)} / day (Power BI)</div>`:''}
       ${r.cls?`<div class="c-vend"><b>Priority ${r.cls}</b> · ${r.cls==='A'?'most used: biggest safety stock':r.cls==='B'?'medium use':'little use: small safety stock, no extra pallets'}</div>`:''}
-      ${r.dmp!=null&&r.ptot?`<div class="c-vend">Direct Material Planning sheet (orders with a day already): ${n1(r.dmp)} · all open orders in the plan: ${n1(r.ptot)}</div>`:''}
+      ${planDays(r)}
       ${(r.coming||[]).length?`<div class="c-vend"><b>On the way:</b> ${r.coming.slice(0,6).map(x=>esc(x.po)+' · '+n0(x.qty)+' · '+dayTxt(x.date+'T12:00:00')+(x.planner?' (John\'s planner)':'')).join(' &nbsp;|&nbsp; ')}</div>`:''}
       <div class="c-vend"><b>Supplier${(r.sup||[]).length>1?'s (both used in the last 3 months)':''}:</b> ${((r.sup||[]).length?r.sup:[m]).map(v=>esc(v.vendor||'')+(v.ltAvg?' · ~'+Math.round(v.ltAvg)+' days':'')+(v.lt?' (up to '+v.lt+')':'')+(v.onTime!=null?' · '+v.onTime+'% on time':'')+(v.last?' · last PO '+dayTxt(v.last+'T12:00:00').replace(/^\w+, /,''):'')).join(' &nbsp;|&nbsp; ')}${m.pos<5?' · few POs, rough lead time':''}</div>
     </div>`:'';
   return `<div class="card ${r.st}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
-    <div class="c-main">${mainLine(r)}</div>${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
+    <div class="c-main">${mainLine(r)}</div>${(r.orders||[]).some(o=>!o.done)?`<button class="c-more" style="padding-top:2px" onclick="tooBig('${esc(r.base)}')">🔧 Too big? Change the cushion</button>`:''}${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
     <div class="c-sub">${subLine(r)}</div>
     ${nextOrders(r)}
     ${r.short?`<div class="c-alert">⚠ Runs short on ${dayTxt(addDays(r.coverDay))}, inside the days already planned — before the next PO arrives</div>`:''}
@@ -273,18 +340,20 @@ function friBox(){
   const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const t0=addDays(0);
   const nextDay=rows.flatMap(r=>(r.orders||[]).filter(o=>!o.done&&o.fri&&new Date(o.orderBy)>t0).map(o=>+new Date(o.orderBy))).sort((a,b)=>a-b)[0];
-  const sum=pred=>{let items=0,pal=0,noPal=0;rows.forEach(r=>{const os=(r.orders||[]).filter(o=>!o.done&&pred(o));if(!os.length)return;items++;
+  const sum=pred=>{let items=0,pal=0,noPal=0;rows.forEach(r=>{const os=(r.orders||[]).filter(o=>!o.done&&!o.pending&&pred(o));if(!os.length)return;items++;
     os.forEach(o=>{if(o.pallets)pal+=o.pallets;else noPal++;});});return {items,pal,noPal};};
   const td=sum(o=>new Date(o.orderBy)<=t0),nx=nextDay?sum(o=>+new Date(o.orderBy)===nextDay):null;
   const line=(lbl,x)=>x&&x.items?`<div><b>${lbl}:</b> ${x.items} item${x.items>1?'s':''} · ~${n0(x.pal)} pallets${x.noPal?' (+'+x.noPal+' without pallet size)':''}</div>`:'';
   const nd=nextDay?new Date(nextDay):null;
-  const body=line('Order today',td)+(nd?line((nd.getDay()===5?'Friday order':'Order day')+' ('+dayTxt(nd)+')',nx):'');
+  let nTo=0,nPe=0,nDo=0;rows.forEach(r=>groupOrders(r.orders).forEach(o=>{if(o.done)nDo++;else if(o.pending)nPe++;else if(new Date(o.orderBy)<=addDays(7))nTo++;}));
+  const stLine=`<div class="s" style="margin-bottom:4px">Next 7 days: <b>${nTo}</b> not ordered · <b style="color:var(--warn)">${nPe}</b> pending · <b style="color:var(--success)">${nDo}</b> created</div>`;
+  const body=stLine+line('Order today',td)+(nd?line((nd.getDay()===5?'Friday order':'Order day')+' ('+dayTxt(nd)+')',nx):'');
   const cfg=data.cfg||{days:[]};
   const rec=cfg.days.map((on,i)=>on?DAYN[i]:null).filter(Boolean).join(', ')||'none';
   const hol=(cfg.holidays||[]).filter(h=>new Date(h.d+'T00:00:00')>=t0).sort((a,b)=>a.d.localeCompare(b.d))[0];
   return `<div class="fri">${body||'<div><b>Nothing to order today or on the next order day.</b></div>'}
-    <div class="s">We receive: <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data.racks?' · Direct Materials has '+data.racks+' rack positions':''}</div>
-    <div class="tools"><button class="tool-btn" onclick="openDays()">📅 Receiving days</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button></div></div>`;
+    <div class="s">Safety stock: <b>A ${(cfg.ss||{}).A??3} · B ${(cfg.ss||{}).B??2} · C ${(cfg.ss||{}).C??1} days</b> · We receive: <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data.racks?' · Direct Materials has '+data.racks+' rack positions':''}</div>
+    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button></div></div>`;
 }
 
 /* ---------- small helpers: toast, bottom sheet, PIN ---------- */
@@ -307,12 +376,15 @@ function sendSave(msg){if(!ready){ensureFrame();queue.push(msg);busy=true;render
 /* ---------- PO actions: created in Yooz / change quantity / undo ---------- */
 const ymdL=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 function findPO(base,key){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return {};const o=groupOrders(r.orders).find(x=>x.key===key);return {r,o};}
-function markOf(r,o,extra){return Object.assign({base:r.base,ob:ymdL(o.orderBy),qty:o.qty,dl:o.dl.map(x=>({d:ymdL(x.d),q:x.q})),rush:!!o.rush,early:!!o.early,fri:!!o.fri,edited:!!o.edited,done:!!o.done},extra);}
-function markCreated(base,key){const {r,o}=findPO(base,key);if(!o)return;
-  withPin(()=>sheet(`<h2>✓ PO created in Yooz?</h2><div class="hint"><b>${esc(r.codes.join(' + '))}</b><br>${qtyTxt(r,o.qty,o.pallets)} · ${dlTxt(o)}</div>
-    <div class="hint">It will show as created on every device, and won't be suggested again.</div>
-    <button class="big" onclick="closeSheet();sendSave({type:'wms-reorder-mark',key:'${key}',mark:window._m})">Yes, it's created</button><button class="big gray" onclick="closeSheet()">Cancel</button>`,window._m=markOf(r,o,{done:true})));}
-function undoMark(key){withPin(()=>sendSave({type:'wms-reorder-mark',key,mark:null}));}
+function markOf(r,o,extra){return Object.assign({base:r.base,ob:ymdL(o.orderBy),qty:o.qty,dl:o.dl.map(x=>({d:ymdL(x.d),q:x.q})),rush:!!o.rush,early:!!o.early,fri:!!o.fri,edited:!!o.edited,done:!!o.done,pending:!!o.pending},extra);}
+/* PO status, shared on every device: Not ordered · ⏳ Pending · ✅ Created (in Yooz) */
+function setState(base,key,v){const {r,o}=findPO(base,key);if(!o)return;
+  const cur=o.done?'done':o.pending?'pend':'none';if(cur===v)return;
+  withPin(()=>{
+    let mark;
+    if(v==='none')mark=o.edited?markOf(r,o,{done:false,pending:false}):null;    // back to "not ordered" (keeps a changed quantity)
+    else mark=markOf(r,o,{done:v==='done',pending:v==='pend'});
+    sendSave({type:'wms-reorder-mark',key,mark});});}
 function editQty(base,key){const {r,o}=findPO(base,key);if(!o)return;
   const per=r.per||1,u=unitOf(r)||'units';
   window._edit={r,o,per};
@@ -336,11 +408,11 @@ function saveQty(){const e=window._edit;let v=+document.getElementById('nq').val
 
 /* ---------- receiving days (shared) ---------- */
 let cfgEdit=null;
-function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};drawDays();}
+function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:3,B:2,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};drawDays();}
 function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
   const hol=(c.holidays||[]).slice().sort((a,b)=>a.d.localeCompare(b.d));
   const ex=Object.entries(c.extra).sort((a,b)=>a[0].localeCompare(b[0]));
-  sheet(`<h2>📅 Receiving days · ${PLANT}</h2><div class="hint">Tap a day to turn it on (green) or off. Deliveries are only planned on green days; Friday can take bigger deliveries. Same for every device.</div>
+  sheet(`<h2>⚙️ Settings · ${PLANT}</h2><div class="hint">Tap a day to turn it on (green) or off. Deliveries are only planned on green days; Friday can take bigger deliveries. Same for every device.</div>
     <div class="sec">Every week</div>
     <div class="days">${[1,2,3,4,5,6,0].map(i=>`<div class="day${c.days[i]?' on':''}" onclick="cfgEdit.days[${i}]=!cfgEdit.days[${i}];drawDays()">${DAYN[i]}</div>`).join('')}</div>
     <div class="sec">Holidays (no receiving, no ordering)</div>
@@ -352,12 +424,44 @@ function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
     <div class="lst">${ex.map(([d,on])=>`<div><span>${dayTxt(d+'T12:00:00')} · ${on?'✅ We receive':'⛔ No receiving'}</span><button onclick="delete cfgEdit.extra['${d}'];drawDays()">✕</button></div>`).join('')||'<div>None</div>'}</div>
     <input type="date" id="xd">
     <div class="row2"><button class="big gray" onclick="addEx(true)">✅ We receive that day</button><button class="big gray" onclick="addEx(false)">⛔ No receiving</button></div>
+    <div class="sec" style="margin-top:16px">Safety stock (cushion), in days of use</div>
+    <div class="hint">Extra stock so a late truck or an extra run doesn't stop the line. A = most used items.</div>
+    <div class="row2">${['A','B','C'].map(k=>`<label style="font-size:13px;font-weight:700">${k}<input type="number" inputmode="decimal" min="0" max="30" step="0.5" value="${(c.ss||{})[k]??({A:3,B:2,C:1})[k]}" onchange="cfgEdit.ss=cfgEdit.ss||{};cfgEdit.ss['${k}']=Math.max(0,+this.value||0)"></label>`).join('')}</div>
+    ${Object.keys(c.ssItem||{}).length?`<div class="hint">Items with their own cushion: ${Object.entries(c.ssItem).map(([k,v])=>esc(k)+' '+v+' d <a href="#" onclick="delete cfgEdit.ssItem[\''+esc(k)+'\'];drawDays();return false">✕</a>').join(' · ')}</div>`:''}
     ${data&&data.cfg&&data.cfg.by?`<div class="hint" style="margin-top:12px">Last change: ${esc(data.cfg.by)} · ${timeTxt(data.cfg.at)}</div>`:''}
     <button class="big" onclick="saveDays()">Save for every device</button><button class="big gray" onclick="closeSheet()">Cancel</button>`);}
 function addHol(){const d=document.getElementById('hd').value,n=document.getElementById('hn').value.trim()||'Holiday';if(!d){toast('Pick a date');return;}
   cfgEdit.holidays=(cfgEdit.holidays||[]).filter(x=>x.d!==d).concat([{d,n}]);drawDays();}
 function addEx(on){const d=document.getElementById('xd').value;if(!d){toast('Pick a date');return;}cfgEdit.extra[d]=on;drawDays();}
 function saveDays(){const c=cfgEdit;withPin(()=>{closeSheet();sendSave({type:'wms-reorder-cfg',cfg:c});});}
+
+/* ---------- Print: big, clear list grouped by order day (landscape; "Save as PDF" works too) ---------- */
+function printList(){
+  if(!data||!(data.rows||[]).length){toast('Nothing to print yet');return;}
+  const groups={};
+  (data.rows||[]).filter(inCat).forEach(r=>groupOrders(r.orders).forEach(o=>{if(o.done)return;   // created POs are done: not printed
+    const k=ymdL(new Date(o.orderBy)<addDays(0)?addDays(0):o.orderBy);(groups[k]=groups[k]||[]).push({r,o});}));
+  const days=Object.keys(groups).sort().slice(0,4);
+  if(!days.length){toast('No POs to print');return;}
+  const t0=ymdL(addDays(0));
+  let h=`<h1>Next POs · ${PLANT==='NJ'?'New Jersey':'Georgia'}${cat!=='ALL'?' · '+esc(CATS.find(c=>c[0]===cat)[1]):''}</h1>
+    <div class="meta">Printed ${new Date().toLocaleString('en-US')} · Safety stock A ${((data.cfg||{}).ss||{}).A??3} · B ${((data.cfg||{}).ss||{}).B??2} · C ${((data.cfg||{}).ss||{}).C??1} days · Guide only — the official PO is made in Yooz</div>`;
+  days.forEach(d=>{
+    const list=groups[d].sort((a,b)=>(b.o.rush?1:0)-(a.o.rush?1:0)||String(a.r.cls).localeCompare(String(b.r.cls))||a.r.base.localeCompare(b.r.base));
+    const pal=list.reduce((a,x)=>a+(x.o.pallets||0),0);
+    h+=`<h2>${d===t0?'ORDER TODAY':'Order by'} · ${dayTxt(d+'T12:00:00')} — ${list.length} item${list.length>1?'s':''} · ${n0(pal)} pallets</h2>
+      <table><tr><th>✓</th><th>Code</th><th style="text-align:right">Quantity</th><th>Unit</th><th style="text-align:center">Pallets</th><th>Deliveries</th><th>Supplier</th><th>Prio.</th><th>Note</th></tr>`;
+    list.forEach(({r,o})=>{h+=`<tr class="${o.rush?'rush':''}"><td class="box">☐</td><td class="code">${esc((r.codes||[r.base]).join(' + '))}<div style="font-size:8pt;font-weight:400">${esc(r.name||'')}</div></td>
+      <td class="qty">${n0(o.qty)}</td><td>${esc(unitOf(r))}</td><td class="pal">${o.pallets||'—'}</td>
+      <td>${o.dl.map(x=>dayTxt(x.d)+': '+n0(x.q)).join('<br>')}</td>
+      <td>${esc((r.main||{}).vendor||'')}</td><td>${r.cls?'<span class="cls">'+r.cls+'</span>':''}</td>
+      <td>${o.rush?'<b>RUSH</b> — earliest delivery':''}${o.pending?'⏳ Pending':''}${o.edited?' · qty changed':''}${r.noPack?' · check qty (no pallet size)':''}</td></tr>`;});
+    h+=`<tr class="tot"><td></td><td>Total</td><td></td><td></td><td class="pal">${n0(pal)}</td><td colspan="4"></td></tr></table>`;
+  });
+  h+=`<div class="foot">☐ = tick when the PO is created in Yooz (then mark it ✅ Created in the app) · Rush rows in red · Direct Materials has ${data.racks||'—'} rack positions</div>`;
+  let el=document.getElementById('print');if(!el){el=document.createElement('div');el.id='print';document.body.appendChild(el);}
+  el.innerHTML=h;setTimeout(()=>window.print(),50);
+}
 
 /* ---------- Excel: the POs to create (to share) ---------- */
 const XLSX_SRC='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',XLSX_SRI='sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==';
@@ -366,17 +470,18 @@ function loadXlsx(){return new Promise((ok,bad)=>{if(window.XLSX)return ok();con
 async function exportExcel(){
   if(!data||!(data.rows||[]).length){toast('Nothing to export yet');return;}
   try{await loadXlsx();}catch(e){toast('⚠ '+e.message);return;}
-  const head=['Status','Order by','Code','Description','Category','Priority','Supplier','Quantity','Unit','Pallets','Deliveries','Rush','Covered until','Changed / created by'];
+  // what to order first and together: code · quantity · unit · pallets; then when, status and the rest
+  const head=['Code','Quantity','Unit','Pallets','Order by','Deliveries','Status','Supplier','Priority','Rush','Description','Category','Covered until','Changed / created by'];
   const out=[];
   (data.rows||[]).filter(inCat).forEach(r=>groupOrders(r.orders).forEach(o=>{
-    out.push([o.done?'Created':o.edited?'To create (qty changed)':'To create',ymdL(o.orderBy),(r.codes||[r.base]).join(' + '),r.name||'',catOf(r),r.cls||'',(r.main||{}).vendor||'',
-      Math.round(o.qty),unitOf(r),o.pallets||'',o.dl.map(x=>ymdL(x.d)+' '+n0(x.q)).join(' | '),o.rush?'YES':'',
+    out.push([(r.codes||[r.base]).join(' + '),Math.round(o.qty),unitOf(r),o.pallets||'',ymdL(o.orderBy),o.dl.map(x=>ymdL(x.d)+' '+n0(x.q)).join(' | '),
+      o.done?'Created':o.pending?'Pending':o.edited?'Not ordered (qty changed)':'Not ordered',(r.main||{}).vendor||'',r.cls||'',o.rush?'YES':'',r.name||'',catOf(r),
       r.coverDay==null?'6+ weeks':ymdL(addDays(Math.max(0,r.coverDay-1))),o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
   if(!out.length){toast('No POs to export');return;}
-  out.sort((a,b)=>a[1].localeCompare(b[1])||a[2].localeCompare(b[2]));
+  out.sort((a,b)=>a[4].localeCompare(b[4])||a[0].localeCompare(b[0]));
   const title=['Schweid & Sons · Next POs · '+(PLANT==='NJ'?'New Jersey':'Georgia')+(cat!=='ALL'?' · '+cat:'')+' · '+new Date().toLocaleString('en-US')];
   const ws=XLSX.utils.aoa_to_sheet([title,['Guide only — the official PO is made in Yooz.'],[],head].concat(out));
-  ws['!cols']=[14,11,22,30,12,8,14,10,8,8,40,6,13,26].map(w=>({wch:w}));
+  ws['!cols']=[24,10,8,8,11,40,14,16,8,6,30,12,13,26].map(w=>({wch:w}));
   ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:3,c:0},e:{r:3+out.length,c:head.length-1}})};
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Next POs');
   XLSX.writeFile(wb,'Next_POs_'+PLANT+'_'+ymdL(new Date())+'.xlsx');toast('⬇ Excel downloaded');
