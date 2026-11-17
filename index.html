@@ -3790,6 +3790,37 @@ const PACK_NJ={
 const USE12={"NJ":{"BG1000-1":494942,"BG2000-1":29244,"BX1000-1":400658,"BX1003-1":117688,"BX1050-1":151012,"BX1075-1":11918,"BX1100-1":636648,"BX1200-1":51752,"BX1300-1":128293,"BX1350-1":32898,"BX1400-1":264540,"BX1550-1":485,"BX1850-1":1059002,"BX1875-1":35082,"BX1900-1":20674,"BX2003-1":35546,"BX2050-1":48529,"BX2075-1":23311,"BX2300-1":4590,"BX2350-1":589,"BX3000-1":362962,"BX3050-1":177255,"BX3100-1":36365,"BX3125-1":2159,"BX3150-1":44104,"BX3200-1":114061,"BX3300-1":11536,"BX6550-1":17282,"BX7500-1":532632,"BX7600-1":347304,"BX7700-1":25503,"BX7800-1":13263,"BX7900-1":4446,"BX8000-1":302,"BX8200-1":30732,"BX9400-1":13,"P2000-1":45243935,"P3000-1":9660,"P3100-1":9700276,"P4000-1":17280,"P4100-1":39145942,"P6000-1":23625508,"SL1000-1":1488066,"SL1050-1":362400,"SL1500-1":957606,"SL1508-1":21930,"SL15099-1":224214,"SL15299-1":70302,"SL15906-1":190056,"SL1600-1":498654,"SL18908-1":29748,"SL1900-1":5424,"SL2000-1":22152,"SL2100-1":385164,"SL2150-1":155568,"SL2200-1":583992,"SL2250-1":874032,"SL3000-1":37038,"SL3505-1":14154,"SL4100-1":431562,"SL9905-1":1950,"T2000-1":5986624,"T2100-1":450084},"GA":{"BG1000-4":352909,"BG2000-4":45839,"BX1000-4":342833,"BX1003-4":139920,"BX1050-4":21758,"BX1075-4":55394,"BX1100-4":175205,"BX1200-4":40486,"BX1300-4":98845,"BX1350-4":49948,"BX1400-4":221429,"BX1850-4":1131425,"BX1875-4":404401,"BX1900-4":43525,"BX2003-4":66022,"BX2300-4":9956,"BX2350-4":25324,"BX3000-4":302788,"BX3050-4":172974,"BX3100-4":16326,"BX3125-4":1682,"BX3150-4":7706,"BX3200-4":106751,"BX3300-4":12253,"BX6500-4":81,"BX7800-4":37034,"BX7900-4":7866,"BX8000-4":13619,"BX8200-4":13993,"BX8300-4":3736,"P2000-4":28945102,"P4100-4":14281724,"P6000-4":22987828,"SL1000-4":2311314,"SL1050-4":91320,"SL1500-4":1026372,"SL1508-4":47868,"SL15099-4":258096,"SL15299-4":582216,"SL15906-4":529992,"SL1600-4":205680,"SL18512-4":9720,"SL18908-4":24288,"SL2000-4":82050,"SL2100-4":139104,"SL2150-4":67476,"SL2200-4":207786,"SL2250-4":1075968,"SL3000-4":1212,"SL4100-4":128088,"T2000-4":6054862,"T2100-4":907788}};
 const REO_Z={A:2.05,B:1.65,C:1.28},REO_MIN_DAYS={A:3,B:2,C:1},REO_MAX_SAFETY_DAYS=10,REO_A_ALWAYS=['BX1850-1','BX1000-1'];
 const DM_RACKS={NJ:131};
+/* ---------- Next POs: receiving days and order marks, the SAME on every device ----------
+   Saved in SharePoint (WMS_Batches, same flows as the plan) under fixed dates so the read is tiny:
+   kind "reocfg" (receiving days, holidays) on 2000-01-03 and kind "reomarks" (created / changed POs) on 2000-01-04. */
+const REO_HOLIDAYS=[['2026-01-01','New Year'],['2026-05-25','Memorial Day'],['2026-07-03','Independence Day'],['2026-09-07','Labor Day'],
+  ['2026-11-26','Thanksgiving'],['2026-11-27','Day after Thanksgiving'],['2026-12-25','Christmas Day']];
+const REO_CFG_DAY='2000-01-03',REO_MARK_DAY='2000-01-04';
+function reoCfgDefault(){return {days:[false,false,true,true,true,true,false],holidays:REO_HOLIDAYS.map(([d,n])=>({d,n})),extra:{},by:'',at:''};}
+function loadReoCfg(){try{const o=JSON.parse(localStorage.getItem('wms_reocfg_'+currentPlant)||'null');if(o&&Array.isArray(o.days))return o;}catch(e){}return reoCfgDefault();}
+function loadReoMarks(){try{return JSON.parse(localStorage.getItem('wms_reomarks_'+currentPlant)||'null')||{};}catch(e){return {};}}
+async function reoReadShared(){
+  if(!PLAN_READ_URL)return;
+  const res=await fetch(PLAN_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:currentPlant,from:REO_CFG_DAY,to:REO_MARK_DAY})});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const js=await res.json();const rows=Array.isArray(js)?js:(js.value||[]);
+  rows.forEach(x=>{const k=x.Kind||x.kind;let o;try{o=JSON.parse(x.JsonData||x.jsonData||'null');}catch(e){o=null;}if(!o||o.plant!==currentPlant)return;
+    if(k==='reocfg'&&Array.isArray(o.days))localStorage.setItem('wms_reocfg_'+currentPlant,JSON.stringify(o));
+    if(k==='reomarks'&&o.marks)localStorage.setItem('wms_reomarks_'+currentPlant,JSON.stringify(o.marks));});
+}
+async function reoSaveCfg(cfg){
+  cfg.plant=currentPlant;cfg.by=planDevice();cfg.at=new Date().toISOString();
+  localStorage.setItem('wms_reocfg_'+currentPlant,JSON.stringify(cfg));
+  await planPost({key:currentPlant+'|reocfg',plant:currentPlant,kind:'reocfg',day:REO_CFG_DAY,status:'',batchNo:'',meatBlock:'',updatedAt:cfg.at,updatedBy:cfg.by,json:JSON.stringify(cfg)});
+}
+async function reoSaveMark(key,mark){   // mark = {base,ob,qty,dl,done,edited,rush} or null to undo
+  try{await reoReadShared();}catch(e){}                                  // newest marks from the other devices first
+  const marks=loadReoMarks(),now=new Date().toISOString();
+  if(mark)marks[key]=Object.assign({},mark,{by:planDevice(),at:now});else delete marks[key];
+  const old=Date.now()-21*864e5;Object.keys(marks).forEach(k=>{if(new Date(marks[k].at).getTime()<old)delete marks[k];});
+  localStorage.setItem('wms_reomarks_'+currentPlant,JSON.stringify(marks));
+  await planPost({key:currentPlant+'|reomarks',plant:currentPlant,kind:'reomarks',day:REO_MARK_DAY,status:'',batchNo:'',meatBlock:'',updatedAt:now,updatedBy:planDevice(),json:JSON.stringify({plant:currentPlant,marks})});
+}
 function packFor(code,vendor){if(currentPlant!=='NJ')return null;const k=String(code).toUpperCase().replace(/-\d+$/,'').replace(/-(B|P)$/,'');
   const pca=/PCA/i.test(vendor||'');return (pca&&PACK_NJ[k+'PCA'])||PACK_NJ[k]||null;}
 function reorderRows(summary){
@@ -3805,6 +3836,15 @@ function reorderRows(summary){
   // the week ahead from today's production plan (if it was loaded with the schedule detail)
   const dm=planData&&planData.day===isoToday()&&planData.dm&&planData.dm.codes?planData.dm:null;
   const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  // receiving days and holidays (shared settings)
+  const cfg=loadReoCfg(),hol=new Set((cfg.holidays||[]).map(h=>h.d)),extra=cfg.extra||{};
+  const dOf=i=>new Date(today.getTime()+i*864e5);
+  const canReceive=i=>{const k=ymd(dOf(i));if(k in extra)return !!extra[k];if(hol.has(k))return false;return !!cfg.days[dOf(i).getDay()];};
+  const workDay=i=>{const d=dOf(i),w=d.getDay();return w>0&&w<6&&!hol.has(ymd(d));};
+  const orderDay=last=>{let ob=last-((dOf(last).getDay()-5+7)%7);while(ob>=0&&!workDay(ob))ob--;return ob;};   // Friday, or the workday before if it's a holiday
+  const fixArrive=(ad,min)=>{if(canReceive(ad))return ad;for(let b=1;b<=6;b++)if(ad-b>=min&&canReceive(ad-b))return ad-b;for(let f=1;f<=14;f++)if(canReceive(ad+f))return ad+f;return ad;};
+  // POs marked "created" or with a changed quantity (shared): they count as coming, so they are not suggested again
+  const marks=loadReoMarks(),yzAt=yz&&yz.loaded?new Date(yz.loaded).getTime():0;
   const H=dm?Math.max(1,Math.round((new Date(dm.end+'T00:00:00')-today)/864e5)+1):0;   // days the plan covers
   // what is coming, by day: open Yooz POs + POs that are only in John's planner yet (the planner's delivery day wins)
   const inc={};
@@ -3844,6 +3884,13 @@ function reorderRows(summary){
     const sd=dd.length>2?Math.sqrt(dd.reduce((a,x)=>a+(x-dd.reduce((p,q)=>p+q,0)/dd.length)**2,0)/(dd.length-1)):dbar*0.3;
     r.dbar=dbar;r.sd=sd;r.sL=sL;
     const arr={};coming.forEach(x=>{const i=dayIdx(x.date);arr[i]=(arr[i]||0)+x.qty;});
+    // marked POs of this item: created ones count until Yooz has had 2 h to show them; changed (not created yet) always count
+    const fixed=[],arrM={};
+    Object.entries(marks).forEach(([k,m])=>{if(m.base!==f.base)return;
+      const inYooz=m.done&&yzAt>new Date(m.at).getTime()+2*3600e3;
+      const lastD=m.dl&&m.dl.length?m.dl[m.dl.length-1].d:m.ob;if(m.done&&new Date(lastD+'T00:00:00')<today)return;   // created and already delivered: done
+      fixed.push(Object.assign({key:k,orderBy:new Date(m.ob<ymd(today)?ymd(today)+'T00:00:00':m.ob+'T00:00:00'),arrive:new Date((m.dl&&m.dl[0]?m.dl[0].d:m.ob)+'T00:00:00'),fixed:true},m));
+      if(!inYooz)(m.dl||[]).forEach(x=>{const i=dayIdx(x.d);arrM[i]=(arrM[i]||0)+(+x.q||0);});});
     const N=Math.max(P90+REO_REVIEW_DAYS+28,H+7,42);
     // 1) with what we have and what is coming: until when are we covered?
     let av=f.stock,short=null;
@@ -3862,29 +3909,34 @@ function reorderRows(summary){
       const per=pk?pk.p:1;
       const Q=pk&&pk.d?pk.d:Math.max(per,Math.ceil(Math.max(1,toUnits(f.base,main.qtyAvg)||rate*7)/per)*per);
       const L=Math.round(Lavg),orders=[];
+      const inA=i=>(arr[i]||0)+(arrM[i]||0);
       av=f.stock;let gap=0;
-      for(let i=0;i<Math.min(L,N);i++){av+=arr[i]||0;av-=dem(i);if(-av>gap)gap=-av;}
+      for(let i=0;i<Math.min(L,N);i++){av+=inA(i);av-=dem(i);if(-av>gap)gap=-av;}
       const rq=gap>0?Math.ceil(gap/per)*per:0;
-      if(rq)orders.push({orderBy:new Date(today),arrive:new Date(today.getTime()+L*864e5),qty:rq,rush:true});
+      if(rq)orders.push({orderBy:new Date(today),arrive:dOf(fixArrive(L,L)),qty:rq,rush:true});
       av=f.stock+rq;
       for(let i=0;i<=N&&orders.length<80;i++){
-        av+=arr[i]||0;const x=dem(i);
+        av+=inA(i);const x=dem(i);
         if(i>=L){let guard=0;
           // placed on the last Friday before it is needed (John's big-order day); each delivery comes the day it is needed
-          const last=i-L,dw=new Date(today.getTime()+last*864e5).getDay();let ob=last-((dw-5+7)%7),early=false;
+          let ob=orderDay(i-L),early=false;
           if(ob<0){ob=0;early=true;}
-          // deliveries on weekdays: a Sat/Sun delivery moves to the Friday before (or the Monday after if Friday is too soon)
-          let ad=Math.max(i,ob+L);const wd=new Date(today.getTime()+ad*864e5).getDay();
-          if(wd===6||wd===0){const fr=ad-(wd===6?1:2);ad=fr>=ob+L?fr:ad+(wd===6?2:1);}
+          // deliveries only on receiving days (default Tue–Fri, no holidays): move to the receiving day before
+          // (Friday can take more), or to the next one if the supplier can't make it sooner
+          const ad=fixArrive(Math.max(i,ob+L),ob+L);
           while(av-x<ss&&guard++<30){orders.push({orderBy:new Date(today.getTime()+ob*864e5),arrive:new Date(today.getTime()+ad*864e5),qty:Q,rush:false,fri:!early,early});av+=Q;}}
         av-=x;
       }
       // the rush PO only fills the gap; what can't wait for Friday is a normal PO placed today (deliveries spread over the days needed)
-      orders.forEach(o=>{o.pallets=pk?Math.ceil(o.qty/per-1e-9):null;});
-      r.Q=Q;r.orders=orders.filter(o=>(o.orderBy-today)/864e5<=28);
-      r.sug=r.orders.length?r.orders[0].qty:0;
-      r.orderBy=r.orders.length?r.orders[0].orderBy:null;
-      const first=r.orders.length?Math.round((r.orders[0].orderBy-today)/864e5):99;
+      orders.forEach(o=>{o.pallets=pk?Math.ceil(o.qty/per-1e-9):null;o.key=f.base+'|'+ymd(o.orderBy)+(o.rush?'|R':o.early?'|E':'');});
+      // marked POs (created / changed) count as coming; anything still needed on that day is an extra PO (key +'|+')
+      const fk=new Set(fixed.map(m=>m.key));
+      fixed.forEach(m=>{m.pallets=pk?Math.ceil(m.qty/per-1e-9):null;});
+      r.per=per;r.Q=Q;r.orders=fixed.concat(orders.map(o=>{if(fk.has(o.key))o.key+='|+';return o;})).filter(o=>(o.orderBy-today)/864e5<=28).sort((a,b)=>a.orderBy-b.orderBy||(b.rush?1:0)-(a.rush?1:0));
+      const todo=r.orders.filter(o=>!o.done);
+      r.sug=todo.length?todo[0].qty:0;
+      r.orderBy=todo.length?todo[0].orderBy:null;
+      const first=todo.length?Math.round((todo[0].orderBy-today)/864e5):99;
       r.left=first;
       r.st=r.short||first<=0?'red':first<=7?'amber':'green';
     };
@@ -4345,6 +4397,7 @@ function mergeRemotePlan(r){
   if(!l||l.day!==r.day||String(r.importedAt)>String(l.importedAt||'')){planData=r;delete planData._pending;savePlanDia();return true;}   // new import
   if(String(r.importedAt)<String(l.importedAt))return false;                                    // older import: ignore
   let changed=false;                                                                            // same import: newest mark wins per code
+  if(r.dm&&!l.dm){l.dm=r.dm;changed=true;}                                                     // the day-by-day detail another device added
   ['items','sleeves'].forEach(lk=>(r[lk]||[]).forEach(ri=>{const li=(l[lk]||[]).find(x=>x.code===ri.code);if(!li)return;
     if(String(ri.ts||'')>String(li.ts||'')){li.delivered=ri.delivered;li.done=ri.done;li.ts=ri.ts;changed=true;}}));
   if(changed)savePlanDia();
@@ -4400,6 +4453,17 @@ async function planAutoFetch(manual){
     showToast('📅 '+(had?'The planning file changed — plan updated':'Today\'s plan loaded automatically')+' · '+r.msg.replace('Daily Plan imported: ',''),'success');
   }catch(e){if(manual)showToast('Could not get the planning file: '+e.message,'error');}
   finally{planAuto.busy=false;if(currentView==='plan')render();}
+}
+/* the plan is here but without the day-by-day detail (loaded by an older version): read the file again, only for the detail */
+async function ensurePlanDm(){
+  if(!PLAN_FILE_URL||!planData||planData.day!==isoToday()||planData.dm)return;
+  const p0=currentPlant;
+  const res=await fetch(PLAN_FILE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:p0})});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const f=await res.json();if(p0!==currentPlant)return;
+  const bin=atob(f.content);const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
+  const dm=dmFromSchedule(XLSX.read(buf,{type:'array'}),isoToday());
+  if(dm&&planData&&planData.day===isoToday()){planData.dm=dm;savePlanDia();try{await sharePlan(null,f.name);}catch(e){}}
 }
 async function pullSharedPlan(force){
   if(!PLAN_READ_URL||planSync.busy)return;
@@ -4474,8 +4538,8 @@ async function livePostRec(){
 }
 function scheduleLivePush(){clearTimeout(live.pushT);live.pushT=setTimeout(()=>livePull(true,true),1200);}
 function liveApply(fn){live.applying=true;try{fn();saveData();}finally{live.applying=false;}liveResnap();}
-async function liveFetch(){
-  const t=new Date();t.setDate(t.getDate()+1);const f=new Date();f.setDate(f.getDate()-10);
+async function liveFetch(days){
+  const t=new Date();t.setDate(t.getDate()+1);const f=new Date();f.setDate(f.getDate()-(days||10));
   const iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
   const res=await fetch(PLAN_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:currentPlant,from:iso(f),to:iso(t)})});
   if(!res.ok)throw new Error('HTTP '+res.status);
@@ -7207,7 +7271,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.17d';
+const APP_VERSION='2026.11.18a';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7266,22 +7330,42 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     applyPlant(rd);
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     const busy=()=>live.busy||planAuto.busy||yoozFetch.busy||ltFetch.busy;
-    const collect=async force=>{
-      let t=0;while(busy()&&t++<160)await sleep(250);
-      try{if(live.on)await livePull(true,false);}catch(e){}
-      try{await pullSharedPlan(false);}catch(e){}
-      if(!(planData&&planData.day===isoToday()&&planData.dm)&&PLAN_FILE_URL){try{await planAutoFetch(false);}catch(e){}}
-      const yz=loadYooz();if(force||!yz||Date.now()-new Date(yz.loaded).getTime()>4*3600e3){try{await loadYoozFromFlow(false);}catch(e){}}
-      const lt=loadLeadTime();if(force||!lt||Date.now()-new Date(lt.loaded).getTime()>7*864e5){try{await loadLeadTimeFromFlow(false);}catch(e){}}
-      const pl=loadPlanner();if(PLANNER_FLOW_URL&&(force||!pl||Date.now()-new Date(pl.loaded).getTime()>3600e3)){try{await loadPlannerFromFlow(false);}catch(e){}}
-      const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
-      return {rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:live.at||0,liveOn:!!live.on,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0};
+    // the SAME stock on every device: read the plant's live inventory from SharePoint (read only, never saved here)
+    let shared=null;
+    const readLive=async()=>{const r=await liveFetch(2);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:r.updatedAt||r.startedAt};}};
+    const limit=(p,ms)=>Promise.race([Promise.resolve(p).catch(()=>{}),sleep(ms)]);
+    const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
+      return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
+        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,cfg:loadReoCfg(),dev:planDevice()};};
+    const old=(o,ms)=>!o||Date.now()-new Date(o.loaded).getTime()>ms;
+    const collect=async(force,send)=>{
+      const t0=Date.now();
+      if(loadLeadTime())send(build(true));                       // 1) right away with what this device already has
+      // 2) everything at the same time, each with a time limit (a slow flow can't hold the rest)
+      const jobs=[limit(readLive(),30000),limit(pullSharedPlan(true),30000),limit(reoReadShared(),20000)];
+      if(force||old(loadYooz(),4*3600e3))jobs.push(limit(loadYoozFromFlow(false),45000));
+      if(PLANNER_FLOW_URL&&(force||old(loadPlanner(),3600e3)))jobs.push(limit(loadPlannerFromFlow(false),45000));
+      if(!loadLeadTime())jobs.push(limit(loadLeadTimeFromFlow(false),90000));
+      await Promise.all(jobs);
+      // today's plan with the day-by-day detail: the same on every device
+      if(!(planData&&planData.day===isoToday()&&(planData.items||[]).length)){if(PLAN_FILE_URL)await limit(planAutoFetch(true),60000);}
+      else if(!planData.dm)await limit(ensurePlanDm(),60000);
+      const out=build(false);out.secs=Math.round((Date.now()-t0)/1000);send(out);
+      // 3) lead times older than a week: refresh after, then send again
+      if(old(loadLeadTime(),7*864e5)||force){await limit(loadLeadTimeFromFlow(false),90000);send(build(false));}
     };
     window.addEventListener('message',async ev=>{
       const m=ev.data;if(ev.source!==window.parent||!m||m.type!=='wms-reorder-get')return;
-      let out;try{out=await collect(!!m.force);}catch(e){out={rows:[],err:e.message};}
-      window.parent.postMessage(Object.assign({type:'wms-reorder-data',id:m.id},out),location.origin);
+      const send=out=>window.parent.postMessage(Object.assign({type:'wms-reorder-data',id:m.id},out),location.origin);
+      try{await collect(!!m.force,send);}catch(e){send({rows:[],err:e.message});}
+    });
+    // saves from reorder.html (after the PIN): receiving days, or a PO marked created / with a new quantity
+    window.addEventListener('message',async ev=>{
+      const m=ev.data;if(ev.source!==window.parent||!m||(m.type!=='wms-reorder-cfg'&&m.type!=='wms-reorder-mark'))return;
+      const send=out=>window.parent.postMessage(Object.assign({type:'wms-reorder-data',id:m.id},out),location.origin);
+      let err='';
+      try{if(m.type==='wms-reorder-cfg')await reoSaveCfg(m.cfg);else await reoSaveMark(m.key,m.mark);}catch(e){err='Not saved in SharePoint ('+e.message+') — only on this device for now';}
+      const out=build(false);if(err)out.saveErr=err;else out.saved=m.type==='wms-reorder-cfg'?'cfg':'mark';send(out);
     });
     window.parent.postMessage({type:'wms-reorder-ready',plant:rd},location.origin);
     return;
