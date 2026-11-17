@@ -7271,7 +7271,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18a';
+const APP_VERSION='2026.11.18c';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7331,28 +7331,40 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     const busy=()=>live.busy||planAuto.busy||yoozFetch.busy||ltFetch.busy;
     // the SAME stock on every device: read the plant's live inventory from SharePoint (read only, never saved here)
-    let shared=null;
-    const readLive=async()=>{const r=await liveFetch(2);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:r.updatedAt||r.startedAt};}};
-    const limit=(p,ms)=>Promise.race([Promise.resolve(p).catch(()=>{}),sleep(ms)]);
+    let shared=null,times={};
+    // stock: today's live record of the plant (reads yesterday → tomorrow only: the newest shift is always there)
+    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:r.updatedAt||r.startedAt};}else throw new Error('no live record');};
+    // run one source with a time limit and remember how long it took (shown in Next POs, to find the slow one)
+    const timed=(name,fn,ms,errOf)=>{const t=Date.now();let done=false;
+      const p=Promise.resolve().then(fn).then(()=>{done=true;const e=errOf&&errOf();times[name]={s:(Date.now()-t)/1000,ok:!e};},
+        ()=>{done=true;times[name]={s:(Date.now()-t)/1000,ok:false};});
+      return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,cfg:loadReoCfg(),dev:planDevice()};};
+        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,cfg:loadReoCfg(),dev:planDevice(),
+        times:Object.assign({},times)};};
     const old=(o,ms)=>!o||Date.now()-new Date(o.loaded).getTime()>ms;
     const collect=async(force,send)=>{
-      const t0=Date.now();
-      if(loadLeadTime())send(build(true));                       // 1) right away with what this device already has
-      // 2) everything at the same time, each with a time limit (a slow flow can't hold the rest)
-      const jobs=[limit(readLive(),30000),limit(pullSharedPlan(true),30000),limit(reoReadShared(),20000)];
-      if(force||old(loadYooz(),4*3600e3))jobs.push(limit(loadYoozFromFlow(false),45000));
-      if(PLANNER_FLOW_URL&&(force||old(loadPlanner(),3600e3)))jobs.push(limit(loadPlannerFromFlow(false),45000));
-      if(!loadLeadTime())jobs.push(limit(loadLeadTimeFromFlow(false),90000));
-      await Promise.all(jobs);
-      // today's plan with the day-by-day detail: the same on every device
-      if(!(planData&&planData.day===isoToday()&&(planData.items||[]).length)){if(PLAN_FILE_URL)await limit(planAutoFetch(true),60000);}
-      else if(!planData.dm)await limit(ensurePlanDm(),60000);
-      const out=build(false);out.secs=Math.round((Date.now()-t0)/1000);send(out);
-      // 3) lead times older than a week: refresh after, then send again
-      if(old(loadLeadTime(),7*864e5)||force){await limit(loadLeadTimeFromFlow(false),90000);send(build(false));}
+      const t0=Date.now();times={};
+      if(loadLeadTime())send(build(true));                       // 0) right away with what this device already has
+      // 1) the FAST sources first, all at the same time: stock, today's plan, receiving days / marks.
+      //    Yooz POs, John's planner and lead times only wait here if this device never had them.
+      const yzOld=force||old(loadYooz(),4*3600e3),plOld=!!PLANNER_FLOW_URL&&(force||old(loadPlanner(),3600e3)),ltOld=force||old(loadLeadTime(),7*864e5);
+      const first=[timed('stock',readLive,25000),timed('plan',()=>pullSharedPlan(true),25000,()=>planSync.err),timed('settings',reoReadShared,15000)];
+      if(!loadYooz())first.push(timed('Yooz',()=>loadYoozFromFlow(false),45000,()=>yoozFetch.err));
+      if(PLANNER_FLOW_URL&&!loadPlanner())first.push(timed('planner',()=>loadPlannerFromFlow(false),45000));
+      if(!loadLeadTime())first.push(timed('lead times',()=>loadLeadTimeFromFlow(false),90000,()=>ltFetch.err));
+      await Promise.all(first);
+      // today's plan with the day-by-day detail (only read from the Excel file if nobody shared it yet)
+      if(!(planData&&planData.day===isoToday()&&(planData.items||[]).length)){if(PLAN_FILE_URL)await timed('plan file',()=>planAutoFetch(true),60000);}
+      else if(!planData.dm)await timed('plan file',ensurePlanDm,60000);
+      // 2) the slower ones in the background, if they are old; the screen is already usable
+      const later=[];
+      if(yzOld&&loadYooz()&&!times.Yooz)later.push(timed('Yooz',()=>loadYoozFromFlow(false),45000,()=>yoozFetch.err));
+      if(plOld&&loadPlanner()&&!times.planner)later.push(timed('planner',()=>loadPlannerFromFlow(false),45000));
+      if(ltOld&&loadLeadTime()&&!times['lead times'])later.push(timed('lead times',()=>loadLeadTimeFromFlow(false),90000,()=>ltFetch.err));
+      const o1=build(later.length>0);o1.secs=(Date.now()-t0)/1000;send(o1);
+      if(later.length){await Promise.all(later);const o2=build(false);o2.secs=(Date.now()-t0)/1000;send(o2);}
     };
     window.addEventListener('message',async ev=>{
       const m=ev.data;if(ev.source!==window.parent||!m||m.type!=='wms-reorder-get')return;

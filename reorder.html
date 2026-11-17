@@ -115,7 +115,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18a</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18c</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -154,25 +154,28 @@ const dayTxt=d=>new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'s
 const timeTxt=t=>{if(!t)return '';const d=new Date(t);if(isNaN(d))return '';const today=new Date().toDateString()===d.toDateString();
   return today?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
 
-/* talk to the hidden Inventory helper */
+/* talk to the hidden Inventory helper. It is only loaded when needed: coming back within 10 minutes
+   shows the last result at once, with no loading at all (⟳ Refresh always gets fresh data). */
+const FRESH_MS=10*60e3;
 const frame=document.getElementById('helper');
+let lastAt=0,frameOn=false,queue=[],bootT=0,bootS=null;
+function ensureFrame(){if(!frameOn){frameOn=true;bootT=Date.now();frame.src='index.html?reorderdata='+PLANT;}}
 window.addEventListener('message',ev=>{
   if(ev.source!==frame.contentWindow)return;const m=ev.data||{};
-  if(m.type==='wms-reorder-ready'){ready=true;if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}}
+  if(m.type==='wms-reorder-ready'){ready=true;bootS=(Date.now()-bootT)/1000;if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
   if(m.type==='wms-reorder-data'&&m.id===reqId){busy=!!m.partial;data=m;
     if(m.saveErr)toast('⚠ '+m.saveErr);else if(m.saved)toast(m.saved==='cfg'?'✓ Receiving days saved for every device':'✓ Saved for every device');
     if(!tab){const c=counts();tab=c.red?'now':c.amber?'week':'all';}
-    try{localStorage.setItem('reorder_last_'+PLANT,JSON.stringify({at:Date.now(),data:m}));}catch(e){}
+    if(!m.partial){lastAt=Date.now();try{localStorage.setItem('reorder_last_'+PLANT,JSON.stringify({at:lastAt,data:m}));}catch(e){}}
     render();}
 });
 function ask(force){
-  if(!ready){pendingAsk=!!force;return;}
+  ensureFrame();
+  if(!ready){pendingAsk=!!force||!!pendingAsk;busy=true;render();return;}
   busy=true;reqId++;frame.contentWindow.postMessage({type:'wms-reorder-get',id:reqId,force:!!force},location.origin);render();
 }
-frame.src='index.html?reorderdata='+PLANT;
-// show the last result right away while the fresh one loads
-try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<12*3600e3){data=last.data;const c=counts();tab=c.red?'now':c.amber?'week':'all';}}catch(e){}
-ask(false);render();
+const stale=()=>Date.now()-lastAt>FRESH_MS;
+
 
 function counts(){const r=((data&&data.rows)||[]).filter(inCat);return {red:r.filter(x=>x.st==='red').length,amber:r.filter(x=>x.st==='amber').length,all:r.length};}
 function setTab(t){tab=t;render();window.scrollTo({top:0});}
@@ -190,7 +193,13 @@ function statusLine(){
   if(data.yzErr)p.push('<span class="bad">Yooz: '+esc(data.yzErr)+'</span>');
   if(data.err)p.push('<span class="bad">'+esc(data.err)+'</span>');
   if(data.ltAt)p.push('Lead times '+timeTxt(data.ltAt));
-  return (busy?'⏳ Updating… · ':'')+p.join(' · ');
+  // how long each source took (to find the slow one): app = loading the helper, then each flow
+  if(data.times&&Object.keys(data.times).length){const f=x=>(x<10?x.toFixed(1):Math.round(x))+' s';
+    const parts=Object.entries(data.times).map(([k,v])=>k+' '+(v.timeout?'>'+f(v.s)+' ⏱':f(v.s))+(v.ok?'':' ⚠'));
+    if(bootS!=null)parts.unshift('app '+f(bootS));
+    p.push('<br><span style="font-size:11px">⏱ '+(data.secs!=null?'Ready in '+f(data.secs+(bootS||0))+': ':'')+parts.join(' · ')+'</span>');}
+  const ago=lastAt?Math.round((Date.now()-lastAt)/60000):null;
+  return (busy?'⏳ Updating… · ':ago!=null?'Updated '+(ago<1?'just now':ago+' min ago')+' · ':'')+p.join(' · ');
 }
 const CATS=[['ALL','All'],['BOXES','Boxes'],['TRAYS','Trays'],['FILM','Film'],['SLEEVES','Sleeves'],['PATTY PAPER','Patty paper'],['OTHER','Other']];
 const catOf=r=>{const c=String(r.cat||'').toUpperCase();return CATS.some(x=>x[0]===c)?c:'OTHER';};
@@ -293,7 +302,7 @@ function withPin(cb){
 }
 function checkPin(){const v=document.getElementById('pin').value.trim();if(v!==PIN){toast('Wrong PIN');document.getElementById('pin').value='';return;}
   try{sessionStorage.setItem('reo_pin','ok');}catch(e){}closeSheet();const cb=window._afterPin;window._afterPin=null;if(cb)cb();}
-function sendSave(msg){if(!ready){toast('Still loading — try again in a moment');return;}busy=true;reqId++;msg.id=reqId;frame.contentWindow.postMessage(msg,location.origin);render();}
+function sendSave(msg){if(!ready){ensureFrame();queue.push(msg);busy=true;render();toast('Saving…');return;}busy=true;reqId++;msg.id=reqId;frame.contentWindow.postMessage(msg,location.origin);render();}
 
 /* ---------- PO actions: created in Yooz / change quantity / undo ---------- */
 const ymdL=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -394,7 +403,8 @@ function render(keepFocus){
 }
 
 /* refresh when coming back to the page */
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!busy)ask(false);});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!busy&&stale())ask(false);});
+window.addEventListener('pageshow',e=>{if(e.persisted&&!busy&&stale())ask(false);});
 
 /* 🌙 / ☀ — same night mode for the whole WMS (saved as wms_theme) */
 function themeIsDark(){return document.documentElement.classList.contains('theme-dark');}
@@ -402,6 +412,11 @@ function paintThemeMini(){const d=themeIsDark();document.querySelectorAll('.them
 function toggleThemeMini(ev){if(ev)ev.stopPropagation();const d=!themeIsDark();document.documentElement.classList.toggle('theme-dark',d);
   try{localStorage.setItem('wms_theme',d?'dark':'light');}catch(e){}paintThemeMini();}
 paintThemeMini();
+// start (at the end, once every function above exists): show the last result right away;
+// only load again if it is older than 10 minutes
+try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<12*3600e3){data=last.data;lastAt=last.at;const c=counts();tab=c.red?'now':c.amber?'week':'all';}}catch(e){}
+if(stale())ask(false);
+render();
 </script>
 </body>
 </html>
