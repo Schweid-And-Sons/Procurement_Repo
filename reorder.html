@@ -115,6 +115,20 @@
   #print .cls{display:inline-block;border:1.5px solid #000;border-radius:4px;padding:0 5px;font-weight:800;}
   #print .tot td{font-weight:800;border-bottom:2px solid #000;}
   #print .foot{font-size:8.5pt;color:#444;margin-top:10px;}
+  .c-det2{display:block!important;font-weight:400;}
+  .c-det2 span{display:inline;font-size:inherit;font-weight:inherit;color:inherit;}
+  .c-det2 .mut{color:var(--text3);font-size:11.5px;}
+  .blk{background:var(--surface2);border-radius:10px;padding:8px 10px;margin:8px 0;}
+  .blk-h{font-weight:800;font-size:13px;margin-bottom:4px;}
+  .blk-n{font-size:12.5px;color:var(--text2);line-height:1.45;margin-top:4px;}
+  .calc{width:100%;border-collapse:collapse;font-size:13px;}
+  .calc td{padding:3px 4px;border-bottom:1px solid var(--border);}
+  .calc td:last-child{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .calc tr.tot td{background:rgba(0,0,0,.03);}
+  .calc tr.neg td{color:var(--danger);}
+  .calc tr.ok td{color:var(--success);}
+  .calc .mut{color:var(--text3);font-size:11.5px;}
+  .sug{margin:2px 0 0 16px;padding:0;font-size:13px;line-height:1.5;}
   .search{width:100%;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:11px 14px;font-size:16px;margin-bottom:12px;}
   .card{background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:6px solid var(--border);}
   .card.red{border-left-color:var(--danger);}.card.amber{border-left-color:var(--warn);}.card.green{border-left-color:var(--success);}
@@ -146,7 +160,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18u</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19b</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -159,9 +173,10 @@
     <li><b>When to order:</b> the supplier's usual delivery time before the day we would dip into the cushion. Orders go on the <b>Friday</b> before; each delivery is set for the day it's needed, <b>never on Monday</b> (moved to the Friday before, or Tuesday). Friday can take bigger deliveries.</li>
     <li><b>How much:</b> always <b>full pallets</b>, the way the supplier ships it (e.g. BX1850 = 750, two pallets double stacked).</li>
     <li><b>Rush</b> only when we would run out before a normal order can arrive.</li>
+    <li><b>📝 We ordered…</b>: write what was really ordered (quantity and day). It counts as coming everywhere, and the card shows what is <b>still missing</b> if the plan changed later.</li>
     <li>Each PO has a status, the same on every device (PIN): <b>Not ordered</b> · <b>⏳ Pending</b> (someone is on it, e.g. waiting for the supplier) · <b>✅ Created</b> (made in Yooz, so nobody orders it twice). <b>✏️ Qty</b> changes the amount; the next POs adjust. The first 2 POs show; tap “Show more” for the ones ahead.</li>
     <li><b>📅 Receiving days</b> and holidays are the same for every device (PIN). <b>⬇ Excel</b> downloads the list to share; <b>🖨 Print</b> gives a big, clear list by order day (or Save as PDF).</li>
-    <li><b>Eleni's PO Tracker</b>: a PO with a received date no longer counts as coming; an open one uses her estimated day. Once that day passes without being marked received, the PO is <b>not counted</b> (the inventory count is what's real) and is listed in Details. <b>🏭 Suppliers</b> shows real days, on-time and shorts per supplier.</li>
+    <li><b>Eleni's PO Tracker</b>: a PO with a received date no longer counts as coming; an open one uses her estimated day. Up to 2 working days late it is still expected (counted for tomorrow); after that it is <b>not counted</b> (the inventory count is what's real) and is listed in Details. <b>🏭 Suppliers</b> shows real days, on-time and shorts per supplier.</li>
     <li><b>📈 Timeline</b> (in Details): stock at night for the next 4 weeks, with and without the POs.</li>
     <li>It's a guide, not the PO: the official PO is still made in Yooz.</li>
   </ul><div id="howEx"></div></details>
@@ -309,12 +324,12 @@ function timeline(r){
     <span style="font-size:11px;color:var(--text3)"><i style="color:var(--accent);font-style:normal">━</i> with the POs above · <i style="font-style:normal">┅</i> without new POs · <i style="color:var(--warn);font-style:normal">┅</i> cushion · <i style="color:var(--danger);font-style:normal">━</i> zero</span></div>`;
 }
 /* overdue POs (Eleni's PO Tracker: estimated day passed, no received date) */
-function lateTxt(r){const n=(r.late||[]).length;if(!n)return '';   // on the card: one quiet line; the list is in Details
-  return `<div class="c-sub" style="color:var(--text3);font-size:12px">⏳ ${n} late PO${n>1?'s':''} not counted (see Details)</div>`;}
+function lateTxt(r){const L=r.late||[];if(!L.length)return '';const st=L.filter(x=>x.stale).length,ok=L.length-st;   // one quiet line; the list is in Details
+  return `<div class="c-sub" style="color:var(--text3);font-size:12px">⏳ ${[ok?ok+' late PO'+(ok>1?'s':'')+' still expected tomorrow':'',st?st+' too late, not counted':''].filter(Boolean).join(' · ')} (see Details)</div>`;}
 function lateList(r){if(!(r.late||[]).length)return '';const u=esc(unitOf(r));
-  return `<div class="c-vend"><b>⏳ Late POs — not counted</b> (the inventory count is what's real; it may already include them):<br>${r.late.map(x=>
-    `PO ${esc(x.po)} (${esc(x.sup||'')}) · ${n0(x.qty)} ${u} · was due ${dayTxt(x.eta+'T12:00:00')} (${x.wl} working day${x.wl>1?'s':''} late)`).join('<br>')}
-    <br><span style="color:var(--text3)">If it arrived, mark it in Receiving; if not, check with the supplier.</span></div>`;}
+  return `<div class="c-vend"><b>⏳ Late POs</b> (past the delivery day, not marked received):<br>${r.late.map(x=>
+    `PO ${esc(x.po)} (${esc(x.sup||'')}) · ${n0(x.qty)} ${u} · was due ${dayTxt(x.eta+'T12:00:00')} (${x.wl} working day${x.wl>1?'s':''} late) → ${x.stale?'<b>not counted</b>':'still expected, counted for tomorrow'}`).join('<br>')}
+    <br><span style="color:var(--text3)">Up to 2 working days late it's still expected (Sonic is often a day late). After that it's not counted — the inventory count is what's real. If it arrived, mark it in Receiving; if not, check with the supplier.</span></div>`;}
 function cardTxt(r){const c=r.cards||{};const ks=Object.keys(c);if(!ks.length)return '';
   return `<div class="c-vend"><b>This month (Eleni's PO Tracker):</b> ${ks.map(k=>{const v=c[k];return `${esc(k)} · ${v.days!=null?'~'+v.days+' days order→received':''}${v.onTime!=null?' · '+v.onTime+'% on the estimated day':''}${v.shortPct!=null?' · '+v.shortPct+'% of POs came short':''} · ${v.pos} POs`;}).join(' &nbsp;|&nbsp; ')}</div>`;}
 /* supplier report card for the plant */
@@ -333,21 +348,26 @@ function dmpLine(r){const c=r.dmpCheck;if(!c)return '';const u=unitOf(r)||'';
     → ${c.ok?`<b style="color:var(--success)">✅ covered</b>${c.left>0?' (+'+n0(c.left)+' left as cushion)':''}`:`<b style="color:var(--danger)">⚠ ${n0(-c.left)} short</b> — the next POs can't arrive in time; ask for a rush`}</div>`;}
 function planDays(r){
   if(!(r.plan&&r.plan.length&&r.ptot))return '';
-  const u=unitOf(r)||'',md=k=>{const d=new Date(k+'T12:00:00');return (d.getMonth()+1)+'/'+d.getDate();};
-  // where each day's number comes from in the Direct Material Planning sheet (Inv Date → used the working day before)
-  const from=x=>{const s=x.src;if(!s)return '—';const p=[];
-    Object.entries(s).filter(([k])=>/^\d{4}-/.test(k)).sort().forEach(([k,v])=>p.push(md(k)+': '+n0(v)));
-    if(s.sched!=null)return p.join(' + ')+' → <b>lines today '+n0(s.sched)+'</b>';
-    if(s.carry)p.push('+ '+n0(s.carry)+' from today');
-    return p.join(' · ')||'—';};
-  const rows=r.plan.map(x=>`<tr><td>${dayTxt(x.d+'T12:00:00')}</td><td style="text-align:left;color:var(--text3);font-size:11.5px">${from(x)}</td><td>${n0(x.need)}</td><td>${x.inc?'+'+n0(x.inc):'—'}</td><td style="color:${x.left<0?'var(--danger)':x.left<(r.ss||0)?'var(--warn)':'inherit'}">${n0(x.left)}</td></tr>`).join('');
-  return `<div class="c-vend" style="color:var(--text2)"><b>📅 Production plan, day by day</b> (${u})
-    <div style="font-size:12px;margin:2px 0 4px">The sheet shows each quantity on its <b>Inv Date</b>; the boxes are used the <b>working day before</b> (production runs a day ahead). "From the sheet" says which Inv Date each day comes from.</div>
-    <table class="pd"><tr><th>Used on</th><th style="text-align:left">From the sheet (Inv Date)</th><th>Needs</th><th>Arrives</th><th>Left at night</th></tr>${rows}
-    <tr><td><b>Total</b></td><td style="text-align:left;color:var(--text3);font-size:11.5px">same as the sheet's Grand Total</td><td><b>${n0(r.ptot)}</b></td><td></td><td></td></tr></table>
-    ${r.sched?`<b>Today</b> = the lines' schedule (Boxes Total): <b>${n0(r.sched.S)}</b>.${r.sched.rest>0?` The sheet had ${n0(r.sched.D)} due for today (incl. ${n0(r.pdone||0)} still open from yesterday's Inv Date); the other <b>${n0(r.sched.rest)}</b> move to ${dayTxt(r.sched.to+'T12:00:00')}.`:''}<br>`
-      :r.pdone?`Today includes <b>${n0(r.pdone)}</b> still open from a past Inv Date (not made yet).<br>`:''}
-    <i style="color:var(--warn);font-style:normal">Orange</i> = below the cushion · <i style="color:var(--danger);font-style:normal">red</i> = runs out.</div>`;
+  const u=unitOf(r)||'';
+  // "Planning" = exactly what the Direct Material Planning sheet shows on that Inv Date.
+  // "Used" = what leaves the warehouse that day (the working day before each Inv Date; today = the lines' schedule).
+  const inv={};r.plan.forEach(x=>Object.entries(x.src||{}).forEach(([k,v])=>{if(/^\d{4}-/.test(k))inv[k]=(inv[k]||0)+v;}));
+  const pl={};r.plan.forEach(x=>pl[x.d]=x);
+  const t0=r.plan[0].d,days=[...new Set(Object.keys(pl).concat(Object.keys(inv)))].filter(d=>d>=t0).sort();
+  const pastInv=Object.entries(inv).filter(([k])=>k<t0).reduce((a,[,v])=>a+v,0);
+  const rows=days.map(d=>{const x=pl[d],dt=new Date(d+'T12:00:00'),wk=dt.getDay()===0||dt.getDay()===6;
+    if(wk&&!inv[d]&&!(x&&x.need))return '';
+    return `<tr><td>${dayTxt(d+'T12:00:00')}</td><td><b>${inv[d]?n0(inv[d]):'—'}</b></td><td>${x?(x.need?n0(x.need):'—'):''}</td><td>${x&&x.inc?'+'+n0(x.inc):x?'—':''}</td><td style="color:${!x?'inherit':x.left<0?'var(--danger)':x.left<(r.ss||0)?'var(--warn)':'inherit'}">${x?n0(x.left):''}</td></tr>`;}).join('');
+  const totInv=Object.values(inv).reduce((a,v)=>a+v,0);
+  return `<div class="c-vend" style="color:var(--text2)"><b>📅 Planning vs. what leaves the warehouse</b> (${u})
+    <table class="pd"><tr><th>Day</th><th>Planning<br><span style="font-weight:400">(sheet, Inv Date)</span></th><th>Used<br><span style="font-weight:400">(leaves the warehouse)</span></th><th>Arrives</th><th>Left at night</th></tr>${rows}
+    <tr><td><b>Total</b></td><td><b>${n0(totInv)}</b></td><td><b>${n0(r.ptot)}</b></td><td></td><td></td></tr></table>
+    <div style="font-size:12px;line-height:1.45">
+    <b>Planning</b> = the same numbers and dates as the Direct Material Planning sheet.<br>
+    <b>Used</b> = the boxes are pulled the <b>working day before</b> each Inv Date (production runs a day ahead).
+    ${r.sched?` <b>Today</b> uses the lines' schedule (Boxes Total): ${n0(r.sched.S)}${r.sched.rest>0?`; the other ${n0(r.sched.rest)} of the planning move to ${dayTxt(r.sched.to+'T12:00:00')}`:''}.`:''}
+    ${pastInv?` ${n0(pastInv)} from an Inv Date before today are still open, so they are used today.`:''}<br>
+    <i style="color:var(--warn);font-style:normal">Orange</i> = below the cushion · <i style="color:var(--danger);font-style:normal">red</i> = runs out.</div></div>`;
 }
 /* "too big?": lower (or raise) the cushion for this item only, or for its whole priority — shared with every device */
 function tooBig(base){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return;
@@ -366,30 +386,65 @@ function drawTooBig(){const t=window._tb,r=t.r;
 function saveTooBig(mode){const t=window._tb,c=t.cfg;
   if(mode==='item')c.ssItem[t.r.base]=t.v;else if(mode==='reset')delete c.ssItem[t.r.base];else{c.ss[t.r.cls||'C']=t.v;delete c.ssItem[t.r.base];}
   closeSheet();sendSave({type:'wms-reorder-cfg',cfg:c});}
+/* ---------- Details, 3 blocks: 1) what Juan's sheet says  2) the calculation  3) suggestions ---------- */
+function sheetInv(r){const inv={};(r.plan||[]).forEach(x=>Object.entries(x.src||{}).forEach(([k,v])=>{if(/^\d{4}-/.test(k))inv[k]=(inv[k]||0)+v;}));return inv;}
+function sheetTable(r){
+  const inv=sheetInv(r),ks=Object.keys(inv).sort();if(!ks.length)return '';const u=unitOf(r)||'';
+  return `<div class="blk"><div class="blk-h">1 · What the Direct Material Planning sheet says</div>
+    <table class="pd"><tr><th>Inv Date</th><th>${esc(u)}</th></tr>${ks.map(k=>`<tr><td>${dayTxt(k+'T12:00:00')}</td><td>${n0(inv[k])}</td></tr>`).join('')}
+    <tr><td><b>Total</b></td><td><b>${n0(ks.reduce((a,k)=>a+inv[k],0))}</b></td></tr></table>
+    <div class="blk-n">Production uses the boxes the <b>working day before</b> each Inv Date (confirmed by Juan). Today the app uses the lines' schedule (Box Total)${r.sched?': '+n0(r.sched.S):''}.</div></div>`;
+}
+function calcBlock(r){
+  const c=r.dmpCheck,u=unitOf(r)||'';
+  const L=Math.round(r.Lavg||r.L),o=groupOrders(r.orders).find(x=>!x.done&&!x.pending);
+  const line=(lbl,val,cls)=>`<tr${cls?' class="'+cls+'"':''}><td>${lbl}</td><td>${val}</td></tr>`;
+  let t='';
+  if(c){
+    const left=c.have-c.need,after=left+c.sug+c.marked;
+    t=`<table class="calc">
+      ${line('Have now (inventory count)',n0(r.stock))}
+      ${line('+ Coming by '+dayTxt(c.end+'T12:00:00')+((r.coming||[]).length?' <span class="mut">('+r.coming.map(x=>esc(x.po)+' '+n0(x.qty)).join(', ')+')</span>':''),'+ '+n0(c.have-r.stock))}
+      ${line('− Use until '+dayTxt(c.end+'T12:00:00')+' <span class="mut">(sheet)</span>','− '+n0(c.need))}
+      ${line('<b>= Left without new POs</b>','<b>'+n0(left)+'</b>',left<0?'neg':'tot')}
+      ${line('Cushion <span class="mut">(priority '+(r.cls||'—')+' = '+n1(r.sdays)+' days × '+n0(r.dbar)+'/day)</span>',n0(r.ss))}
+      ${line('+ POs below, arriving by then',(c.sug+c.marked)?'+ '+n0(c.sug+c.marked):'0')}
+      ${line('<b>= Left with the POs</b>','<b>'+n0(after)+'</b>',after<0?'neg':after>=r.ss?'ok':'tot')}
+    </table>`;
+  }else t=`<div class="blk-n">No production plan for today: using the usual use, ~${n0(r.dbar)} ${esc(u)} per day.</div>`;
+  const when=o?(o.rush?`we run out ${o.needBy?dayTxt(o.needBy+'T12:00:00'):'before a normal PO can arrive'} → <b>rush today</b>, must be in by ${dayTxt(o.arrive)}`
+    :`stock + POs on the way last until <b>${r.coverDay==null?'6+ weeks':dayTxt(addDays(Math.max(0,r.coverDay-1)))}</b>; the supplier takes ~${L} days → <b>${whenTxt(o)}${dayTxt(o.orderBy)}</b>`):'nothing to order in the next 4 weeks';
+  return `<div class="blk"><div class="blk-h">2 · The calculation</div>${t}
+    <div class="blk-n"><b>Equation:</b> left = have + coming − use. Order when "left" would go under the cushion, the supplier's days before; quantity in full pallets${r.pack&&r.pack.p>1?' ('+n0(r.pack.p)+' per pallet)':''}.<br><b>When:</b> ${when}.</div></div>`;
+}
+function suggestions(r){
+  const S=[],u=esc(unitOf(r)||''),o=groupOrders(r.orders).find(x=>!x.done&&!x.pending),b=esc(r.base);
+  if(o&&o.rush)S.push(`📞 Call ${esc(o.via||'the supplier')}: ${n0(o.qty)} ${u} must be IN by ${dayTxt(o.arrive)}.`);
+  if(r.dmpCheck&&!r.dmpCheck.ok)S.push(`⚠ Even with the POs it's ${n0(-r.dmpCheck.left)} short of the sheet — ask for an earlier delivery.`);
+  (r.late||[]).forEach(x=>S.push(x.stale?`⏳ PO ${esc(x.po)} (${n0(x.qty)}) is ${x.wl} working days late and <b>not counted</b>: if it arrived, mark it in Receiving; if not, ask ${esc(x.sup||'the supplier')}.`
+    :`⏳ PO ${esc(x.po)} (${n0(x.qty)}) was due ${dayTxt(x.eta+'T12:00:00')} — still expected tomorrow.`));
+  (r.rcvNew||[]).forEach(x=>S.push(`📥 PO ${esc(x.po||'')} (${n0(x.qty)}) received: make sure it's located in the map (stock = the count).`));
+  Object.entries(r.cards||{}).forEach(([k,v])=>{if(v.shortPct>=30)S.push(`🔎 ${esc(k)} came short in ${v.shortPct}% of this month's POs: count the delivery.`);});
+  if(r.noPack)S.push('📦 No pallet size saved for this item: check the quantity before ordering.');
+  if(r.dmpCheck&&r.dmpCheck.ok&&r.ss&&r.dmpCheck.left>r.ss*2)S.push(`🔧 Ends well above the cushion (+${n0(r.dmpCheck.left)}). <a href="#" onclick="tooBig('${b}');return false">Too big? Change the cushion</a>`);
+  else if(o)S.push(`🔧 <a href="#" onclick="tooBig('${b}');return false">Too big? Change the cushion</a>`);
+  return S.length?`<div class="blk"><div class="blk-h">3 · Suggestions</div><ul class="sug">${S.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:'';
+}
+function facts(r){const m=r.main||{};
+  return `<div class="blk-n" style="margin-top:6px">${esc(m.vendor||'')}${r.Lavg?' · ~'+Math.round(r.Lavg)+' days':''}${m.onTime!=null?' · '+m.onTime+'% on time':''}${r.pack?' · '+n0(r.pack.p)+' per pallet':''}${r.cls?' · priority '+r.cls:''}${r.y12?' · last 12 months '+n0(r.y12):''}</div>`;}
 function card(r){
-  const key=r.base,m=r.main||{};
-  const det=open.has(key)?`<div class="c-det">
-      <div><span>Stock</span>${n0(r.stock)}</div><div><span>Open POs</span>${r.open?n0(r.open):'—'}</div>
-      <div><span>Plan until ${r.planEnd?r.planEnd.slice(5).replace('-','/'):'—'}</span>${r.ptot?n1(r.ptot):'—'}</div>
-      <div><span>Use / day</span>${r.dbar?n1(r.dbar):'—'}</div><div><span>Lead time</span>~${Math.round(r.Lavg||r.L)} days${r.L>Math.round(r.Lavg||r.L)?' (up to '+r.L+')':''}</div>
-      <div><span>Safety stock${r.ssOwn?' (own)':''}</span>${r.ss?n0(r.ss)+' · '+n1(r.sdays)+' days':'—'}</div>
-      ${r.pack?`<div class="c-vend"><b>How it comes:</b> ${n0(r.pack.p)+' '+unitOf(r)+' per pallet'+(r.pack.d>r.pack.p?' · usual delivery '+n0(r.pack.d)+' ('+Math.round(r.pack.d/r.pack.p)+' pallets)':'')}</div>`:(m.qtyAvg?`<div class="c-vend"><b>Usual order:</b> ${n0(m.qtyAvg)} (no pallet size saved yet)</div>`:'')}
-      ${r.y12?`<div class="c-vend"><b>Last 12 months:</b> ${n0(r.y12)} ${unitOf(r)==='rolls'?'':unitOf(r)||'units'} · ~${n0(r.y12/365)} / day (Power BI)</div>`:''}
-      ${r.cls?`<div class="c-vend"><b>Priority ${r.cls}</b> · ${r.cls==='A'?'most used: biggest safety stock':r.cls==='B'?'medium use':'little use: small safety stock, no extra pallets'}</div>`:''}
-      ${lateList(r)}
-      ${timeline(r)}
-      ${planDays(r)}
-      ${cardTxt(r)}
-      ${(r.coming||[]).length?`<div class="c-vend"><b>On the way:</b> ${r.coming.slice(0,6).map(x=>esc(x.po)+' · '+n0(x.qty)+' · '+dayTxt(x.date+'T12:00:00')+(x.planner?' (John\'s planner)':x.tracked?' (Eleni\'s PO Tracker)':'')+(x.late?' ⚠ late':'')).join(' &nbsp;|&nbsp; ')}</div>`:''}
-      <div class="c-vend"><b>Supplier${(r.sup||[]).length>1?'s (both used in the last 3 months)':''}:</b> ${((r.sup||[]).length?r.sup:[m]).map(v=>esc(v.vendor||'')+(v.ltAvg?' · ~'+Math.round(v.ltAvg)+' days':'')+(v.lt?' (up to '+v.lt+')':'')+(v.onTime!=null?' · '+v.onTime+'% on time':'')+(v.last?' · last PO '+dayTxt(v.last+'T12:00:00').replace(/^\w+, /,''):'')).join(' &nbsp;|&nbsp; ')}${m.pos<5?' · few POs, rough lead time':''}</div>
-    </div>`:'';
+  const key=r.base;
+  const det=open.has(key)?`<div class="c-det c-det2">${sheetTable(r)}${calcBlock(r)}${suggestions(r)}${facts(r)}</div>`:'';
+  const nSug=(r.late||[]).length+((r.orders||[]).some(o=>o.rush&&!o.done)?1:0)+((r.rcvNew||[]).length);
   return `<div class="card ${r.st}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
-    <div class="c-main">${mainLine(r)}</div>${lateTxt(r)}${(r.rcvNew||[]).length?`<div class="c-sub" style="color:var(--text2)">📥 Received: ${r.rcvNew.map(x=>'PO '+esc(x.po||'')+' · '+n0(x.qty)).join(' · ')} — no longer "on the way". The stock is the inventory count: make sure it's located in the map.</div>`:''}${dmpLine(r)}${(r.orders||[]).some(o=>!o.done)?`<button class="c-more" style="padding-top:2px" onclick="tooBig('${esc(r.base)}')">🔧 Too big? Change the cushion</button>`:''}${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
+    <div class="c-main">${mainLine(r)}</div>
     <div class="c-sub">${subLine(r)}</div>
+    ${orderedToday(r)}
+    ${dmpLine(r)}
     ${nextOrders(r)}
-    ${r.short?`<div class="c-alert">⚠ Runs short on ${dayTxt(addDays(r.coverDay))}, inside the days already planned — before the next PO arrives</div>`:''}
-    <button class="c-more" onclick="toggle('${esc(key).replace(/'/g,'')}')">${open.has(key)?'Hide details ▴':'Details ▾'}</button>${det}
+    <button class="c-more" style="padding-top:2px" onclick="iOrdered('${esc(r.base)}')">📝 We ordered…</button>
+    <button class="c-more" onclick="toggle('${esc(key).replace(/'/g,'')}')">${open.has(key)?'Hide details ▴':'Details: sheet · calculation · suggestions'+(nSug?' ('+nSug+')':'')+' ▾'}</button>${det}
   </div>`;
 }
 /* what to order today and on the next order day (Friday, or the workday before if Friday is a holiday), in pallets */
@@ -435,6 +490,32 @@ function sendSave(msg){if(!ready){ensureFrame();queue.push(msg);busy=true;render
 const ymdL=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 function findPO(base,key){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return {};const o=groupOrders(r.orders).find(x=>x.key===key);return {r,o};}
 function markOf(r,o,extra){return Object.assign({base:r.base,ob:ymdL(o.orderBy),qty:o.qty,dl:o.dl.map(x=>({d:ymdL(x.d),q:x.q})),rush:!!o.rush,early:!!o.early,fri:!!o.fri,edited:!!o.edited,done:!!o.done,pending:!!o.pending},extra);}
+/* "📝 We ordered…": write down what was really ordered (any amount, any delivery day). It counts as coming on every
+   device; the app then shows only what is STILL missing — e.g. 4,000 ordered in the morning, the plan grew at noon. */
+function iOrdered(base){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return;
+  const per=r.per||1,u=unitOf(r)||'units',o=groupOrders(r.orders).find(x=>!x.done&&!x.pending);
+  const d0=o&&o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(addDays(1));
+  window._io={r,per};
+  withPin(()=>sheet(`<h2>📝 We ordered…</h2><div class="hint"><b>${esc(r.codes.join(' + '))}</b> · write what was really ordered in Yooz. It counts as coming on every device, and the app will show only what is still missing.</div>
+    <div class="row2"><button class="big gray" onclick="ioStep(-1)">− 1 pallet</button><button class="big gray" onclick="ioStep(1)">+ 1 pallet</button></div>
+    <input type="number" id="io-q" inputmode="numeric" min="0" step="${per}" value="${o?Math.round(o.qty):per}" oninput="ioPal()">
+    <div class="hint" id="io-p"></div>
+    <div class="hint" style="margin:6px 0 0">Arrives on</div><input type="date" id="io-d" value="${d0}">
+    <input type="text" id="io-po" placeholder="Yooz PO # (optional)">
+    <button class="big" onclick="ioSave()">Save</button><button class="big gray" onclick="closeSheet()">Cancel</button>`));
+  setTimeout(ioPal,60);}
+function ioPal(){const e=window._io,v=+document.getElementById('io-q').value||0;document.getElementById('io-p').textContent=(e.per>1?'= '+Math.ceil(v/e.per-1e-9)+' pallet(s) · ':'')+n0(v)+' '+(unitOf(e.r)||'');}
+function ioStep(n){const e=window._io,el=document.getElementById('io-q');el.value=Math.max(0,Math.ceil((+el.value||0)/e.per-1e-9)*e.per+n*e.per);ioPal();}
+function ioSave(){const e=window._io;const q=+document.getElementById('io-q').value,d=document.getElementById('io-d').value,po=document.getElementById('io-po').value.trim();
+  if(!(q>0)||!d){toast('Type the quantity and the day');return;}
+  const t=ymdL(addDays(0)),key=e.r.base+'|'+t+'|M'+Date.now();
+  closeSheet();sendSave({type:'wms-reorder-mark',key,mark:{base:e.r.base,ob:t,qty:q,dl:[{d,q}],done:true,manual:true,po}});}
+/* what was already ordered today (written down) vs. what the app still suggests */
+function orderedToday(r){const t=ymdL(addDays(0));
+  const mine=(r.orders||[]).filter(o=>o.fixed&&o.done&&String(o.key||'').includes('|'+t+'|')||(o.fixed&&o.done&&o.at&&ymdL(o.at)===t));
+  if(!mine.length)return '';const got=mine.reduce((a,o)=>a+(+o.qty||0),0);
+  const more=groupOrders(r.orders).filter(o=>!o.done&&!o.pending);const nx=more[0];
+  return `<div class="c-sub" style="margin:4px 0;padding:6px 8px;border-radius:8px;background:rgba(22,163,74,.10)">✅ <b>Ordered today: ${n0(got)}</b>${mine.map(o=>o.po?' (PO '+esc(o.po)+')':'').join('')}${nx?` · still missing: <b>${n0(nx.qty)}</b> ${new Date(nx.orderBy)<=addDays(0)?'— order today':whenTxt(nx).replace(/ · $/,'').toLowerCase()+' '+dayTxt(nx.orderBy)} <span class="mut">(the plan or the stock changed since)</span>`:' · nothing else needed for now'}</div>`;}
 /* PO status, shared on every device: Not ordered · ⏳ Pending · ✅ Created (in Yooz) */
 function setState(base,key,v){const {r,o}=findPO(base,key);if(!o)return;
   const cur=o.done?'done':o.pending?'pend':'none';if(cur===v)return;

@@ -3930,11 +3930,13 @@ function reorderRows(summary){
       if(t&&t.rcv)return;                                                     // already received (PO Tracker)
       const due=t&&t.eta&&!g.planner?t.eta:g.due;
       // late = the delivery day passed and nobody marked it received (Receiving, Yooz or Eleni's PO Tracker).
-      // NOT counted at all: the inventory count is what's real — a late PO may be exactly what arrived last night
-      // (already counted) or not be coming. Listed only, in Details, so someone can mark it or ask the supplier.
+      // Sonic arrives on the estimated day only ~11% of the time (usually 1 day later), so a PO up to 2 working days
+      // late is still expected → counted for tomorrow. Older than that it is NOT counted: the inventory count is what's
+      // real (it may be what arrived last night, already counted, or not be coming). (Nov 18: not counting any late PO
+      // made it order far too much.)
       const dueD=String(due||'').slice(0,10);let wl=0;
       if(dueD&&dueD<ymd(today)){const d=new Date(dueD+'T00:00:00');while(d<today){d.setDate(d.getDate()+1);const w=d.getDay();if(w>0&&w<6&&!hol.has(ymd(d)))wl++;}}
-      const late=wl>0?dueD:'',stale=wl>0;
+      const late=wl>0?dueD:'',stale=wl>2;
       g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
         (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:toUnits(l.code,q),po:g.po,planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
   }catch(e){console.error(e);}
@@ -3991,7 +3993,7 @@ function reorderRows(summary){
     r.dbar=dbar;r.sd=sd;r.sL=sL;
     const arr={};coming.forEach(x=>{const i=dayIdx(x.date);arr[i]=(arr[i]||0)+x.qty;});
     // marked POs of this item: created ones count until Yooz has had 2 h to show them; changed (not created yet) always count
-    const fixed=[],arrM={};
+    const fixed=[],arrM={},arrD={};   // arrD = created / written-down POs (already ordered): they count for "covered until"
     Object.entries(marks).forEach(([k,m])=>{if(m.base!==f.base)return;
       const inYooz=m.done&&yzAt>new Date(m.at).getTime()+2*3600e3;
       const lastD=m.dl&&m.dl.length?m.dl[m.dl.length-1].d:m.ob;if(m.done&&new Date(lastD+'T00:00:00')<today)return;   // created and already delivered: done
@@ -3999,11 +4001,11 @@ function reorderRows(summary){
       // counted like the suggestion it replaces: from the day it could first arrive (order day + lead time),
       // even if receiving moved the truck to the next receiving day
       const obI=dayIdx(m.ob<ymd(today)?ymd(today):m.ob)+Math.round(Lavg);
-      if(!inYooz)(m.dl||[]).forEach(x=>{const i=Math.min(dayIdx(x.d),Math.max(obI,0));arrM[i]=(arrM[i]||0)+(+x.q||0);});});
+      if(!inYooz)(m.dl||[]).forEach(x=>{const i=Math.min(dayIdx(x.d),Math.max(obI,0));arrM[i]=(arrM[i]||0)+(+x.q||0);if(m.done)arrD[i]=(arrD[i]||0)+(+x.q||0);});});
     const N=Math.max(P90+REO_REVIEW_DAYS+28,H+7,42);
     // 1) with what we have and what is coming: until when are we covered?
     let av=f.stock,short=null;
-    for(let i=0;i<=N;i++){av+=arr[i]||0;const x=dem(i);if(short==null&&av<x)short=i;av-=x;}
+    for(let i=0;i<=N;i++){av+=(arr[i]||0)+(arrD[i]||0);const x=dem(i);if(short==null&&av<x)short=i;av-=x;}
     r.coverDay=short;
     // the plan day by day (what production needs each day, what arrives, what is left at the end of the day)
     {let left=f.stock;r.plan=[];for(let i=0;i<H;i++){const inc=arr[i]||0,need=dem(i);left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left,src:psrc[ymd(dOf(i))]||null});}}
@@ -4026,9 +4028,13 @@ function reorderRows(summary){
       const Q=pk&&pk.d?pk.d:pk?Math.max(per,Math.ceil(raw/per)*per):Math.max(step,Math.round(raw/step)*step);
       r.noPack=!pk;
       const L=Math.round(Lavg),Lr=Math.max(1,Math.round(fast.ltAvg||fast.lt||Lavg)),orders=[];
+      // suppliers that deliver next day when asked (Sonic, PCA): before the next Friday order can arrive, order
+      // JUST IN TIME — one PO per delivery day, placed the day before (Nov 18: not one big rush until Monday)
+      const nextDay=/SONIC|PACKAGING CORP|\bPCA\b/i.test(String(main.vendor)+' '+String(fast.vendor));
+      const Lj=nextDay?1:L;
       const inA=i=>(arr[i]||0)+(arrM[i]||0);
       av=f.stock;let gap=0;
-      const L1=Math.max(L,fixArrive(L,L));   // first day a normal PO can be RECEIVED (no Mon / weekend / holiday)
+      const L1=Math.max(Lj,fixArrive(Lj,Lj));   // first day a PO ordered TODAY can be received (no Mon / weekend / holiday)
       let neg=-1;for(let i=0;i<Math.min(L1,N);i++){av+=inA(i);av-=dem(i);if(av<0&&neg<0)neg=i;if(-av>gap)gap=-av;}
       const rq=gap>0?Math.ceil(gap/per)*per:0;
       // a rush has to be IN by the first short day: the last receiving day on or before it (ask the supplier for that day)
@@ -4037,20 +4043,26 @@ function reorderRows(summary){
       av=f.stock+rq;
       for(let i=0;i<=N&&orders.length<80;i++){
         av+=inA(i);const x=dem(i);
-        if(i>=L){let guard=0;
+        if(i>=L1){let guard=0;
           // placed on the last Friday before it is needed (John's big-order day); each delivery comes the day it is needed
-          let ob=orderDay(i-L),early=false;
-          if(ob<0){ob=0;early=true;}
-          // deliveries only on receiving days (default Tue–Fri, no holidays): move to the receiving day before
-          // (Friday can take more), or to the next one if the supplier can't make it sooner
-          const ad=fixArrive(Math.max(i,ob+L),ob+L);
+          let ob=orderDay(i-L),early=false,jit=false,ad;
+          if(ob>=0)ad=fixArrive(Math.max(i,ob+L),ob+L);
+          // deliveries only on receiving days (default Tue–Fri, no holidays). If the Friday order would arrive AFTER the
+          // day it's needed (e.g. Monday's boxes, Mon is not a receiving day), a next-day supplier gets a just-in-time PO
+          if(ob>=0&&!(ad>i&&nextDay)){
+          }else if(nextDay){
+            // Friday is too late: deliver on the last receiving day on or before the day it's needed, ordered the day before
+            jit=true;ad=-1;for(let b=0;b<=6&&i-b>=Lj;b++)if(canReceive(i-b)){ad=i-b;break;}
+            if(ad<0)ad=fixArrive(Math.max(i,Lj),Lj);
+            ob=ad-Lj;while(ob>0&&!workDay(ob))ob--;if(ob<0)ob=0;
+          }else{ob=0;early=true;ad=fixArrive(Math.max(i,L),L);}
           // a PO that can't wait for Friday only has to keep us running (half the cushion); the Friday POs rebuild the full cushion
-          const tgt=early?ss*0.5:ss;
-          while(av-x<tgt&&guard++<30){orders.push({orderBy:new Date(today.getTime()+ob*864e5),arrive:new Date(today.getTime()+ad*864e5),qty:Q,rush:false,fri:!early,early});av+=Q;}}
+          const tgt=early||jit?ss*0.5:ss;
+          while(av-x<tgt&&guard++<30){orders.push({orderBy:new Date(today.getTime()+ob*864e5),arrive:new Date(today.getTime()+ad*864e5),qty:Q,rush:false,fri:!early&&!jit,early,jit});av+=Q;}}
         av-=x;
       }
       // the rush PO only fills the gap; what can't wait for Friday is a normal PO placed today (deliveries spread over the days needed)
-      orders.forEach(o=>{o.pallets=pk?Math.ceil(o.qty/per-1e-9):null;o.key=f.base+'|'+ymd(o.orderBy)+(o.rush?'|R':o.early?'|E':'');});
+      orders.forEach(o=>{o.pallets=pk?Math.ceil(o.qty/per-1e-9):null;o.key=f.base+'|'+ymd(o.orderBy)+(o.rush?'|R':o.early?'|E':o.jit?'|J'+ymd(o.arrive):'');});
       // marked POs (created / changed) count as coming; anything still needed on that day is an extra PO (key +'|+')
       const fk=new Set(fixed.map(m=>m.key));
       fixed.forEach(m=>{m.pallets=pk?Math.ceil(m.qty/per-1e-9):null;});
@@ -7413,7 +7425,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18w';
+const APP_VERSION='2026.11.19b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
