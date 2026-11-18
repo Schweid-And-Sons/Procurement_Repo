@@ -3859,9 +3859,14 @@ const DM_RACKS={NJ:131};
 const REO_HOLIDAYS=[['2026-01-01','New Year'],['2026-05-25','Memorial Day'],['2026-07-03','Independence Day'],['2026-09-07','Labor Day'],
   ['2026-11-26','Thanksgiving'],['2026-11-27','Day after Thanksgiving'],['2026-12-25','Christmas Day']];
 const REO_CFG_DAY='2000-01-03',REO_MARK_DAY='2000-01-04';
-const REO_SS_DAYS={A:3,B:2,C:1};   // safety stock in days of use, by priority (editable in Next POs → Settings)
+const REO_SS_DAYS={A:2,B:1,C:1};   // safety stock in days of use, by priority (editable in Next POs → Settings). Nov 18: was A3/B2/C1 — too much;
+// John keeps ~1 day (Sonic / PCA deliver next day, even same day), so a next-day supplier's cushion is at most 1 day (REO_SS_FAST)
+const REO_SS_FAST=1;
 function reoCfgDefault(){return {days:[false,false,true,true,true,true,false],holidays:REO_HOLIDAYS.map(([d,n])=>({d,n})),extra:{},ss:Object.assign({},REO_SS_DAYS),by:'',at:''};}
-function loadReoCfg(){try{const o=JSON.parse(localStorage.getItem('wms_reocfg_'+currentPlant)||'null');if(o&&Array.isArray(o.days))return o;}catch(e){}return reoCfgDefault();}
+function loadReoCfg(){try{const o=JSON.parse(localStorage.getItem('wms_reocfg_'+currentPlant)||'null');if(o&&Array.isArray(o.days)){
+  // the old default (A3 · B2 · C1) saved with the receiving days → the new, lower default; a value someone changed stays
+  if(!o.ssV){if(!o.ss||(+o.ss.A===3&&+o.ss.B===2&&+o.ss.C===1))o.ss=Object.assign({},REO_SS_DAYS);o.ssV=2;}
+  return o;}}catch(e){}return Object.assign(reoCfgDefault(),{ssV:2});}
 function loadReoMarks(){try{return JSON.parse(localStorage.getItem('wms_reomarks_'+currentPlant)||'null')||{};}catch(e){return {};}}
 async function reoReadShared(){
   if(!PLAN_READ_URL)return;
@@ -3930,13 +3935,11 @@ function reorderRows(summary){
       if(t&&t.rcv)return;                                                     // already received (PO Tracker)
       const due=t&&t.eta&&!g.planner?t.eta:g.due;
       // late = the delivery day passed and nobody marked it received (Receiving, Yooz or Eleni's PO Tracker).
-      // Sonic arrives on the estimated day only ~11% of the time (usually 1 day later), so a PO up to 2 working days
-      // late is still expected → counted for tomorrow. Older than that it is NOT counted: the inventory count is what's
-      // real (it may be what arrived last night, already counted, or not be coming). (Nov 18: not counting any late PO
-      // made it order far too much.)
+      // Julian (Nov 18): the MORNING COUNT rules. A PO that was due yesterday (or before) is assumed to be in that count,
+      // so it is NOT counted again. It stays listed on its item so it isn't lost (check it arrived).
       const dueD=String(due||'').slice(0,10);let wl=0;
       if(dueD&&dueD<ymd(today)){const d=new Date(dueD+'T00:00:00');while(d<today){d.setDate(d.getDate()+1);const w=d.getDay();if(w>0&&w<6&&!hol.has(ymd(d)))wl++;}}
-      const late=wl>0?dueD:'',stale=wl>2;
+      const late=dueD&&dueD<ymd(today)?dueD:'',stale=!!late;   // due before today → assumed in this morning's count (not counted)
       g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
         (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:toUnits(l.code,q),po:g.po,planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
   }catch(e){console.error(e);}
@@ -4008,7 +4011,8 @@ function reorderRows(summary){
     for(let i=0;i<=N;i++){av+=(arr[i]||0)+(arrD[i]||0);const x=dem(i);if(short==null&&av<x)short=i;av-=x;}
     r.coverDay=short;
     // the plan day by day (what production needs each day, what arrives, what is left at the end of the day)
-    {let left=f.stock;r.plan=[];for(let i=0;i<H;i++){const inc=arr[i]||0,need=dem(i);left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left,src:psrc[ymd(dOf(i))]||null});}}
+    {let left=f.stock;r.plan=[];for(let i=0;i<H;i++){const inc=(arr[i]||0)+(arrD[i]||0),need=dem(i);   // Arrives = Yooz + created / written-down POs
+left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left,src:psrc[ymd(dOf(i))]||null});}}
     r.cover=short==null?N:short;
     r.short=ptot>0&&short!=null&&short<H;
     r.L0=Lavg;r.sdays=0;   // filled after the ABC class is known
@@ -4017,7 +4021,9 @@ function reorderRows(summary){
       //    The statistical formula z × √( L × σd² + d² × σL² ) is only shown as a reference until we have daily usage:
       //    with 4 plan days and long PCA lead times it gave up to 10 days, far too much.
       const own=cfg.ssItem&&cfg.ssItem[f.base]!=null;                   // this item has its own cushion ("too big?")
-      const ssd=own?+cfg.ssItem[f.base]:(cfg.ss&&cfg.ss[cls]!=null?+cfg.ss[cls]:REO_SS_DAYS[cls]);r.ssOwn=own;
+      const fastSup=/SONIC|PACKAGING CORP|\bPCA\b/i.test(String(main.vendor));
+      let ssd=own?+cfg.ssItem[f.base]:(cfg.ss&&cfg.ss[cls]!=null?+cfg.ss[cls]:REO_SS_DAYS[cls]);r.ssOwn=own;
+      if(!own&&fastSup&&ssd>REO_SS_FAST){ssd=REO_SS_FAST;r.ssFast=true;}   // delivers next day → 1 day of cushion is enough
       const ss=ssd*dbar;
       const z=REO_Z[cls];r.ssFormulaDays=dbar?Math.min(z*Math.sqrt(Lavg*sd*sd+dbar*dbar*sL*sL)/dbar,30):0;
       r.ss=ss;r.sdays=ssd;
@@ -7425,7 +7431,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.19b';
+const APP_VERSION='2026.11.19d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
