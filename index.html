@@ -3940,12 +3940,24 @@ function reorderRows(summary){
     const pk=packFor(f.base,main.vendor),div=pk&&pk.pal?pk.pal:1;                  // trays: plan in trays → pallets
     const pday={};let ptot=0,pdone=0;
     if(dm)Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;pdone+=(o.past||0)/div;Object.entries(o.d).forEach(([k,v])=>pday[k]=(pday[k]||0)+v/div);});
+    // TODAY = the lines' schedule (Boxes (Total) / sleeves of the Daily Plan): what really runs today.
+    // Whatever the day-by-day plan had for today beyond that (open orders carried over) moves to the next
+    // working day, so nothing is lost and today isn't inflated (Nov 18 BX1100: schedule 2,727 vs 3,590).
+    let sched=null;
+    if(dm&&planData&&planData.day===ymd(today)){
+      let S=null;(planData.items||[]).forEach(it=>{if(reoBase(it.code)===f.base)S=(S||0)+(+it.needed||0);});
+      (planData.sleeves||[]).forEach(it=>{if(reoBase(it.code)===f.base)S=(S||0)+(+it.boxesNeeded||0);});
+      if(S!=null&&S>0){const k0=ymd(today),D=pday[k0]||0,rest=Math.max(0,D-S);pday[k0]=S;let to='';
+        if(rest>0){for(let i=1;i<=7;i++){const d=new Date(today.getTime()+i*864e5),w=d.getDay();if(w>0&&w<6&&!hol.has(ymd(d))){to=ymd(d);break;}}
+          if(to)pday[to]=(pday[to]||0)+rest;}
+        ptot=ptot-D+S+(to?rest:0);sched={S,D,rest,to};}
+    }
     let dmp=null;if(dm&&dm.dmp)Object.entries(dm.dmp).forEach(([c,v])=>{if(reoBase(c)===f.base)dmp=(dmp||0)+v/div;});
     const coming=(inc[f.base]||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
     const open=coming.reduce((a,x)=>a+x.qty,0);
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const rate=hist>0?hist:(ptot>0?ptot/H:y12day);                  // after the plan ends: what we usually use
-    const r={pdone,late:coming.filter(x=>x.late).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup})),
+    const r={pdone,sched,late:coming.filter(x=>x.late).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
@@ -4027,6 +4039,11 @@ function reorderRows(summary){
        let a0=f.stock,a1=f.stock;const p0=[],p1=[],dd=[];
        for(let i=0;i<28;i++){const x=dem(i);a0+=(arr[i]||0)-x;a1+=(arr[i]||0)+(arrM[i]||0)+(plus[i]||0)-x;p0.push(Math.round(a0));p1.push(Math.round(a1));dd.push(ymd(dOf(i)));}
        r.proj={d:dd,p0,p1,ss:Math.round(ss)};}
+      // check against the Direct Material Planning sheet: everything it asks for (until the plan ends)
+      // vs. what we have + what's coming + the POs in this list arriving by then
+      if(ptot>0&&H>0){let haveH=f.stock,fixH=0,sugH=0;for(let i=0;i<H;i++){haveH+=arr[i]||0;fixH+=arrM[i]||0;}
+        orders.forEach(o=>{if(dayIdx(ymd(o.arrive))<H)sugH+=o.qty;});
+        const tot=haveH+fixH+sugH;r.dmpCheck={need:ptot,have:haveH,marked:fixH,sug:sugH,gap:Math.max(0,ptot-haveH),left:tot-ptot,ok:tot>=ptot,end:ymd(dOf(H-1))};}
       r.per=per;r.Q=Q;r.orders=fixed.concat(orders.map(o=>{if(fk.has(o.key))o.key+='|+';return o;})).filter(o=>(o.orderBy-today)/864e5<=28).sort((a,b)=>a.orderBy-b.orderBy||(b.rush?1:0)-(a.rush?1:0));
       const todo=r.orders.filter(o=>!o.done&&!o.pending);           // pending = someone is on it (not counted as "to order")
       r.sug=todo.length?todo[0].qty:0;
@@ -7375,7 +7392,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18p';
+const APP_VERSION='2026.11.18r';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

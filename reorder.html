@@ -146,7 +146,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18n</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18p</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -320,6 +320,12 @@ function openSuppliers(){
     <div class="hint">Days = order date → received date (median). On time = received on or before the estimated day. Short = the notes say something came short or a different quantity. From Eleni's PO Tracker${(S[ks[0]].months||[]).length?' ('+S[ks[0]].months.join(', ')+')':''}.</div>`
     :`<div class="hint">${data&&data.potOn?'No PO Tracker data yet — tap ⟳ Refresh.':"Eleni's PO Tracker is not connected yet (the WMS_PO_Tracker flow is pending)."}</div>`;
   sheet(`<h2>🏭 Suppliers · ${PLANT}</h2>${body}<button class="big gray" onclick="closeSheet()">Close</button>`);}
+/* does it cover the Direct Material Planning sheet? (the official reference) */
+function dmpLine(r){const c=r.dmpCheck;if(!c)return '';const u=unitOf(r)||'';
+  return `<div class="c-sub" style="margin:4px 0;padding:6px 8px;border-radius:8px;background:${c.ok?'rgba(22,163,74,.10)':'rgba(220,38,38,.10)'}">
+    <b>Direct Material Planning</b> until ${dayTxt(c.end+'T12:00:00')}: needs <b>${n0(c.need)}</b> ${u} · we have ${n0(c.have)} (stock + on the way)
+    ${c.gap>0?` · missing <b>${n0(c.gap)}</b> · the POs below bring ${n0(c.sug+c.marked)}`:''}
+    → ${c.ok?`<b style="color:var(--success)">✅ covered</b>${c.left>0?' (+'+n0(c.left)+' left as cushion)':''}`:`<b style="color:var(--danger)">⚠ ${n0(-c.left)} short</b> — the next POs can't arrive in time; ask for a rush`}</div>`;}
 function planDays(r){
   if(!(r.plan&&r.plan.length&&r.ptot))return '';
   const u=unitOf(r)||'';
@@ -327,7 +333,8 @@ function planDays(r){
   return `<div class="c-vend" style="color:var(--text2)"><b>📅 Production plan, day by day</b> (${u}) — what will be <b>used</b>, not what is missing:
     <table class="pd"><tr><th>Day</th><th>Needs</th><th>Arrives</th><th>Left at night</th></tr>${rows}
     <tr><td><b>Total</b></td><td><b>${n0(r.ptot)}</b></td><td></td><td></td></tr></table>
-    ${r.pdone?`Today includes <b>${n0(r.pdone)}</b> carried over: orders that were due before today and are still open in the plan (not made yet), so they will be made today.<br>`:''}
+    ${r.sched?`<b>Today</b> = the lines' schedule (Boxes Total): <b>${n0(r.sched.S)}</b>.${r.sched.rest>0?` The plan had ${n0(r.sched.D)} for today (incl. orders still open from before); the other <b>${n0(r.sched.rest)}</b> move to ${dayTxt(r.sched.to+'T12:00:00')}.`:''}<br>`
+      :r.pdone?`Today includes <b>${n0(r.pdone)}</b> carried over: orders due before today that are still open in the plan.<br>`:''}
     ${r.dmp!=null?`Eleni's Direct Material Planning sheet shows ${n0(r.dmp)} (only orders that already have a day); the plan has ${n0(r.ptot)} in total.`:''}
     <i style="color:var(--warn);font-style:normal">Orange</i> = below the cushion · <i style="color:var(--danger);font-style:normal">red</i> = runs out.</div>`;
 }
@@ -366,7 +373,7 @@ function card(r){
     </div>`:'';
   return `<div class="card ${r.st}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
-    <div class="c-main">${mainLine(r)}</div>${lateTxt(r)}${(r.orders||[]).some(o=>!o.done)?`<button class="c-more" style="padding-top:2px" onclick="tooBig('${esc(r.base)}')">🔧 Too big? Change the cushion</button>`:''}${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
+    <div class="c-main">${mainLine(r)}</div>${lateTxt(r)}${dmpLine(r)}${(r.orders||[]).some(o=>!o.done)?`<button class="c-more" style="padding-top:2px" onclick="tooBig('${esc(r.base)}')">🔧 Too big? Change the cushion</button>`:''}${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
     <div class="c-sub">${subLine(r)}</div>
     ${nextOrders(r)}
     ${r.short?`<div class="c-alert">⚠ Runs short on ${dayTxt(addDays(r.coverDay))}, inside the days already planned — before the next PO arrives</div>`:''}
