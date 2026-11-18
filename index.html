@@ -1925,6 +1925,7 @@ function loadData(){
 }
 /* ---------- STORAGE — the inventory of this device ---------- */
 function saveData(){
+  try{localStorage.setItem('wms_reo_dirty',String(Date.now()));}catch(e){}
   try{
     const json=JSON.stringify(inventory);
     localStorage.setItem(WMS_KEY,json);
@@ -3912,11 +3913,19 @@ function reorderRows(summary){
   // what is coming, by day: open Yooz POs + POs that are only in John's planner yet (the planner's delivery day wins)
   const inc={};
   try{
-    const done=new Set(Object.values(allReceipts()).map(x=>baseKeyOf(x.key)));
+    // a PO received in Receiving (arrived, any device — synced from SharePoint) no longer counts as coming.
+    // If it was received AFTER the stock count we are using, its boxes aren't in that count yet → add them to stock.
+    const recs=Object.values(allReceipts()).filter(x=>!x.notArrived&&(x.plant||currentPlant)===currentPlant);
+    const done=new Set(recs.map(x=>baseKeyOf(x.key)));
+    const cAt=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT).getTime():0;
+    if(cAt)recs.forEach(x=>{if(!(new Date(x.ts).getTime()>cAt))return;
+      (x.lines||[]).forEach(l=>{const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:+l.ordered||0;if(!(q>0))return;
+        const fam2=fam[reoBase(l.code)];if(!fam2)return;const u=toUnits(l.code,q);fam2.stock+=u;(fam2.rcv=fam2.rcv||[]).push({po:x.po,qty:u,ts:x.ts});});});
     // Eleni's PO Tracker: a PO with a received date is closed; an open one uses her estimated delivery (unless it's planner-only)
-    const pt={};((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).forEach(x=>pt[x.po]=x);
+    const poNum=x=>{const m=String(x||'').match(/(\d{4,})\s*$/);return m?m[1]:String(x||'').toUpperCase();};
+    const pt={};((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).forEach(x=>{pt[x.po]=x;pt[poNum(x.po)]=x;});
     poGroups().forEach(g=>{if(done.has(g.key))return;
-      const t=pt[String(g.po||'').toUpperCase()];
+      const t=pt[String(g.po||'').toUpperCase()]||pt[poNum(g.po)];
       if(t&&t.rcv)return;                                                     // already received (PO Tracker)
       const due=t&&t.eta&&!g.planner?t.eta:g.due;
       const late=t&&t.eta&&t.eta<ymd(today)?t.eta:'';                          // estimated day passed and not received
@@ -3958,7 +3967,7 @@ function reorderRows(summary){
     const open=coming.reduce((a,x)=>a+x.qty,0);
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const rate=hist>0?hist:(ptot>0?ptot/H:y12day);                  // after the plan ends: what we usually use
-    const r={pdone,sched,late:coming.filter(x=>x.late).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup})),
+    const r={rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
@@ -5544,7 +5553,7 @@ let poDate=null,poEarlierOpen=false,poPastOpen=false,poCalOpen=false,poCalMonth=
 const receiptsKey=()=>'wms_receipts_'+String(currentPlant||'NJ').toLowerCase();
 function loadYooz(){try{return JSON.parse(localStorage.getItem(YOOZ_LINES_KEY))||null;}catch(e){return null;}}
 function loadReceipts(){try{return JSON.parse(localStorage.getItem(receiptsKey()))||{};}catch(e){return {};}}
-function saveReceipts(r){try{localStorage.setItem(receiptsKey(),JSON.stringify(r));}catch(e){showToast('Could not save receipt on this device.','error');}}
+function saveReceipts(r){try{localStorage.setItem('wms_reo_dirty',String(Date.now()));localStorage.setItem(receiptsKey(),JSON.stringify(r));}catch(e){showToast('Could not save receipt on this device.','error');}}
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const fmtDay=s=>{if(!s)return '—';const [y,m,d]=s.split('-');return (+m)+'/'+(+d)+'/'+y.slice(2);};
 function poEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -7394,7 +7403,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18s';
+const APP_VERSION='2026.11.18t';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7456,7 +7465,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     // the SAME stock on every device: read the plant's live inventory from SharePoint (read only, never saved here)
     let shared=null,times={};
     // stock: today's live record of the plant (reads yesterday → tomorrow only: the newest shift is always there)
-    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:r.updatedAt||r.startedAt};}else throw new Error('no live record');};
+    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:r.updatedAt||r.startedAt};window.REO_STOCK_AT=shared.at;}else throw new Error('no live record');};
     // run one source with a time limit and remember how long it took (shown in Next POs, to find the slow one)
     const timed=(name,fn,ms,errOf)=>{const t=Date.now();let done=false;
       const p=Promise.resolve().then(fn).then(()=>{done=true;const e=errOf&&errOf();times[name]={s:(Date.now()-t)/1000,ok:!e};},
@@ -7473,7 +7482,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       // 1) the FAST sources first, all at the same time: stock, today's plan, receiving days / marks.
       //    Yooz POs, John's planner and lead times only wait here if this device never had them.
       const yzOld=force||old(loadYooz(),4*3600e3),plOld=!!PLANNER_FLOW_URL&&(force||old(loadPlanner(),3600e3)),ltOld=force||old(loadLeadTime(),7*864e5);
-      const first=[timed('stock',readLive,25000),timed('plan',()=>pullSharedPlan(true),25000,()=>planSync.err),timed('settings',reoReadShared,15000)];
+      const first=[timed('stock',readLive,25000),timed('plan',()=>pullSharedPlan(true),25000,()=>planSync.err),timed('settings',reoReadShared,15000),timed('receiving',()=>syncReceiptsFromSP(true),20000,()=>_spSync.err)];
       if(!loadYooz())first.push(timed('Yooz',()=>loadYoozFromFlow(false),45000,()=>yoozFetch.err));
       if(PLANNER_FLOW_URL&&!loadPlanner())first.push(timed('planner',()=>loadPlannerFromFlow(false),45000));
       if(!loadLeadTime())first.push(timed('lead times',()=>loadLeadTimeFromFlow(false),90000,()=>ltFetch.err));
