@@ -3938,8 +3938,9 @@ function reorderRows(summary){
     const hist=f.recv/REO_USE_DAYS;
     const it=ITEMS.find(i=>i.code===f.base)||ITEMS.find(i=>reoBase(i.code)===f.base);
     const pk=packFor(f.base,main.vendor),div=pk&&pk.pal?pk.pal:1;                  // trays: plan in trays → pallets
-    const pday={};let ptot=0,pdone=0;
-    if(dm)Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;pdone+=(o.past||0)/div;Object.entries(o.d).forEach(([k,v])=>pday[k]=(pday[k]||0)+v/div);});
+    const pday={},psrc={};let ptot=0,pdone=0;
+    if(dm)Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;pdone+=(o.past||0)/div;
+      Object.entries(o.src||{}).forEach(([k,m])=>Object.entries(m).forEach(([iv,v])=>{const t=(psrc[k]=psrc[k]||{});t[iv]=(t[iv]||0)+v/div;}));Object.entries(o.d).forEach(([k,v])=>pday[k]=(pday[k]||0)+v/div);});
     // TODAY = the lines' schedule (Boxes (Total) / sleeves of the Daily Plan): what really runs today.
     // Whatever the day-by-day plan had for today beyond that (open orders carried over) moves to the next
     // working day, so nothing is lost and today isn't inflated (Nov 18 BX1100: schedule 2,727 vs 3,590).
@@ -3949,8 +3950,8 @@ function reorderRows(summary){
       (planData.sleeves||[]).forEach(it=>{if(reoBase(it.code)===f.base)S=(S||0)+(+it.boxesNeeded||0);});
       if(S!=null&&S>0){const k0=ymd(today),D=pday[k0]||0,rest=Math.max(0,D-S);pday[k0]=S;let to='';
         if(rest>0){for(let i=1;i<=7;i++){const d=new Date(today.getTime()+i*864e5),w=d.getDay();if(w>0&&w<6&&!hol.has(ymd(d))){to=ymd(d);break;}}
-          if(to)pday[to]=(pday[to]||0)+rest;}
-        ptot=ptot-D+S+(to?rest:0);sched={S,D,rest,to};}
+          if(to){pday[to]=(pday[to]||0)+rest;(psrc[to]=psrc[to]||{})['carry']=rest;}}
+        ptot=ptot-D+S+(to?rest:0);sched={S,D,rest,to};psrc[k0]=Object.assign({},psrc[k0]||{},{sched:S});}
     }
     let dmp=null;if(dm&&dm.dmp)Object.entries(dm.dmp).forEach(([c,v])=>{if(reoBase(c)===f.base)dmp=(dmp||0)+v/div;});
     const coming=(inc[f.base]||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -3989,7 +3990,7 @@ function reorderRows(summary){
     for(let i=0;i<=N;i++){av+=arr[i]||0;const x=dem(i);if(short==null&&av<x)short=i;av-=x;}
     r.coverDay=short;
     // the plan day by day (what production needs each day, what arrives, what is left at the end of the day)
-    {let left=f.stock;r.plan=[];for(let i=0;i<H;i++){const inc=arr[i]||0,need=dem(i);left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left});}}
+    {let left=f.stock;r.plan=[];for(let i=0;i<H;i++){const inc=arr[i]||0,need=dem(i);left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left,src:psrc[ymd(dOf(i))]||null});}}
     r.cover=short==null?N:short;
     r.short=ptot>0&&short!=null&&short<H;
     r.L0=Lavg;r.sdays=0;   // filled after the ABC class is known
@@ -4849,7 +4850,7 @@ function parseSleeveLineSheet(rows,retailOnly){
    boxes = Open Cs · film = "QTY (m per roll)" (rolls) · patty paper, bags, sleeves = "(cases)" · trays = units.
    Production day = the weekday in "Day" on or before the Inv Date; blank Day → the day before the Inv Date.
    (Labels are left out: the plan counts them in rolls, Yooz in labels.) */
-const DM_VER=6;   // 6 = day before the Inv Date (Juan); open orders from past days = carry-over, counted today; re-reads older plans
+const DM_VER=7;   // 7 = day before the Inv Date (Juan), carry-over today, and the sheet's Inv Date kept per day (src)
 function dmFromSchedule(wb,baseDay){
   const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));if(!sheet)return null;
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
@@ -4885,7 +4886,8 @@ function dmFromSchedule(wb,baseDay){
       let code=String(r[cc]||'').trim().toUpperCase();if(!/^[A-Z]+\d/.test(code))return;
       if(PLAN_CODE_ALIAS[code])code=PLAN_CODE_ALIAS[code];
       const v=Number(r[qc]);if(!(v>0))return;
-      const o=codes[code]||(codes[code]={t:0,d:{},past:0});if(past)o.past=(o.past||0)+v;o.t+=v;o.d[key]=(o.d[key]||0)+v;
+      const o=codes[code]||(codes[code]={t:0,d:{},past:0,src:{}});if(past)o.past=(o.past||0)+v;o.t+=v;o.d[key]=(o.d[key]||0)+v;
+      const iv=ymd(inv);(o.src[key]=o.src[key]||{})[iv]=(o.src[key][iv]||0)+v;          // which Inv Date (sheet) it comes from
     });
   }
   Object.values(codes).forEach(o=>{o.t=Math.round(o.t*100)/100;o.past=Math.round((o.past||0)*100)/100;Object.keys(o.d).forEach(k=>o.d[k]=Math.round(o.d[k]*100)/100);});
@@ -7392,7 +7394,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18r';
+const APP_VERSION='2026.11.18s';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

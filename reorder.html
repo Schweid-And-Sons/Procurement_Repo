@@ -146,7 +146,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18p</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18q</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -328,14 +328,20 @@ function dmpLine(r){const c=r.dmpCheck;if(!c)return '';const u=unitOf(r)||'';
     → ${c.ok?`<b style="color:var(--success)">✅ covered</b>${c.left>0?' (+'+n0(c.left)+' left as cushion)':''}`:`<b style="color:var(--danger)">⚠ ${n0(-c.left)} short</b> — the next POs can't arrive in time; ask for a rush`}</div>`;}
 function planDays(r){
   if(!(r.plan&&r.plan.length&&r.ptot))return '';
-  const u=unitOf(r)||'';
-  const rows=r.plan.map(x=>`<tr><td>${dayTxt(x.d+'T12:00:00')}</td><td>${n0(x.need)}</td><td>${x.inc?'+'+n0(x.inc):'—'}</td><td style="color:${x.left<0?'var(--danger)':x.left<(r.ss||0)?'var(--warn)':'inherit'}">${n0(x.left)}</td></tr>`).join('');
-  return `<div class="c-vend" style="color:var(--text2)"><b>📅 Production plan, day by day</b> (${u}) — what will be <b>used</b>, not what is missing:
-    <table class="pd"><tr><th>Day</th><th>Needs</th><th>Arrives</th><th>Left at night</th></tr>${rows}
-    <tr><td><b>Total</b></td><td><b>${n0(r.ptot)}</b></td><td></td><td></td></tr></table>
-    ${r.sched?`<b>Today</b> = the lines' schedule (Boxes Total): <b>${n0(r.sched.S)}</b>.${r.sched.rest>0?` The plan had ${n0(r.sched.D)} for today (incl. orders still open from before); the other <b>${n0(r.sched.rest)}</b> move to ${dayTxt(r.sched.to+'T12:00:00')}.`:''}<br>`
-      :r.pdone?`Today includes <b>${n0(r.pdone)}</b> carried over: orders due before today that are still open in the plan.<br>`:''}
-    ${r.dmp!=null?`Eleni's Direct Material Planning sheet shows ${n0(r.dmp)} (only orders that already have a day); the plan has ${n0(r.ptot)} in total.`:''}
+  const u=unitOf(r)||'',md=k=>{const d=new Date(k+'T12:00:00');return (d.getMonth()+1)+'/'+d.getDate();};
+  // where each day's number comes from in the Direct Material Planning sheet (Inv Date → used the working day before)
+  const from=x=>{const s=x.src;if(!s)return '—';const p=[];
+    Object.entries(s).filter(([k])=>/^\d{4}-/.test(k)).sort().forEach(([k,v])=>p.push(md(k)+': '+n0(v)));
+    if(s.sched!=null)return p.join(' + ')+' → <b>lines today '+n0(s.sched)+'</b>';
+    if(s.carry)p.push('+ '+n0(s.carry)+' from today');
+    return p.join(' · ')||'—';};
+  const rows=r.plan.map(x=>`<tr><td>${dayTxt(x.d+'T12:00:00')}</td><td style="text-align:left;color:var(--text3);font-size:11.5px">${from(x)}</td><td>${n0(x.need)}</td><td>${x.inc?'+'+n0(x.inc):'—'}</td><td style="color:${x.left<0?'var(--danger)':x.left<(r.ss||0)?'var(--warn)':'inherit'}">${n0(x.left)}</td></tr>`).join('');
+  return `<div class="c-vend" style="color:var(--text2)"><b>📅 Production plan, day by day</b> (${u})
+    <div style="font-size:12px;margin:2px 0 4px">The sheet shows each quantity on its <b>Inv Date</b>; the boxes are used the <b>working day before</b> (production runs a day ahead). "From the sheet" says which Inv Date each day comes from.</div>
+    <table class="pd"><tr><th>Used on</th><th style="text-align:left">From the sheet (Inv Date)</th><th>Needs</th><th>Arrives</th><th>Left at night</th></tr>${rows}
+    <tr><td><b>Total</b></td><td style="text-align:left;color:var(--text3);font-size:11.5px">same as the sheet's Grand Total</td><td><b>${n0(r.ptot)}</b></td><td></td><td></td></tr></table>
+    ${r.sched?`<b>Today</b> = the lines' schedule (Boxes Total): <b>${n0(r.sched.S)}</b>.${r.sched.rest>0?` The sheet had ${n0(r.sched.D)} due for today (incl. ${n0(r.pdone||0)} still open from yesterday's Inv Date); the other <b>${n0(r.sched.rest)}</b> move to ${dayTxt(r.sched.to+'T12:00:00')}.`:''}<br>`
+      :r.pdone?`Today includes <b>${n0(r.pdone)}</b> still open from a past Inv Date (not made yet).<br>`:''}
     <i style="color:var(--warn);font-style:normal">Orange</i> = below the cushion · <i style="color:var(--danger);font-style:normal">red</i> = runs out.</div>`;
 }
 /* "too big?": lower (or raise) the cushion for this item only, or for its whole priority — shared with every device */
