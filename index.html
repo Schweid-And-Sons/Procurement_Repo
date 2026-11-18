@@ -3766,7 +3766,7 @@ async function loadLeadTimeFromFlow(manual){
    PO TRACKER/<MONTH YEAR>/<MONTH YEAR> PO TRACKER.xlsx. Sheets "NJ-NOV 2026" / "GA-NOV 2026", one row per PO:
    supplier, PO#, order date, estimated delivery, received date, order total, invoice, notes (shorts).
    We read this month and the previous one (POs ordered late last month that are still open). */
-const POTRACK_FLOW_URL='';            // ← paste the WMS_PO_Tracker URL here (never share it in Teams or email)
+const POTRACK_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/20/workflows/502633e85fff4176affe35f500e1abc6/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nzM5DAYkdexOS_xm192qvsCouQ8GAD4netjrMf0VW5E';   // WMS_PO_Tracker (Julian's account, read only)
 const POTRACK_KEY='wms_potrack';
 const potFetch={busy:false,err:'',tried:0};
 function loadPoTrack(){try{return JSON.parse(localStorage.getItem(POTRACK_KEY)||'null');}catch(e){return null;}}
@@ -7372,7 +7372,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18m';
+const APP_VERSION='2026.11.18n';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
