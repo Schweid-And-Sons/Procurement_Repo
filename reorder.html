@@ -146,11 +146,12 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18j</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18l</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
-    <li><b>What we have:</b> the live inventory + the POs already on the way (Yooz and John's planner, each on its delivery day).</li>
+    <li><b>What we have:</b> the live inventory + the POs already on the way: <b>Yooz</b>, <b>John's planner</b> and <b>Eleni's PO Tracker</b> (received POs stop counting; open ones use her estimated delivery day).</li>
+    <li><b>What day the boxes are used:</b> the working day <b>before</b> the Inv Date (production runs a day ahead — confirmed with Juan), or the production Day if the order has one.</li>
     <li><b>What we will use:</b> today's production plan, day by day. After the plan ends, what we usually use.</li>
     <li><b>Covered until</b> = the last day we have enough.</li>
     <li><b>Safety stock</b> = a cushion so a late truck or an extra run doesn't stop the line, in <b>days of use</b>: by default <b>A 3 · B 2 · C 1</b> (A = most used, like BX1850 and BX1000). You can change it in ⚙️ Settings (PIN).</li>
@@ -160,8 +161,10 @@
     <li><b>Rush</b> only when we would run out before a normal order can arrive.</li>
     <li>Each PO has a status, the same on every device (PIN): <b>Not ordered</b> · <b>⏳ Pending</b> (someone is on it, e.g. waiting for the supplier) · <b>✅ Created</b> (made in Yooz, so nobody orders it twice). <b>✏️ Qty</b> changes the amount; the next POs adjust. The first 2 POs show; tap “Show more” for the ones ahead.</li>
     <li><b>📅 Receiving days</b> and holidays are the same for every device (PIN). <b>⬇ Excel</b> downloads the list to share; <b>🖨 Print</b> gives a big, clear list by order day (or Save as PDF).</li>
+    <li><b>Eleni's PO Tracker</b> (when connected): a PO with a received date no longer counts as coming; an open one uses its estimated day, and shows <b>⚠ not received yet</b> once that day passes. <b>🏭 Suppliers</b> shows real days, on-time and shorts per supplier.</li>
+    <li><b>📈 Timeline</b> (in Details): stock at night for the next 4 weeks, with and without the POs.</li>
     <li>It's a guide, not the PO: the official PO is still made in Yooz.</li>
-  </ul></details>
+  </ul><div id="howEx"></div></details>
 </div>
 <iframe id="helper" title="data" style="display:none" aria-hidden="true"></iframe>
 <script>
@@ -225,6 +228,7 @@ function statusLine(){
   if(data.yzErr)p.push('<span class="bad">Yooz: '+esc(data.yzErr)+'</span>');
   if(data.err)p.push('<span class="bad">'+esc(data.err)+'</span>');
   if(data.ltAt)p.push('Lead times '+timeTxt(data.ltAt));
+  if(data.potAt)p.push("Eleni's PO Tracker "+timeTxt(data.potAt));
   // how long each source took (to find the slow one): app = loading the helper, then each flow
   if(data.times&&Object.keys(data.times).length){const f=x=>(x<10?x.toFixed(1):Math.round(x))+' s';
     const parts=Object.entries(data.times).map(([k,v])=>k+' '+(v.timeout?'>'+f(v.s)+' ⏱':f(v.s))+(v.ok?'':' ⚠'));
@@ -284,6 +288,38 @@ function nextOrders(r){
   return '<div class="c-orders">'+rows+more+'</div>';
 }
 /* the plan day by day: what production needs, what arrives, what is left */
+/* 4-week timeline: stock at night without new POs (grey) vs with the POs in the list (blue); cushion in orange */
+function timeline(r){
+  const P=r.proj;if(!P||!P.p1||!P.p1.length)return '';
+  const W=320,H=120,pl=34,pr=6,pt=8,pb=18,n=P.p1.length;
+  const vals=P.p0.concat(P.p1,[P.ss||0,0]);let mx=Math.max(...vals),mn=Math.min(...vals);if(mx===mn)mx=mn+1;
+  const x=i=>pl+(W-pl-pr)*i/(n-1),y=v=>pt+(H-pt-pb)*(1-(v-mn)/(mx-mn));
+  const path=a=>a.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  const k=v=>Math.abs(v)>=1000?(v/1000).toFixed(v>=10000?0:1)+'k':Math.round(v);
+  const ticks=[0,7,14,21,27].map(i=>`<text x="${x(i)}" y="${H-4}" font-size="9" text-anchor="middle" fill="var(--text3)">${dayTxt(P.d[i]+'T12:00:00').replace(/^\w+, /,'')}</text>`).join('');
+  return `<div class="c-vend"><b>📈 Next 4 weeks — stock at night</b>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;margin-top:4px" role="img" aria-label="Stock timeline">
+      <line x1="${pl}" x2="${W-pr}" y1="${y(0)}" y2="${y(0)}" stroke="var(--danger)" stroke-width="1" opacity=".5"/>
+      ${P.ss?`<line x1="${pl}" x2="${W-pr}" y1="${y(P.ss)}" y2="${y(P.ss)}" stroke="var(--warn)" stroke-width="1.2" stroke-dasharray="4 3"/>`:''}
+      <path d="${path(P.p0)}" fill="none" stroke="var(--text3)" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <path d="${path(P.p1)}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>
+      <text x="${pl-4}" y="${y(mx)+8}" font-size="9" text-anchor="end" fill="var(--text3)">${k(mx)}</text>
+      <text x="${pl-4}" y="${y(0)+3}" font-size="9" text-anchor="end" fill="var(--text3)">0</text>
+      ${ticks}</svg>
+    <span style="font-size:11px;color:var(--text3)"><i style="color:var(--accent);font-style:normal">━</i> with the POs above · <i style="font-style:normal">┅</i> without new POs · <i style="color:var(--warn);font-style:normal">┅</i> cushion · <i style="color:var(--danger);font-style:normal">━</i> zero</span></div>`;
+}
+/* overdue POs (Eleni's PO Tracker: estimated day passed, no received date) */
+function lateTxt(r){return (r.late||[]).map(x=>`<div class="c-sub" style="color:var(--danger)">⚠ PO ${esc(x.po)} (${esc(x.sup||'')}) was due ${dayTxt(x.eta+'T12:00:00')} — not received yet · ${n0(x.qty)} ${esc(unitOf(r))}. Counted as arriving tomorrow.</div>`).join('');}
+function cardTxt(r){const c=r.cards||{};const ks=Object.keys(c);if(!ks.length)return '';
+  return `<div class="c-vend"><b>This month (Eleni's PO Tracker):</b> ${ks.map(k=>{const v=c[k];return `${esc(k)} · ${v.days!=null?'~'+v.days+' days order→received':''}${v.onTime!=null?' · '+v.onTime+'% on the estimated day':''}${v.shortPct!=null?' · '+v.shortPct+'% of POs came short':''} · ${v.pos} POs`;}).join(' &nbsp;|&nbsp; ')}</div>`;}
+/* supplier report card for the plant */
+function openSuppliers(){
+  const S=(data&&data.suppliers)||{};const ks=Object.keys(S).sort((a,b)=>S[b].pos-S[a].pos);
+  const body=ks.length?`<table class="pd"><tr><th>Supplier</th><th>POs</th><th>Days</th><th>On time</th><th>Short</th><th>Open</th><th>$</th></tr>${ks.map(k=>{const v=S[k];
+    return `<tr><td>${esc(k)}</td><td>${v.pos}</td><td>${v.days??'—'}${v.maxDays!=null&&v.maxDays!==v.days?' <span style="color:var(--text3)">(max '+v.maxDays+')</span>':''}</td><td>${v.onTime!=null?v.onTime+'%':'—'}</td><td style="color:${v.shortPct>=30?'var(--danger)':'inherit'}">${v.shortPct!=null?v.shortPct+'%':'—'}</td><td>${v.open}</td><td>${n0(v.spend)}</td></tr>`;}).join('')}</table>
+    <div class="hint">Days = order date → received date (median). On time = received on or before the estimated day. Short = the notes say something came short or a different quantity. From Eleni's PO Tracker${(S[ks[0]].months||[]).length?' ('+S[ks[0]].months.join(', ')+')':''}.</div>`
+    :`<div class="hint">${data&&data.potOn?'No PO Tracker data yet — tap ⟳ Refresh.':"Eleni's PO Tracker is not connected yet (the WMS_PO_Tracker flow is pending)."}</div>`;
+  sheet(`<h2>🏭 Suppliers · ${PLANT}</h2>${body}<button class="big gray" onclick="closeSheet()">Close</button>`);}
 function planDays(r){
   if(!(r.plan&&r.plan.length&&r.ptot))return '';
   const u=unitOf(r)||'';
@@ -321,13 +357,15 @@ function card(r){
       ${r.pack?`<div class="c-vend"><b>How it comes:</b> ${n0(r.pack.p)+' '+unitOf(r)+' per pallet'+(r.pack.d>r.pack.p?' · usual delivery '+n0(r.pack.d)+' ('+Math.round(r.pack.d/r.pack.p)+' pallets)':'')}</div>`:(m.qtyAvg?`<div class="c-vend"><b>Usual order:</b> ${n0(m.qtyAvg)} (no pallet size saved yet)</div>`:'')}
       ${r.y12?`<div class="c-vend"><b>Last 12 months:</b> ${n0(r.y12)} ${unitOf(r)==='rolls'?'':unitOf(r)||'units'} · ~${n0(r.y12/365)} / day (Power BI)</div>`:''}
       ${r.cls?`<div class="c-vend"><b>Priority ${r.cls}</b> · ${r.cls==='A'?'most used: biggest safety stock':r.cls==='B'?'medium use':'little use: small safety stock, no extra pallets'}</div>`:''}
+      ${timeline(r)}
       ${planDays(r)}
-      ${(r.coming||[]).length?`<div class="c-vend"><b>On the way:</b> ${r.coming.slice(0,6).map(x=>esc(x.po)+' · '+n0(x.qty)+' · '+dayTxt(x.date+'T12:00:00')+(x.planner?' (John\'s planner)':'')).join(' &nbsp;|&nbsp; ')}</div>`:''}
+      ${cardTxt(r)}
+      ${(r.coming||[]).length?`<div class="c-vend"><b>On the way:</b> ${r.coming.slice(0,6).map(x=>esc(x.po)+' · '+n0(x.qty)+' · '+dayTxt(x.date+'T12:00:00')+(x.planner?' (John\'s planner)':x.tracked?' (Eleni\'s PO Tracker)':'')+(x.late?' ⚠ late':'')).join(' &nbsp;|&nbsp; ')}</div>`:''}
       <div class="c-vend"><b>Supplier${(r.sup||[]).length>1?'s (both used in the last 3 months)':''}:</b> ${((r.sup||[]).length?r.sup:[m]).map(v=>esc(v.vendor||'')+(v.ltAvg?' · ~'+Math.round(v.ltAvg)+' days':'')+(v.lt?' (up to '+v.lt+')':'')+(v.onTime!=null?' · '+v.onTime+'% on time':'')+(v.last?' · last PO '+dayTxt(v.last+'T12:00:00').replace(/^\w+, /,''):'')).join(' &nbsp;|&nbsp; ')}${m.pos<5?' · few POs, rough lead time':''}</div>
     </div>`:'';
   return `<div class="card ${r.st}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
-    <div class="c-main">${mainLine(r)}</div>${(r.orders||[]).some(o=>!o.done)?`<button class="c-more" style="padding-top:2px" onclick="tooBig('${esc(r.base)}')">🔧 Too big? Change the cushion</button>`:''}${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
+    <div class="c-main">${mainLine(r)}</div>${lateTxt(r)}${(r.orders||[]).some(o=>!o.done)?`<button class="c-more" style="padding-top:2px" onclick="tooBig('${esc(r.base)}')">🔧 Too big? Change the cushion</button>`:''}${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
     <div class="c-sub">${subLine(r)}</div>
     ${nextOrders(r)}
     ${r.short?`<div class="c-alert">⚠ Runs short on ${dayTxt(addDays(r.coverDay))}, inside the days already planned — before the next PO arrives</div>`:''}
@@ -353,7 +391,7 @@ function friBox(){
   const hol=(cfg.holidays||[]).filter(h=>new Date(h.d+'T00:00:00')>=t0).sort((a,b)=>a.d.localeCompare(b.d))[0];
   return `<div class="fri">${body||'<div><b>Nothing to order today or on the next order day.</b></div>'}
     <div class="s">Safety stock: <b>A ${(cfg.ss||{}).A??3} · B ${(cfg.ss||{}).B??2} · C ${(cfg.ss||{}).C??1} days</b> · We receive: <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data.racks?' · Direct Materials has '+data.racks+' rack positions':''}</div>
-    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button></div></div>`;
+    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div></div>`;
 }
 
 /* ---------- small helpers: toast, bottom sheet, PIN ---------- */
@@ -486,8 +524,26 @@ async function exportExcel(){
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Next POs');
   XLSX.writeFile(wb,'Next_POs_'+PLANT+'_'+ymdL(new Date())+'.xlsx');toast('⬇ Excel downloaded');
 }
+/* "How it works" — a real example with today's numbers (the first item that has a PO to make) */
+function howExample(){
+  const el=document.getElementById('howEx');if(!el)return;
+  const r=((data&&data.rows)||[]).find(x=>(x.orders||[]).some(o=>!o.done&&!o.pending)&&x.ptot);
+  if(!r){el.innerHTML='';return;}
+  const o=groupOrders(r.orders).find(x=>!x.done&&!x.pending),u=unitOf(r)||'';
+  const L=Math.round(r.Lavg||r.L),cov=r.coverDay==null?'more than 6 weeks':dayTxt(addDays(Math.max(0,r.coverDay-1)));
+  const sup=(r.main||{}).vendor||'the supplier';
+  el.innerHTML=`<div class="c-vend" style="margin-top:10px;line-height:1.55"><b>Example with today's numbers — ${esc(r.codes.join(' + '))}</b><ol style="margin:4px 0 0 18px;padding:0">
+    <li><b>Have:</b> ${n0(r.stock)} ${u} in stock + ${n0(r.open)} on the way${(r.coming||[]).length?' ('+r.coming.length+' PO'+(r.coming.length>1?'s':'')+')':''}.</li>
+    <li><b>Will use:</b> ${n0(r.ptot)} ${u} in the production plan, then ~${n0((r.dbar||0)*7/5)} per working day.</li>
+    <li><b>Covered until:</b> ${cov} — the last day stock + POs on the way are enough.</li>
+    <li><b>Cushion:</b> priority ${r.cls||'—'} = ${n1(r.sdays)} days of use ≈ ${n0(r.ss)} ${u}.</li>
+    <li><b>When:</b> ${esc(sup)} takes ~${L} days, so to arrive before we dip into the cushion it must be ordered ${new Date(o.orderBy)<=addDays(0)?'<b>today</b>':'by <b>'+dayTxt(o.orderBy)+'</b>'}${o.rush?' (rush: we would run out before a normal PO arrives)':''}.</li>
+    <li><b>How much:</b> enough to stay above the cushion until the next order arrives = ${n0(o.qty)} ${u}${o.pallets?' = <b>'+o.pallets+' full pallet'+(o.pallets>1?'s':'')+'</b>'+(r.pack&&r.pack.p>1?' of '+n0(r.pack.p):''):''}, delivered ${dlTxt(o).replace(/^arrives /,'')}.</li>
+  </ol></div>`;
+}
 function render(keepFocus){
   document.getElementById('status').innerHTML=statusLine();
+  try{howExample();}catch(e){}
   document.getElementById('btn-refresh').disabled=busy;
   const body=document.getElementById('body');
   if(!data){if(!busy)body.innerHTML='<div class="empty"><b>⚠</b>Could not load the data. Tap ⟳ Refresh.</div>';return;}
