@@ -3938,14 +3938,14 @@ function reorderRows(summary){
     const hist=f.recv/REO_USE_DAYS;
     const it=ITEMS.find(i=>i.code===f.base)||ITEMS.find(i=>reoBase(i.code)===f.base);
     const pk=packFor(f.base,main.vendor),div=pk&&pk.pal?pk.pal:1;                  // trays: plan in trays → pallets
-    const pday={};let ptot=0;
-    if(dm)Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;Object.entries(o.d).forEach(([k,v])=>pday[k]=(pday[k]||0)+v/div);});
+    const pday={};let ptot=0,pdone=0;
+    if(dm)Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;pdone+=(o.past||0)/div;Object.entries(o.d).forEach(([k,v])=>pday[k]=(pday[k]||0)+v/div);});
     let dmp=null;if(dm&&dm.dmp)Object.entries(dm.dmp).forEach(([c,v])=>{if(reoBase(c)===f.base)dmp=(dmp||0)+v/div;});
     const coming=(inc[f.base]||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
     const open=coming.reduce((a,x)=>a+x.qty,0);
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const rate=hist>0?hist:(ptot>0?ptot/H:y12day);                  // after the plan ends: what we usually use
-    const r={late:coming.filter(x=>x.late).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup})),
+    const r={pdone,late:coming.filter(x=>x.late).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
@@ -4832,7 +4832,7 @@ function parseSleeveLineSheet(rows,retailOnly){
    boxes = Open Cs · film = "QTY (m per roll)" (rolls) · patty paper, bags, sleeves = "(cases)" · trays = units.
    Production day = the weekday in "Day" on or before the Inv Date; blank Day → the day before the Inv Date.
    (Labels are left out: the plan counts them in rolls, Yooz in labels.) */
-const DM_VER=4;   // 4 = boxes used the working day before the Inv Date (confirmed by Juan); re-reads plans made before
+const DM_VER=6;   // 6 = day before the Inv Date (Juan); open orders from past days = carry-over, counted today; re-reads older plans
 function dmFromSchedule(wb,baseDay){
   const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));if(!sheet)return null;
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
@@ -4859,16 +4859,19 @@ function dmFromSchedule(wb,baseDay){
     let pd=new Date(inv);const dn=cDay>-1?DN.indexOf(String(r[cDay]).trim().toLowerCase()):-1;
     if(dn>=0){let k=0;while(pd.getDay()!==dn&&k++<7)pd.setDate(pd.getDate()-1);}
     else{let k=0;do{pd.setDate(pd.getDate()-1);}while((pd.getDay()===0||pd.getDay()===6||hol.has(ymd(pd)))&&k++<7);}
-    if(pd<base)pd=new Date(base);
+    // "Open Cs" = cases NOT produced yet (what was made already leaves the plan). An open order whose day already
+    // passed is a CARRY-OVER: it will still be made, so its boxes are needed today (e.g. Nov 18: plan said 4,395,
+    // 3,596 were made, 1,386 still open → counted today). Kept apart too, to show it.
+    const past=pd<base;if(past)pd=new Date(base);
     const key=ymd(pd);if(key>end)end=key;
     PAIRS.forEach(([cc,qc])=>{
       let code=String(r[cc]||'').trim().toUpperCase();if(!/^[A-Z]+\d/.test(code))return;
       if(PLAN_CODE_ALIAS[code])code=PLAN_CODE_ALIAS[code];
       const v=Number(r[qc]);if(!(v>0))return;
-      const o=codes[code]||(codes[code]={t:0,d:{}});o.t+=v;o.d[key]=(o.d[key]||0)+v;
+      const o=codes[code]||(codes[code]={t:0,d:{},past:0});if(past)o.past=(o.past||0)+v;o.t+=v;o.d[key]=(o.d[key]||0)+v;
     });
   }
-  Object.values(codes).forEach(o=>{o.t=Math.round(o.t*100)/100;Object.keys(o.d).forEach(k=>o.d[k]=Math.round(o.d[k]*100)/100);});
+  Object.values(codes).forEach(o=>{o.t=Math.round(o.t*100)/100;o.past=Math.round((o.past||0)*100)/100;Object.keys(o.d).forEach(k=>o.d[k]=Math.round(o.d[k]*100)/100);});
   // what the "Direct Material Planning" sheet shows (its tables by production Day = only orders that already have a day)
   const dmp={};
   try{const dn=wb.SheetNames.find(n=>/direct material planning/i.test(n));
@@ -7372,7 +7375,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18n';
+const APP_VERSION='2026.11.18p';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

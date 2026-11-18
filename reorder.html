@@ -146,7 +146,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18l</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18n</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -327,6 +327,7 @@ function planDays(r){
   return `<div class="c-vend" style="color:var(--text2)"><b>📅 Production plan, day by day</b> (${u}) — what will be <b>used</b>, not what is missing:
     <table class="pd"><tr><th>Day</th><th>Needs</th><th>Arrives</th><th>Left at night</th></tr>${rows}
     <tr><td><b>Total</b></td><td><b>${n0(r.ptot)}</b></td><td></td><td></td></tr></table>
+    ${r.pdone?`Today includes <b>${n0(r.pdone)}</b> carried over: orders that were due before today and are still open in the plan (not made yet), so they will be made today.<br>`:''}
     ${r.dmp!=null?`Eleni's Direct Material Planning sheet shows ${n0(r.dmp)} (only orders that already have a day); the plan has ${n0(r.ptot)} in total.`:''}
     <i style="color:var(--warn);font-style:normal">Orange</i> = below the cushion · <i style="color:var(--danger);font-style:normal">red</i> = runs out.</div>`;
 }
