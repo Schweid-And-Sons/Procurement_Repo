@@ -3914,13 +3914,14 @@ function reorderRows(summary){
   const inc={};
   try{
     // a PO received in Receiving (arrived, any device — synced from SharePoint) no longer counts as coming.
-    // If it was received AFTER the stock count we are using, its boxes aren't in that count yet → add them to stock.
+    // Its boxes are NOT added to stock: the inventory count is the truth. (Nov 18: a PO that arrived the night before
+    // was already counted, but marked received after the count → it was added twice.) Only listed, as a reminder.
     const recs=Object.values(allReceipts()).filter(x=>!x.notArrived&&(x.plant||currentPlant)===currentPlant);
     const done=new Set(recs.map(x=>baseKeyOf(x.key)));
-    const cAt=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT).getTime():0;
-    if(cAt)recs.forEach(x=>{if(!(new Date(x.ts).getTime()>cAt))return;
+    const since=Date.now()-2*864e5;
+    recs.forEach(x=>{if(!(new Date(x.ts).getTime()>since))return;
       (x.lines||[]).forEach(l=>{const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:+l.ordered||0;if(!(q>0))return;
-        const fam2=fam[reoBase(l.code)];if(!fam2)return;const u=toUnits(l.code,q);fam2.stock+=u;(fam2.rcv=fam2.rcv||[]).push({po:x.po,qty:u,ts:x.ts});});});
+        const fam2=fam[reoBase(l.code)];if(!fam2)return;(fam2.rcv=fam2.rcv||[]).push({po:x.po,qty:toUnits(l.code,q),ts:x.ts});});});
     // Eleni's PO Tracker: a PO with a received date is closed; an open one uses her estimated delivery (unless it's planner-only)
     const poNum=x=>{const m=String(x||'').match(/(\d{4,})\s*$/);return m?m[1]:String(x||'').toUpperCase();};
     const pt={};((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).forEach(x=>{pt[x.po]=x;pt[poNum(x.po)]=x;});
@@ -3928,9 +3929,14 @@ function reorderRows(summary){
       const t=pt[String(g.po||'').toUpperCase()]||pt[poNum(g.po)];
       if(t&&t.rcv)return;                                                     // already received (PO Tracker)
       const due=t&&t.eta&&!g.planner?t.eta:g.due;
-      const late=t&&t.eta&&t.eta<ymd(today)?t.eta:'';                          // estimated day passed and not received
+      // late = the delivery day passed and nobody marked it received (Receiving, Yooz or Eleni's PO Tracker).
+      // NOT counted at all: the inventory count is what's real — a late PO may be exactly what arrived last night
+      // (already counted) or not be coming. Listed only, in Details, so someone can mark it or ask the supplier.
+      const dueD=String(due||'').slice(0,10);let wl=0;
+      if(dueD&&dueD<ymd(today)){const d=new Date(dueD+'T00:00:00');while(d<today){d.setDate(d.getDate()+1);const w=d.getDay();if(w>0&&w<6&&!hol.has(ymd(d)))wl++;}}
+      const late=wl>0?dueD:'',stale=wl>0;
       g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
-        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:toUnits(l.code,q),po:g.po,planner:!!g.planner,late,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
+        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:toUnits(l.code,q),po:g.po,planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
   }catch(e){console.error(e);}
   const card=potCard(currentPlant);
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
@@ -3963,11 +3969,12 @@ function reorderRows(summary){
         ptot=ptot-D+S+(to?rest:0);sched={S,D,rest,to};psrc[k0]=Object.assign({},psrc[k0]||{},{sched:S});}
     }
     let dmp=null;if(dm&&dm.dmp)Object.entries(dm.dmp).forEach(([c,v])=>{if(reoBase(c)===f.base)dmp=(dmp||0)+v/div;});
-    const coming=(inc[f.base]||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const coming=(inc[f.base]||[]).filter(x=>!x.stale).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const staleLate=(inc[f.base]||[]).filter(x=>x.stale);
     const open=coming.reduce((a,x)=>a+x.qty,0);
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const rate=hist>0?hist:(ptot>0?ptot/H:y12day);                  // after the plan ends: what we usually use
-    const r={rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup})),
+    const r={rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
@@ -4021,9 +4028,12 @@ function reorderRows(summary){
       const L=Math.round(Lavg),Lr=Math.max(1,Math.round(fast.ltAvg||fast.lt||Lavg)),orders=[];
       const inA=i=>(arr[i]||0)+(arrM[i]||0);
       av=f.stock;let gap=0;
-      for(let i=0;i<Math.min(L,N);i++){av+=inA(i);av-=dem(i);if(-av>gap)gap=-av;}
+      const L1=Math.max(L,fixArrive(L,L));   // first day a normal PO can be RECEIVED (no Mon / weekend / holiday)
+      let neg=-1;for(let i=0;i<Math.min(L1,N);i++){av+=inA(i);av-=dem(i);if(av<0&&neg<0)neg=i;if(-av>gap)gap=-av;}
       const rq=gap>0?Math.ceil(gap/per)*per:0;
-      if(rq)orders.push({orderBy:new Date(today),arrive:dOf(fixArrive(Math.min(Lr,L),Math.min(Lr,L))),qty:rq,rush:true,via:fast.vendor});
+      // a rush has to be IN by the first short day: the last receiving day on or before it (ask the supplier for that day)
+      let ra=neg;if(rq){for(let b=0;b<=6&&ra-b>=0;b++)if(canReceive(ra-b)){ra=ra-b;break;}}
+      if(rq)orders.push({orderBy:new Date(today),arrive:dOf(Math.max(0,ra)),qty:rq,rush:true,via:fast.vendor,needBy:ymd(dOf(Math.max(0,neg)))});
       av=f.stock+rq;
       for(let i=0;i<=N&&orders.length<80;i++){
         av+=inA(i);const x=dem(i);
@@ -7403,7 +7413,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18t';
+const APP_VERSION='2026.11.18w';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

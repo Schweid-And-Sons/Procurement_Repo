@@ -146,7 +146,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18r</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.18u</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -161,7 +161,7 @@
     <li><b>Rush</b> only when we would run out before a normal order can arrive.</li>
     <li>Each PO has a status, the same on every device (PIN): <b>Not ordered</b> · <b>⏳ Pending</b> (someone is on it, e.g. waiting for the supplier) · <b>✅ Created</b> (made in Yooz, so nobody orders it twice). <b>✏️ Qty</b> changes the amount; the next POs adjust. The first 2 POs show; tap “Show more” for the ones ahead.</li>
     <li><b>📅 Receiving days</b> and holidays are the same for every device (PIN). <b>⬇ Excel</b> downloads the list to share; <b>🖨 Print</b> gives a big, clear list by order day (or Save as PDF).</li>
-    <li><b>Eleni's PO Tracker</b> (when connected): a PO with a received date no longer counts as coming; an open one uses its estimated day, and shows <b>⚠ not received yet</b> once that day passes. <b>🏭 Suppliers</b> shows real days, on-time and shorts per supplier.</li>
+    <li><b>Eleni's PO Tracker</b>: a PO with a received date no longer counts as coming; an open one uses her estimated day. Once that day passes without being marked received, the PO is <b>not counted</b> (the inventory count is what's real) and is listed in Details. <b>🏭 Suppliers</b> shows real days, on-time and shorts per supplier.</li>
     <li><b>📈 Timeline</b> (in Details): stock at night for the next 4 weeks, with and without the POs.</li>
     <li>It's a guide, not the PO: the official PO is still made in Yooz.</li>
   </ul><div id="howEx"></div></details>
@@ -254,7 +254,7 @@ function groupOrders(os){const out=[];(os||[]).forEach(o=>{const l=out.find(x=>x
   else out.push({...o,n:1,dl:[{d:new Date(o.arrive),q:o.qty}]});});
   return out.sort((a,b)=>new Date(a.orderBy)-new Date(b.orderBy));}
 /* one PO, deliveries on several days (how John splits a Friday order over the week) */
-function dlTxt(o){return o.dl.length<2?'arrives ~'+dayTxt(o.dl[0]?o.dl[0].d:o.arrive):'deliveries '+o.dl.map(x=>dayTxt(x.d)+' ~'+n0(x.q)).join(' · ');}
+function dlTxt(o){if(o.rush&&o.needBy)return 'must be IN by '+dayTxt(o.arrive)+' (we run out '+dayTxt(o.needBy+'T12:00:00')+')';return o.dl.length<2?'arrives ~'+dayTxt(o.dl[0]?o.dl[0].d:o.arrive):'deliveries '+o.dl.map(x=>dayTxt(x.d)+' ~'+n0(x.q)).join(' · ');}
 function mainLine(r){
   const all=groupOrders(r.orders),o=all.find(x=>!x.done&&!x.pending);
   if(r.st==='none')return 'No recent use';
@@ -309,7 +309,12 @@ function timeline(r){
     <span style="font-size:11px;color:var(--text3)"><i style="color:var(--accent);font-style:normal">━</i> with the POs above · <i style="font-style:normal">┅</i> without new POs · <i style="color:var(--warn);font-style:normal">┅</i> cushion · <i style="color:var(--danger);font-style:normal">━</i> zero</span></div>`;
 }
 /* overdue POs (Eleni's PO Tracker: estimated day passed, no received date) */
-function lateTxt(r){return (r.late||[]).map(x=>`<div class="c-sub" style="color:var(--danger)">⚠ PO ${esc(x.po)} (${esc(x.sup||'')}) was due ${dayTxt(x.eta+'T12:00:00')} — not received yet · ${n0(x.qty)} ${esc(unitOf(r))}. Counted as arriving tomorrow.</div>`).join('');}
+function lateTxt(r){const n=(r.late||[]).length;if(!n)return '';   // on the card: one quiet line; the list is in Details
+  return `<div class="c-sub" style="color:var(--text3);font-size:12px">⏳ ${n} late PO${n>1?'s':''} not counted (see Details)</div>`;}
+function lateList(r){if(!(r.late||[]).length)return '';const u=esc(unitOf(r));
+  return `<div class="c-vend"><b>⏳ Late POs — not counted</b> (the inventory count is what's real; it may already include them):<br>${r.late.map(x=>
+    `PO ${esc(x.po)} (${esc(x.sup||'')}) · ${n0(x.qty)} ${u} · was due ${dayTxt(x.eta+'T12:00:00')} (${x.wl} working day${x.wl>1?'s':''} late)`).join('<br>')}
+    <br><span style="color:var(--text3)">If it arrived, mark it in Receiving; if not, check with the supplier.</span></div>`;}
 function cardTxt(r){const c=r.cards||{};const ks=Object.keys(c);if(!ks.length)return '';
   return `<div class="c-vend"><b>This month (Eleni's PO Tracker):</b> ${ks.map(k=>{const v=c[k];return `${esc(k)} · ${v.days!=null?'~'+v.days+' days order→received':''}${v.onTime!=null?' · '+v.onTime+'% on the estimated day':''}${v.shortPct!=null?' · '+v.shortPct+'% of POs came short':''} · ${v.pos} POs`;}).join(' &nbsp;|&nbsp; ')}</div>`;}
 /* supplier report card for the plant */
@@ -371,6 +376,7 @@ function card(r){
       ${r.pack?`<div class="c-vend"><b>How it comes:</b> ${n0(r.pack.p)+' '+unitOf(r)+' per pallet'+(r.pack.d>r.pack.p?' · usual delivery '+n0(r.pack.d)+' ('+Math.round(r.pack.d/r.pack.p)+' pallets)':'')}</div>`:(m.qtyAvg?`<div class="c-vend"><b>Usual order:</b> ${n0(m.qtyAvg)} (no pallet size saved yet)</div>`:'')}
       ${r.y12?`<div class="c-vend"><b>Last 12 months:</b> ${n0(r.y12)} ${unitOf(r)==='rolls'?'':unitOf(r)||'units'} · ~${n0(r.y12/365)} / day (Power BI)</div>`:''}
       ${r.cls?`<div class="c-vend"><b>Priority ${r.cls}</b> · ${r.cls==='A'?'most used: biggest safety stock':r.cls==='B'?'medium use':'little use: small safety stock, no extra pallets'}</div>`:''}
+      ${lateList(r)}
       ${timeline(r)}
       ${planDays(r)}
       ${cardTxt(r)}
@@ -379,7 +385,7 @@ function card(r){
     </div>`:'';
   return `<div class="card ${r.st}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
-    <div class="c-main">${mainLine(r)}</div>${lateTxt(r)}${(r.rcvNew||[]).length?`<div class="c-sub" style="color:var(--success)">📥 Stock includes ${r.rcvNew.map(x=>n0(x.qty)+' received (PO '+esc(x.po||'')+')').join(' · ')} — not in the count yet</div>`:''}${dmpLine(r)}${(r.orders||[]).some(o=>!o.done)?`<button class="c-more" style="padding-top:2px" onclick="tooBig('${esc(r.base)}')">🔧 Too big? Change the cushion</button>`:''}${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
+    <div class="c-main">${mainLine(r)}</div>${lateTxt(r)}${(r.rcvNew||[]).length?`<div class="c-sub" style="color:var(--text2)">📥 Received: ${r.rcvNew.map(x=>'PO '+esc(x.po||'')+' · '+n0(x.qty)).join(' · ')} — no longer "on the way". The stock is the inventory count: make sure it's located in the map.</div>`:''}${dmpLine(r)}${(r.orders||[]).some(o=>!o.done)?`<button class="c-more" style="padding-top:2px" onclick="tooBig('${esc(r.base)}')">🔧 Too big? Change the cushion</button>`:''}${r.noPack&&r.st!=='none'?'<div class="c-sub" style="color:var(--warn)">⚠ No pallet size saved for this item yet — quantity rounded, check it before ordering</div>':''}
     <div class="c-sub">${subLine(r)}</div>
     ${nextOrders(r)}
     ${r.short?`<div class="c-alert">⚠ Runs short on ${dayTxt(addDays(r.coverDay))}, inside the days already planned — before the next PO arrives</div>`:''}
