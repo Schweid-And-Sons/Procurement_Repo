@@ -3761,6 +3761,68 @@ async function loadLeadTimeFromFlow(manual){
   }catch(e){ltFetch.err=e.message;if(manual)showToast('Could not load lead times: '+e.message,'error');}
   finally{ltFetch.busy=false;if(currentView==='stats'&&statsSubTab==='reorder')renderStatsView();}
 }
+/* ---------- Eleni's PO TRACKER (SharePoint, one Excel per month, read only) ----------
+   Flow WMS_PO_Tracker: POST {month:"NOVEMBER 2026"} → {name, content(base64)} of
+   PO TRACKER/<MONTH YEAR>/<MONTH YEAR> PO TRACKER.xlsx. Sheets "NJ-NOV 2026" / "GA-NOV 2026", one row per PO:
+   supplier, PO#, order date, estimated delivery, received date, order total, invoice, notes (shorts).
+   We read this month and the previous one (POs ordered late last month that are still open). */
+const POTRACK_FLOW_URL='';            // ← paste the WMS_PO_Tracker URL here (never share it in Teams or email)
+const POTRACK_KEY='wms_potrack';
+const potFetch={busy:false,err:'',tried:0};
+function loadPoTrack(){try{return JSON.parse(localStorage.getItem(POTRACK_KEY)||'null');}catch(e){return null;}}
+const POT_MONTHS=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+function potMonths(){const d=new Date(),p=new Date(d.getFullYear(),d.getMonth()-1,1);return [POT_MONTHS[d.getMonth()]+' '+d.getFullYear(),POT_MONTHS[p.getMonth()]+' '+p.getFullYear()];}
+const potVendor=v=>{v=String(v||'').toUpperCase().trim();
+  return /PACKAGING CORP|^PCA/.test(v)?'PCA':/SONIC/.test(v)?'SONIC':/CRYOVAC|SEALED AIR/.test(v)?'CRYOVAC':/PACKAGED/.test(v)?'PACKAGED':
+    /IMPERIAL|BRADY/.test(v)?'IMPERIAL BRADY':/PROVISUR/.test(v)?'PROVISUR':/BUNZL/.test(v)?'BUNZL':v.split(/[\s,.]+/)[0]||v;};
+function potParse(wb){
+  const out=[];const ymdD=d=>d instanceof Date&&!isNaN(d)?d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'):'';
+  wb.SheetNames.forEach(sn=>{const plant=/^\s*NJ/i.test(sn)?'NJ':/^\s*GA/i.test(sn)?'GA':'';if(!plant)return;
+    const a=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
+    const hi=a.findIndex(r=>r&&String(r[0]||'').trim().toUpperCase()==='SUPPLIER');if(hi<0)return;
+    const H=a[hi].map(x=>String(x||'').toUpperCase());
+    const col=re=>H.findIndex(h=>re.test(h));
+    const cPo=col(/YZ PO/),cOd=col(/ORDER DATE/),cEta=col(/ESTIMATED/),cRc=col(/RECEIVED DATE/),cTot=col(/ORDER TOTAL/),cN=col(/NOTES/);
+    a.slice(hi+1).forEach(r=>{if(!r||!r[0]||!r[cPo])return;
+      const dd=x=>x instanceof Date?ymdD(x):typeof x==='number'?ymdD(new Date(Math.round((x-25569)*864e5)+new Date().getTimezoneOffset()*6e4)):'';
+      const notes=cN>=0&&r[cN]?String(r[cN]):'';
+      out.push({plant,sup:potVendor(r[0]),po:String(r[cPo]).trim().toUpperCase(),od:dd(r[cOd]),eta:dd(r[cEta]),rcv:dd(r[cRc]),
+        total:+r[cTot]||0,notes,short:/SHORT|REC'?D|RECEIVED \d|MISSING/i.test(notes)});});});
+  return out;
+}
+async function loadPoTrackFromFlow(manual){
+  if(!POTRACK_FLOW_URL||potFetch.busy)return;
+  potFetch.busy=true;potFetch.err='';potFetch.tried=Date.now();
+  try{
+    let rows=[];const got=[];
+    for(const m of potMonths()){
+      const res=await fetch(POTRACK_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({month:m})});
+      if(!res.ok)continue;   // a month without its file yet (e.g. the 1st days of the month): use the other one, no error
+      const f=await res.json();if(!f||!f.content)continue;
+      const bin=atob(f.content);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+      rows=rows.concat(potParse(XLSX.read(u,{type:'array',cellDates:true})));got.push(m);
+    }
+    if(!rows.length)throw new Error('no PO Tracker file found for '+potMonths().join(' or '));
+    const seen=new Set();rows=rows.filter(r=>{const k=r.plant+'|'+r.po;if(seen.has(k))return false;seen.add(k);return true;});   // newest month first
+    localStorage.setItem(POTRACK_KEY,JSON.stringify({loaded:new Date().toISOString(),months:got,rows}));
+    if(manual)showToast('PO Tracker read: '+rows.length+' POs','success');
+  }catch(e){potFetch.err=e.message;if(manual)showToast('Could not read the PO Tracker: '+e.message,'error');}
+  finally{potFetch.busy=false;}
+}
+/* supplier report card from the tracker: real days (order → received), on time vs estimated, POs with shorts, $ */
+function potCard(plant){
+  const t=loadPoTrack();if(!t)return {};
+  const by={};t.rows.filter(r=>r.plant===plant).forEach(r=>(by[r.sup]=by[r.sup]||[]).push(r));
+  const med=a=>{if(!a.length)return null;a=a.slice().sort((x,y)=>x-y);const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+  const dd=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/864e5);
+  const out={};
+  Object.entries(by).forEach(([k,v])=>{const done=v.filter(r=>r.rcv&&r.od),et=v.filter(r=>r.rcv&&r.eta);
+    out[k]={pos:v.length,days:med(done.map(r=>dd(r.od,r.rcv))),maxDays:done.length?Math.max(...done.map(r=>dd(r.od,r.rcv))):null,
+      onTime:et.length?Math.round(100*et.filter(r=>r.rcv<=r.eta).length/et.length):null,
+      shortPct:v.length?Math.round(100*v.filter(r=>r.short).length/v.length):null,
+      open:v.filter(r=>!r.rcv).length,spend:Math.round(v.reduce((a,r)=>a+r.total,0)),months:t.months||[]};});
+  return out;
+}
 function leadTimeAuto(){   // once a week; after a failure wait 10 min before trying again by itself
   const d=loadLeadTime();if(ltFetch.busy||Date.now()-ltFetch.tried<10*60000)return;
   if(!d||Date.now()-new Date(d.loaded).getTime()>7*864e5)setTimeout(()=>loadLeadTimeFromFlow(false),50);
@@ -3851,10 +3913,17 @@ function reorderRows(summary){
   const inc={};
   try{
     const done=new Set(Object.values(allReceipts()).map(x=>baseKeyOf(x.key)));
+    // Eleni's PO Tracker: a PO with a received date is closed; an open one uses her estimated delivery (unless it's planner-only)
+    const pt={};((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).forEach(x=>pt[x.po]=x);
     poGroups().forEach(g=>{if(done.has(g.key))return;
+      const t=pt[String(g.po||'').toUpperCase()];
+      if(t&&t.rcv)return;                                                     // already received (PO Tracker)
+      const due=t&&t.eta&&!g.planner?t.eta:g.due;
+      const late=t&&t.eta&&t.eta<ymd(today)?t.eta:'';                          // estimated day passed and not received
       g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
-        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:g.due,qty:toUnits(l.code,q),po:g.po,planner:!!g.planner});});});
+        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:toUnits(l.code,q),po:g.po,planner:!!g.planner,late,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
   }catch(e){console.error(e);}
+  const card=potCard(currentPlant);
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
   const rows=Object.values(fam).filter(f=>f.lt.length).map(f=>{
     // active supplier = the one with the most recent PO (not the one with most POs: trays left Bunzl / Packaged)
@@ -3876,7 +3945,9 @@ function reorderRows(summary){
     const open=coming.reduce((a,x)=>a+x.qty,0);
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const rate=hist>0?hist:(ptot>0?ptot/H:y12day);                  // after the plan ends: what we usually use
-    const r={base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
+    const r={late:coming.filter(x=>x.late).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup})),
+      cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
+      base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
       use:hist,rate,have:f.stock+open,L:P90,Lavg,ptot,dmp,pack:pk?{p:pk.p,d:pk.d||0,pal:pk.pal||0,u:pk.u||'boxes'}:null,
       planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
@@ -3951,6 +4022,11 @@ function reorderRows(summary){
       // marked POs (created / changed) count as coming; anything still needed on that day is an extra PO (key +'|+')
       const fk=new Set(fixed.map(m=>m.key));
       fixed.forEach(m=>{m.pallets=pk?Math.ceil(m.qty/per-1e-9):null;});
+      // timeline (4 weeks): stock at night without new POs vs. with the POs below (created / pending / suggested)
+      {const plus={};orders.forEach(o=>{const i=dayIdx(ymd(o.arrive));plus[i]=(plus[i]||0)+o.qty;});
+       let a0=f.stock,a1=f.stock;const p0=[],p1=[],dd=[];
+       for(let i=0;i<28;i++){const x=dem(i);a0+=(arr[i]||0)-x;a1+=(arr[i]||0)+(arrM[i]||0)+(plus[i]||0)-x;p0.push(Math.round(a0));p1.push(Math.round(a1));dd.push(ymd(dOf(i)));}
+       r.proj={d:dd,p0,p1,ss:Math.round(ss)};}
       r.per=per;r.Q=Q;r.orders=fixed.concat(orders.map(o=>{if(fk.has(o.key))o.key+='|+';return o;})).filter(o=>(o.orderBy-today)/864e5<=28).sort((a,b)=>a.orderBy-b.orderBy||(b.rush?1:0)-(a.rush?1:0));
       const todo=r.orders.filter(o=>!o.done&&!o.pending);           // pending = someone is on it (not counted as "to order")
       r.sug=todo.length?todo[0].qty:0;
@@ -4416,7 +4492,7 @@ function mergeRemotePlan(r){
   if(!l||l.day!==r.day||String(r.importedAt)>String(l.importedAt||'')){planData=r;delete planData._pending;savePlanDia();return true;}   // new import
   if(String(r.importedAt)<String(l.importedAt))return false;                                    // older import: ignore
   let changed=false;                                                                            // same import: newest mark wins per code
-  if(r.dm&&!l.dm){l.dm=r.dm;changed=true;}                                                     // the day-by-day detail another device added
+  if(r.dm&&(!l.dm||(r.dm.v||1)>(l.dm.v||1))){l.dm=r.dm;changed=true;}                                                     // the day-by-day detail another device added
   ['items','sleeves'].forEach(lk=>(r[lk]||[]).forEach(ri=>{const li=(l[lk]||[]).find(x=>x.code===ri.code);if(!li)return;
     if(String(ri.ts||'')>String(li.ts||'')){li.delivered=ri.delivered;li.done=ri.done;li.ts=ri.ts;changed=true;}}));
   if(changed)savePlanDia();
@@ -4475,7 +4551,7 @@ async function planAutoFetch(manual){
 }
 /* the plan is here but without the day-by-day detail (loaded by an older version): read the file again, only for the detail */
 async function ensurePlanDm(){
-  if(!PLAN_FILE_URL||!planData||planData.day!==isoToday()||planData.dm)return;
+  if(!PLAN_FILE_URL||!planData||planData.day!==isoToday()||(planData.dm&&(planData.dm.v||1)>=DM_VER))return;
   const p0=currentPlant;
   const res=await fetch(PLAN_FILE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:p0})});
   if(!res.ok)throw new Error('HTTP '+res.status);
@@ -4756,6 +4832,7 @@ function parseSleeveLineSheet(rows,retailOnly){
    boxes = Open Cs · film = "QTY (m per roll)" (rolls) · patty paper, bags, sleeves = "(cases)" · trays = units.
    Production day = the weekday in "Day" on or before the Inv Date; blank Day → the day before the Inv Date.
    (Labels are left out: the plan counts them in rolls, Yooz in labels.) */
+const DM_VER=4;   // 4 = boxes used the working day before the Inv Date (confirmed by Juan); re-reads plans made before
 function dmFromSchedule(wb,baseDay){
   const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));if(!sheet)return null;
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
@@ -4772,11 +4849,16 @@ function dmFromSchedule(wb,baseDay){
     const m=String(v).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);if(!m)return null;const y=+m[3]<100?2000+ +m[3]:+m[3];return new Date(y,+m[1]-1,+m[2]);};
   const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const codes={};let end=baseDay;
+  let hol=new Set();try{hol=new Set((loadReoCfg().holidays||[]).map(h=>h.d));}catch(e){}
   for(let i=hr+1;i<rows.length;i++){
     const r=rows[i];if(!(Number(r[cQty])>0))continue;
     const inv=toDate(r[cInv]);if(!inv)continue;
+    // Juan (production planning, Nov 18): the boxes for an Inv Date are used THE DAY BEFORE (they run a day ahead).
+    // If the order has a production "Day", that day wins; otherwise the working day before the Inv Date
+    // (skips Sat, Sun and holidays: Monday's orders → Friday, Nov 27 → Nov 25).
     let pd=new Date(inv);const dn=cDay>-1?DN.indexOf(String(r[cDay]).trim().toLowerCase()):-1;
-    if(dn>=0){let k=0;while(pd.getDay()!==dn&&k++<7)pd.setDate(pd.getDate()-1);}else pd.setDate(pd.getDate()-1);
+    if(dn>=0){let k=0;while(pd.getDay()!==dn&&k++<7)pd.setDate(pd.getDate()-1);}
+    else{let k=0;do{pd.setDate(pd.getDate()-1);}while((pd.getDay()===0||pd.getDay()===6||hol.has(ymd(pd)))&&k++<7);}
     if(pd<base)pd=new Date(base);
     const key=ymd(pd);if(key>end)end=key;
     PAIRS.forEach(([cc,qc])=>{
@@ -4800,7 +4882,7 @@ function dmFromSchedule(wb,baseDay){
         for(let k=i+1;k<R2.length;k++){const c=String(R2[k][j]||'').trim().toUpperCase();if(!c||c==='GRAND TOTAL')break;
           if(!/^[A-Z]+\d/.test(c))continue;const v2=Number(R2[k][j+1+gt]);if(v2>0)dmp[c]=Math.round(((dmp[c]||0)+v2)*100)/100;}
       }));}}catch(e){}
-  return {base:baseDay,end,codes,dmp};
+  return {v:DM_VER,base:baseDay,end,codes,dmp};
 }
 function boxesFromSchedule(wb){
   const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));
@@ -7290,7 +7372,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.18h';
+const APP_VERSION='2026.11.18m';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7360,7 +7442,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,cfg:loadReoCfg(),dev:planDevice(),
+        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
         times:Object.assign({},times)};};
     const old=(o,ms)=>!o||Date.now()-new Date(o.loaded).getTime()>ms;
     const collect=async(force,send)=>{
@@ -7373,14 +7455,16 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       if(!loadYooz())first.push(timed('Yooz',()=>loadYoozFromFlow(false),45000,()=>yoozFetch.err));
       if(PLANNER_FLOW_URL&&!loadPlanner())first.push(timed('planner',()=>loadPlannerFromFlow(false),45000));
       if(!loadLeadTime())first.push(timed('lead times',()=>loadLeadTimeFromFlow(false),90000,()=>ltFetch.err));
+      if(POTRACK_FLOW_URL&&!loadPoTrack())first.push(timed('PO Tracker',()=>loadPoTrackFromFlow(false),45000,()=>potFetch.err));
       await Promise.all(first);
       // today's plan with the day-by-day detail (only read from the Excel file if nobody shared it yet)
       if(!(planData&&planData.day===isoToday()&&(planData.items||[]).length)){if(PLAN_FILE_URL)await timed('plan file',()=>planAutoFetch(true),60000);}
-      else if(!planData.dm)await timed('plan file',ensurePlanDm,60000);
+      else if(!planData.dm||(planData.dm.v||1)<DM_VER)await timed('plan file',ensurePlanDm,60000);
       // 2) the slower ones in the background, if they are old; the screen is already usable
       const later=[];
       if(yzOld&&loadYooz()&&!times.Yooz)later.push(timed('Yooz',()=>loadYoozFromFlow(false),45000,()=>yoozFetch.err));
       if(plOld&&loadPlanner()&&!times.planner)later.push(timed('planner',()=>loadPlannerFromFlow(false),45000));
+      if(POTRACK_FLOW_URL&&loadPoTrack()&&(force||old(loadPoTrack(),3600e3)))later.push(timed('PO Tracker',()=>loadPoTrackFromFlow(false),45000,()=>potFetch.err));
       if(ltOld&&loadLeadTime()&&!times['lead times'])later.push(timed('lead times',()=>loadLeadTimeFromFlow(false),90000,()=>ltFetch.err));
       const o1=build(later.length>0);o1.secs=(Date.now()-t0)/1000;send(o1);
       if(later.length){await Promise.all(later);const o2=build(false);o2.secs=(Date.now()-t0)/1000;send(o2);}
