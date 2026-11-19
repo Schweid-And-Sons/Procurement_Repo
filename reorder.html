@@ -88,7 +88,7 @@
   .lst div{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
   .lst button{border:none;background:none;color:var(--danger);font-size:18px;cursor:pointer;}
   .sec{font-size:13px;font-weight:700;color:var(--text2);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
-  .views{display:flex;gap:6px;margin:4px 0 8px}.vw{flex:1;border:1px solid var(--line,#ddd);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px;font-weight:600;font-size:14px}.vw.on{background:var(--plant);color:#fff;border-color:var(--plant)}
+  .views{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.vw{flex:1 1 45%;border:1px solid var(--line,#ddd);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px;font-weight:600;font-size:14px}.vw.on{background:var(--plant);color:#fff;border-color:var(--plant)}
   .chg-d{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid rgba(128,128,128,.15);font-size:13px}.up{color:#c2410c;font-weight:700}.dn{color:#15803d;font-weight:700}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:200;max-width:90vw;}
   .pd{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px;}
@@ -162,8 +162,8 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19g</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
-  <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Next POs</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19i</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -421,6 +421,7 @@ function card(r){
     <div class="c-main">${mainLine(r)}</div>
     ${nextOrders(r)}
     ${orderedToday(r)}
+    ${recountTxt(r)}
     ${sameTxt(r)}
     ${lateTxt(r)}
     <div class="c-sub">${subLine(r)}</div>
@@ -445,7 +446,8 @@ function friBox(){
   const cfg=data.cfg||{days:[]};
   const rec=cfg.days.map((on,i)=>on?DAYN[i]:null).filter(Boolean).join(', ')||'none';
   const hol=(cfg.holidays||[]).filter(h=>new Date(h.d+'T00:00:00')>=t0).sort((a,b)=>a.d.localeCompare(b.d))[0];
-  return `<div class="fri">${body||'<div><b>Nothing to order today or on the next order day.</b></div>'}
+  const rc=rows.filter(r=>r.recount);
+  return `<div class="fri">${body||'<div><b>Nothing to order today or on the next order day.</b></div>'}${rc.length?`<div class="s" style="margin-top:6px;color:var(--warn)">🔎 <b>Recount before 9 AM (${rc.length}):</b> ${rc.map(r=>esc((r.codes||[r.base])[0])).join(', ')}</div>`:''}
     <div class="s">Safety stock: <b>A ${(cfg.ss||{}).A??2} · B ${(cfg.ss||{}).B??1} · C ${(cfg.ss||{}).C??1} days · Sonic/PCA max 1</b> · We receive: <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data.racks?' · Direct Materials has '+data.racks+' rack positions':''}</div>
     <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div></div>`;
 }
@@ -470,7 +472,7 @@ function sendSave(msg){if(!ready){ensureFrame();queue.push(msg);busy=true;render
 /* ---------- PO actions: created in Yooz / change quantity / undo ---------- */
 const ymdL=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 function findPO(base,key){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return {};const o=groupOrders(r.orders).find(x=>x.key===key);return {r,o};}
-function markOf(r,o,extra){return Object.assign({base:r.base,ob:ymdL(o.orderBy),qty:o.qty,dl:o.dl.map(x=>({d:ymdL(x.d),q:x.q})),rush:!!o.rush,early:!!o.early,fri:!!o.fri,edited:!!o.edited,done:!!o.done,pending:!!o.pending},extra);}
+function markOf(r,o,extra){return Object.assign({base:r.base,ob:ymdL(o.orderBy),qty:o.qty,dl:o.dl.map(x=>({d:ymdL(x.d),q:x.q})),rush:!!o.rush,early:!!o.early,fri:!!o.fri,edited:!!o.edited,done:!!o.done,pending:!!o.pending},o.vendor?{vendor:o.vendor}:{},o.po?{po:o.po}:{},o.manual?{manual:true}:{},extra);}
 /* "📝 We ordered…": write down what was really ordered (any amount, any delivery day). It counts as coming on every
    device; the app then shows only what is STILL missing — e.g. 4,000 ordered in the morning, the plan grew at noon. */
 function iOrdered(base){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return;
@@ -632,6 +634,7 @@ function howExample(){
 function render(keepFocus){
   if(view==='chg'){renderChg();return;}
   if(view==='tdy'){renderToday();return;}
+  if(view==='sup'){renderSup();return;}
   document.getElementById('status').innerHTML=statusLine();
   try{howExample();}catch(e){}
   document.getElementById('btn-refresh').disabled=busy;
@@ -659,7 +662,7 @@ function render(keepFocus){
    last week → today) and compares them. Only days still ahead count; days that appear because the plan reaches
    further are "first planned", not changes. So when someone asks "why so many / so few boxes?", it is here. */
 let view='pos';const chg={h:null,busy:false,err:'',at:0,id:0,want:false,wk:'this',q:''};
-function setView(v){view=v;['pos','tdy','chg'].forEach(k=>document.getElementById('v-'+k).classList.toggle('on',v===k));
+function setView(v){view=v;['pos','sup','tdy','chg'].forEach(k=>document.getElementById('v-'+k).classList.toggle('on',v===k));
   if(v==='chg'&&(!chg.h||Date.now()-chg.at>30*60e3))askChg();render();window.scrollTo({top:0});}
 function askChg(){ensureFrame();chg.busy=true;chg.err='';if(!ready){chg.want=true;return;}
   chg.id=Date.now();frame.contentWindow.postMessage({type:'wms-reorder-changes',id:chg.id},location.origin);}
@@ -708,6 +711,97 @@ async function chgExcel(){if(!chg.h)return;try{await loadXlsx();}catch(e){toast(
   const ws=XLSX.utils.aoa_to_sheet([['Plan changes — '+PLANT+' — '+ymdL(new Date())],[],head].concat(out));
   ws['!cols']=[{wch:12},{wch:34},{wch:6},{wch:11},{wch:6},{wch:12},{wch:12},{wch:10},{wch:10},{wch:60}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Plan changes');XLSX.writeFile(wb,'Plan_changes_'+PLANT+'_'+ymdL(new Date())+'.xlsx');toast('⬇ Excel downloaded');}
+
+
+/* ===================== 🔎 RECOUNT ===================== the last morning count looks wrong (index.html: recount) */
+function recountTxt(r){const c=r.recount;if(!c)return '';const u=unitOf(r)?' '+esc(unitOf(r)):'';
+  const t=c.why==='up'?`went UP ${n0(c.qc-c.qa)}${u} (${dShort(c.a)} ${n0(c.qa)} → ${dShort(c.c)} ${n0(c.qc)}) and nothing was received in Yooz`
+    :c.why==='big'?`went down ${n0(c.u)}${u} — usually ~${n0(c.exp)} (${dShort(c.a)} → ${dShort(c.c)})`
+    :`same number (${n0(c.qa)}) for 4 mornings while it is used every day — was it counted?`;
+  return `<div class="c-sub" style="background:rgba(217,119,6,.10);border-radius:10px;padding:6px 10px;margin:4px 0;font-size:13px">🔎 <b>Recount:</b> ${t}. ${c.why==='up'?'If a delivery came, receive it; if not, recount.':'Please recount before 9 AM.'}</div>`;}
+
+/* ===================== 🧾 BY SUPPLIER =====================
+   In Yooz one PO is per supplier with many items. Same suggestions as "By item", grouped by supplier and order day.
+   Today: mark the whole PO Created / Pending with one PO #, change a line, or send a box to the other supplier
+   (Sonic ⇄ PCA). Next days: a preview — recalculated every morning with the new count. */
+const vKey=v=>{v=String(v||'');return /SONIC/i.test(v)?'SONIC':/PACKAGING CORP|\bPCA\b/i.test(v)?'PCA':v.toUpperCase().trim()||'?';};
+const vName=(k,raw)=>k==='SONIC'?'Sonic Packaging':k==='PCA'?'PCA · Packaging Corp of America':(raw||k);
+function altOf(r,k){if(k!=='SONIC'&&k!=='PCA')return '';const o=k==='SONIC'?'PCA':'SONIC';
+  const has=(r.sup||[]).some(x=>vKey(x.vendor)===o)||(r.codes||[]).some(c=>/PCA/i.test(c))||vKey((r.main||{}).vendor)===o;return has?o:'';}
+function ltOf(r,k){const x=(r.sup||[]).find(y=>vKey(y.vendor)===k);return x?Math.round(x.ltAvg||x.lt||0):0;}
+function palOf(r,o,k){const p=(r.packBy&&r.packBy[k])||(r.pack&&r.pack.p)||0;return p>0?o.qty/p:(o.pallets||0);}
+function supGroups(){
+  const t0=ymdL(new Date()),G={};
+  (data.rows||[]).forEach(r=>groupOrders(r.orders).forEach(o=>{
+    const k=vKey(o.vendor||(o.rush&&o.via)||(r.main||{}).vendor);
+    let day=ymdL(o.orderBy);if(day<t0)day=t0;
+    if(o.done&&!(o.at&&ymdL(o.at)===t0))return;                    // created on another day: already in Yooz
+    const g=G[day+'|'+k]||(G[day+'|'+k]={day,k,raw:String(o.vendor&&o.vendor.length>4?o.vendor:(o.rush&&o.via)||(r.main||{}).vendor||k),lines:[]});g.lines.push({r,o});}));
+  return Object.values(G).sort((a,b)=>a.day.localeCompare(b.day)||palSum(b)-palSum(a));}
+function palSum(g){return g.lines.reduce((a,{r,o})=>a+palOf(r,o,g.k),0);}
+function supSpace(){   // 🚚 pallets arriving per receiving day vs free spots now
+  const sp=data.space;const P={};let noPal=0;
+  const add=(d,q,r)=>{const p=r.pack&&r.pack.p;if(!(p>0)){noPal++;return;}const k=ymdL(d);P[k]=(P[k]||0)+q/p;};
+  (data.rows||[]).forEach(r=>{const pos=new Set();(r.coming||[]).forEach(x=>{pos.add(String(x.po));add(x.date+'T12:00:00',x.qty,r);});
+    groupOrders(r.orders).forEach(o=>{if(o.done&&o.po&&pos.has(String(o.po)))return;(o.dl||[]).forEach(x=>add(x.d,x.q,r));});});
+  const days=Object.keys(P).filter(k=>k>=ymdL(new Date())).sort().slice(0,6);if(!days.length)return '';
+  const free=sp&&sp.rack?sp.rack.total-sp.rack.occ:null,mx=Math.max(...days.map(k=>P[k]),free||0,1);
+  return `<div class="fri"><b>🚚 Pallets arriving</b>${free!=null?` · free rack spots now: <b>${n0(free)}</b> of ${n0(sp.rack.total)}`:''}
+    ${days.map(k=>{const v=P[k],bad=free!=null&&v>free;return `<div style="display:flex;align-items:center;gap:8px;margin-top:5px;font-size:13px"><span style="width:92px">${dShort(k)}</span>
+      <span style="flex:1;background:rgba(128,128,128,.15);border-radius:6px;height:12px;overflow:hidden"><span style="display:block;height:12px;width:${Math.min(100,v/mx*100)}%;background:${bad?'var(--warn,#d97706)':'var(--plant)'}"></span></span>
+      <b style="width:42px;text-align:right">${n0(v)}</b></div>`;}).join('')}
+    ${days.some(k=>free!=null&&P[k]>free)?'<div class="s" style="margin-top:6px">💡 Suggestion only: on the orange days more pallets arrive than there are free spots now. If it helps, split the delivery over two days.</div>':''}
+    <div class="s" style="margin-top:4px">Counts Yooz POs on the way + the POs below${noPal?` · ${noPal} line(s) without pallet size not counted`:''}. Free spots = today's count; what production uses frees more.</div></div>`;}
+function renderSup(){
+  document.getElementById('status').innerHTML=statusLine();
+  const body=document.getElementById('body');if(!data||!data.rows){body.innerHTML='<div class="loading"><div class="spin"></div>Loading…</div>';return;}
+  const t0=ymdL(new Date()),gs=supGroups().filter(g=>g.day<=ymdL(addDays(7)));
+  const card=(g,gi)=>{const now=g.day===t0,pal=palSum(g);
+    const nD=g.lines.filter(x=>x.o.done).length,nP=g.lines.filter(x=>x.o.pending).length,nN=g.lines.length-nD-nP;
+    const pos=[...new Set(g.lines.map(x=>x.o.po).filter(Boolean))];
+    const lines=g.lines.map(({r,o},li)=>{const alt=altOf(r,g.k),u=unitOf(r);
+      const st=o.done?'<span class="o-tag">✅ Created</span>':o.pending?'<span class="o-tag pe">⏳ Pending</span>':o.edited?'<span class="o-tag ed">✏️ changed</span>':'';
+      const hint=alt==='SONIC'&&o.rush?`<div class="s" style="color:var(--warn)">💡 Rush: Sonic is faster than PCA — consider sending it to Sonic.</div>`:'';
+      return `<div class="o-row${o.done?' done':''}"><b>${esc((r.codes||[r.base]).join(' + '))}</b> <span class="mut">${esc(r.name||'')}</span><br>
+        ${qtyTxt(r,o.qty,palOf(r,o,g.k))}${o.rush?' <span class="late">rush</span>':''} · ${dlTxt(o)} ${st}${hint}
+        ${now&&!o.done?`<div class="o-acts"><button class="st" onclick="editQty('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">✏️ Qty</button>${alt?`<button class="st" onclick="switchSup('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}','${alt}')">⇄ Send to ${alt==='PCA'?'PCA':'Sonic'}</button>`:''}</div>`:''}</div>`;}).join('');
+    return `<div class="card ${now?(nN?'red':'ok'):''}" style="border-left-color:${now?'':'var(--line,#ccc)'}"><div class="c-top"><span class="c-code">${esc(vName(g.k,g.raw))}</span></div>
+      <div class="c-main">${now?'Order today':'Preview · order '+dShort(g.day)} · ${g.lines.length} item${g.lines.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallets':''}</div>
+      <div class="c-sub">${nD?'<b style="color:var(--success)">'+nD+' created</b> · ':''}${nP?'<b style="color:var(--warn)">'+nP+' pending</b> · ':''}${nN?nN+' not ordered':''}${pos.length?' · PO '+pos.map(esc).join(', '):''}${now?'':' · recalculated every morning'}</div>
+      <div class="c-orders">${lines}</div>
+      <div class="o-acts" style="margin-top:8px">${now&&nN+nP?`<button class="st" onclick="poAll(${gi},'pend')">⏳ All pending</button><button class="st on done" onclick="poAll(${gi},'done')">✅ PO created…</button>`:''}${now&&(nD||nP)?`<button class="st" onclick="poAll(${gi},'none')">↩ Undo PO</button>`:''}<button class="st" onclick="poExcel(${gi})">⬇ Excel</button></div></div>`;};
+  window._sg=gs;
+  const td=gs.filter(g=>g.day===t0),nx=gs.filter(g=>g.day>t0);
+  body.innerHTML=supSpace()+
+    `<div class="fri"><b>🧾 POs by supplier</b> — one PO per supplier, like in Yooz. Mark the whole PO at once with its PO #. Boxes that Sonic and PCA both make can be sent to the other (⇄); Sonic is the faster one.</div>`+
+    (td.length?td.map(g=>card(g,gs.indexOf(g))).join(''):'<div class="empty"><b>✓</b>Nothing to order today.</div>')+
+    (nx.length?`<div class="blk-h" style="margin:14px 4px 6px">Next order days — preview</div>`+nx.map(g=>card(g,gs.indexOf(g))).join(''):'');
+}
+/* the whole PO at once: one save for every line (marks are one shared record) */
+function poAll(gi,v){const g=(window._sg||[])[gi];if(!g)return;
+  const go=po=>{const list=[],prev=[];g.lines.forEach(({r,o})=>{
+      if(v!=='none'&&o.done)return;                                  // already created: leave it
+      prev.push({key:o.key,mark:o.done||o.pending||o.edited?markOf(r,o,{}):null});
+      list.push({key:o.key,mark:v==='none'?(o.edited?markOf(r,o,{done:false,pending:false}):null):markOf(r,o,Object.assign({done:v==='done',pending:v==='pend',vendor:g.k},po?{po}:{}))});});
+    if(!list.length)return;
+    sendSave({type:'wms-reorder-mark',list});closeSheet();
+    undoToast((v==='done'?'✅ PO created':v==='pend'?'⏳ PO pending':'PO back to not ordered')+' · '+vName(g.k,g.raw).split(' ·')[0]+' · '+list.length+' item(s)',()=>sendSave({type:'wms-reorder-mark',list:prev}));};
+  withPin(()=>{if(v!=='done')return go('');
+    sheet(`<h2>✅ PO created — ${esc(vName(g.k,g.raw))}</h2><div class="hint">${g.lines.filter(x=>!x.o.done).length} item(s)${palSum(g)>=0.5?' · ~'+n0(palSum(g))+' pallets':''}. Type the Yooz PO # (optional) — it is saved on every line.</div>
+      <input type="text" id="po-n" placeholder="Yooz PO # (e.g. YZ-26-28700)"><div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="window._poGo(document.getElementById('po-n').value.trim())">Save</button></div>`);
+    window._poGo=go;});}
+/* ⇄ send one box to the other supplier (Sonic ⇄ PCA): full pallets of that supplier, kept as a changed line */
+function switchSup(base,key,to){const {r,o}=findPO(base,key);if(!o)return;
+  const p=(r.packBy&&r.packBy[to])||0,q=p>0?Math.ceil(o.qty/p)*p:o.qty;
+  withPin(()=>{const prev=o.done||o.pending||o.edited?markOf(r,o,{}):null;
+    sendSave({type:'wms-reorder-mark',key,mark:markOf(r,o,{edited:true,vendor:to,qty:q,dl:o.dl.map((x,i)=>({d:ymdL(x.d),q:i===0?x.q+(q-o.qty):x.q}))})});
+    undoToast('⇄ '+esc((r.codes||[r.base])[0])+' → '+(to==='PCA'?'PCA':'Sonic')+(q!==o.qty?' · '+n0(q)+' (full pallets)':''),()=>sendSave({type:'wms-reorder-mark',key,mark:prev}));});}
+async function poExcel(gi){const g=(window._sg||[])[gi];if(!g)return;try{await loadXlsx();}catch(e){toast('Could not load Excel');return;}
+  const head=['Code','Description','Quantity','Unit','Pallets','Arrives','Status','PO #'];
+  const rows=g.lines.map(({r,o})=>[(r.codes||[r.base]).join(' + '),r.name||'',Math.round(o.qty),unitOf(r)||'',Math.round(palOf(r,o,g.k)*10)/10,o.dl.map(x=>ymdL(x.d)+(o.dl.length>1?' '+Math.round(x.q):'')).join(' | '),o.done?'Created':o.pending?'Pending':'Not ordered',o.po||'']);
+  const ws=XLSX.utils.aoa_to_sheet([['PO — '+vName(g.k,g.raw)+' — order '+g.day+' — '+PLANT],['Guide only — the official PO is made in Yooz.'],[],head].concat(rows));
+  ws['!cols']=[{wch:22},{wch:30},{wch:10},{wch:7},{wch:8},{wch:24},{wch:12},{wch:14}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'PO');XLSX.writeFile(wb,'PO_'+g.k.replace(/\W+/g,'_')+'_'+PLANT+'_'+g.day+'.xlsx');toast('⬇ Excel downloaded');}
 
 /* 📝 TODAY: every PO marked Created / Pending / "We ordered…" today, on any device — with Undo */
 function renderToday(){

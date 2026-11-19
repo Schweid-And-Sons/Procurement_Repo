@@ -3882,10 +3882,10 @@ async function reoSaveCfg(cfg){
   localStorage.setItem('wms_reocfg_'+currentPlant,JSON.stringify(cfg));
   await planPost({key:currentPlant+'|reocfg',plant:currentPlant,kind:'reocfg',day:REO_CFG_DAY,status:'',batchNo:'',meatBlock:'',updatedAt:cfg.at,updatedBy:cfg.by,json:JSON.stringify(cfg)});
 }
-async function reoSaveMark(key,mark){   // mark = {base,ob,qty,dl,done,edited,rush} or null to undo
+async function reoSaveMark(key,mark,list){   // mark = {base,ob,qty,dl,done,edited,rush} or null to undo; list = [{key,mark}] (a whole supplier PO at once)
   try{await reoReadShared();}catch(e){}                                  // newest marks from the other devices first
   const marks=loadReoMarks(),now=new Date().toISOString();
-  if(mark)marks[key]=Object.assign({},mark,{by:planDevice(),at:now});else delete marks[key];
+  (list||[{key,mark}]).forEach(x=>{if(x.mark)marks[x.key]=Object.assign({},x.mark,{by:planDevice(),at:now});else delete marks[x.key];});
   const old=Date.now()-21*864e5;Object.keys(marks).forEach(k=>{if(new Date(marks[k].at).getTime()<old)delete marks[k];});
   localStorage.setItem('wms_reomarks_'+currentPlant,JSON.stringify(marks));
   await planPost({key:currentPlant+'|reomarks',plant:currentPlant,kind:'reomarks',day:REO_MARK_DAY,status:'',batchNo:'',meatBlock:'',updatedAt:now,updatedBy:planDevice(),json:JSON.stringify({plant:currentPlant,marks})});
@@ -3955,6 +3955,17 @@ function reorderRows(summary){
       used+=u;wd+=w;n++;}
     if(n<3||wd<3)return null;                                 // not enough mornings yet → the old way
     return {rate:used/wd,used,days:wd,pairs:n,skip,from:ds[0],to:ds[ds.length-1]};};
+  // 🔎 recount: the last morning count looks wrong → listed so the counter checks it before 9 AM
+  const recount=(b,kind,rate)=>{if(!ch||!ch.days)return null;const ds=Object.keys(ch.days).sort();if(ds.length<2)return null;
+    const c=ds[ds.length-1],a=ds[ds.length-2];if((today-new Date(c+'T00:00:00'))/864e5>4)return null;   // only if the last copy is recent
+    const qa=ch.days[a][b]||0,qc=ch.days[c][b]||0;
+    const got=Object.entries(rcvD[b]||{}).reduce((s2,[k,q])=>k>a&&k<=c?s2+q:s2,0);
+    let w=0;for(let d=new Date(a+'T12:00:00');ymd(d)<c;d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
+    const u=qa-qc+got;
+    if(u<0&&qc-qa>=1)return {why:'up',a,c,qa,qc,got};                                       // went up, nothing received in Yooz
+    if(kind!=='box'&&rate>0&&w>0&&u>Math.max(3*rate*w,rate*w+5))return {why:'big',a,c,qa,qc,got,u,exp:rate*w};
+    if(kind!=='box'&&rate>=0.5&&ds.length>=4){const l4=ds.slice(-4).map(k=>ch.days[k][b]||0);if(l4[0]>0&&l4.every(x=>x===l4[0]))return {why:'same',a:ds[ds.length-4],c,qa:l4[0],qc:l4[0]};}
+    return null;};
   // POs marked "created" or with a changed quantity (shared): they count as coming, so they are not suggested again
   const marks=loadReoMarks(),yzAt=yz&&yz.loaded?new Date(yz.loaded).getTime():0;
   const H=dm?Math.max(1,Math.round((new Date(dm.end+'T00:00:00')-today)/864e5)+1):0;   // days the plan covers
@@ -3995,7 +4006,8 @@ function reorderRows(summary){
     const vs=f.lt.slice().sort((a,b)=>String(b.last).localeCompare(String(a.last))||b.pos-a.pos);
     const recent=vs.filter(v=>v.last&&(today-new Date(v.last+'T00:00:00'))/864e5<=90);
     const main=recent.length?recent.slice().sort((a,b)=>b.pos-a.pos)[0]:vs[0];
-    const fast=(recent.length?recent:[main]).filter(v=>v.ltAvg||v.lt).sort((a,b)=>(a.ltAvg||a.lt)-(b.ltAvg||b.lt))[0]||main;   // rush: the quickest one
+    const fast=(recent.length?recent:[main]).find(v=>/SONIC/i.test(String(v.vendor)))   // rush: Sonic when it makes this box (faster than PCA — Julian, Nov 19)
+      ||(recent.length?recent:[main]).filter(v=>v.ltAvg||v.lt).sort((a,b)=>(a.ltAvg||a.lt)-(b.ltAvg||b.lt))[0]||main;   // otherwise the quickest one
     const P90=main.lt||main.ltAvg||0,Lavg=main.ltAvg||P90;
     const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
     const hist=f.recv/REO_USE_DAYS;
@@ -4024,12 +4036,13 @@ function reorderRows(summary){
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const iu=kind!=='box'?invUse(f.base):null;                       // trays and the rest: what goes down in the counts
     const rate=iu?iu.rate:(hist>0?hist:(ptot>0?ptot/H:y12day));       // after the plan ends: what we usually use
-    const r={kind,iu,rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
+    const r={kind,iu,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
       use:hist,rate,have:f.stock+open,L:P90,Lavg,ptot,dmp,pack:pk?{p:pk.p,d:pk.d||0,pal:pk.pal||0,u:pk.u||'boxes'}:null,
       planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
+    r.recount=recount(f.base,kind,iu?iu.rate:rate);
     if(!(rate>0||ptot>0)){r.st='none';return r;}
     // after the plan: the usual use, only on production days (Mon–Fri, no holidays) — the same total per week,
     // so a weekend doesn't look like a shortage
@@ -7550,7 +7563,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.19g';
+const APP_VERSION='2026.11.19i';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7620,7 +7633,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
+        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
         times:Object.assign({},times)};};
     const old=(o,ms)=>!o||Date.now()-new Date(o.loaded).getTime()>ms;
     const collect=async(force,send)=>{
@@ -7665,7 +7678,10 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       const m=ev.data;if(ev.source!==window.parent||!m||(m.type!=='wms-reorder-cfg'&&m.type!=='wms-reorder-mark'))return;
       const send=out=>window.parent.postMessage(Object.assign({type:'wms-reorder-data',id:m.id},out),location.origin);
       let err='';
-      try{if(m.type==='wms-reorder-cfg')await reoSaveCfg(m.cfg);else await reoSaveMark(m.key,m.mark);}catch(e){err='Not saved in SharePoint ('+e.message+') — only on this device for now';}
+      // one save at a time: marks are ONE shared record (read → change → write), two at once would lose one
+      const job=()=>m.type==='wms-reorder-cfg'?reoSaveCfg(m.cfg):reoSaveMark(m.key,m.mark,m.list);
+      const p=(window._reoSaveQ||Promise.resolve()).then(job);window._reoSaveQ=p.catch(()=>{});
+      try{await p;}catch(e){err='Not saved in SharePoint ('+e.message+') — only on this device for now';}
       const out=build(false);if(err)out.saveErr=err;else out.saved=m.type==='wms-reorder-cfg'?'cfg':'mark';send(out);
     });
     window.parent.postMessage({type:'wms-reorder-ready',plant:rd},location.origin);
