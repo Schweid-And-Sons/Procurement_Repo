@@ -88,6 +88,8 @@
   .lst div{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
   .lst button{border:none;background:none;color:var(--danger);font-size:18px;cursor:pointer;}
   .sec{font-size:13px;font-weight:700;color:var(--text2);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
+  .views{display:flex;gap:6px;margin:4px 0 8px}.vw{flex:1;border:1px solid var(--line,#ddd);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px;font-weight:600;font-size:14px}.vw.on{background:var(--plant);color:#fff;border-color:var(--plant)}
+  .chg-d{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid rgba(128,128,128,.15);font-size:13px}.up{color:#c2410c;font-weight:700}.dn{color:#15803d;font-weight:700}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:200;max-width:90vw;}
   .pd{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px;}
   .pd th,.pd td{text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);}
@@ -160,7 +162,8 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19d</span></h1><button class="refresh" id="btn-refresh" onclick="ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19g</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Next POs</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -211,7 +214,8 @@ let lastAt=0,frameOn=false,queue=[],bootT=0,bootS=null;
 function ensureFrame(){if(!frameOn){frameOn=true;bootT=Date.now();frame.src='index.html?reorderdata='+PLANT;}}
 window.addEventListener('message',ev=>{
   if(ev.source!==frame.contentWindow)return;const m=ev.data||{};
-  if(m.type==='wms-reorder-ready'){ready=true;bootS=(Date.now()-bootT)/1000;if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
+  if(m.type==='wms-reorder-ready'){ready=true;bootS=(Date.now()-bootT)/1000;if(chg.want){chg.want=false;askChg();}if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
+  if(m.type==='wms-reorder-changes-data'&&m.id===chg.id){chg.busy=false;chg.at=Date.now();if(m.ok)chg.h=m.hist;chg.err=m.ok?'':m.err;if(view==='chg')renderChg();return;}
   if(m.type==='wms-reorder-data'&&m.id===reqId){busy=!!m.partial;data=m;
     if(m.saveErr)toast('⚠ '+m.saveErr);else if(m.saved)toast(m.saved==='cfg'?'✓ Settings saved for every device':'✓ Saved for every device');
     if(!tab){const c=counts();tab=c.red?'now':c.amber?'week':'all';}
@@ -254,7 +258,7 @@ function statusLine(){
 const CATS=[['ALL','All'],['BOXES','Boxes'],['TRAYS','Trays'],['FILM','Film'],['SLEEVES','Sleeves'],['PATTY PAPER','Patty paper'],['OTHER','Other']];
 const catOf=r=>{const c=String(r.cat||'').toUpperCase();return CATS.some(x=>x[0]===c)?c:'OTHER';};
 const inCat=r=>cat==='ALL'||catOf(r)===cat;
-const unitOf=r=>(r.pack&&r.pack.u)||(catOf(r)==='BOXES'?'boxes':'');
+const unitOf=r=>(r.pack&&r.pack.u)||(catOf(r)==='BOXES'?'boxes':/SLEEVES|PATTY PAPER|LINER BAGS/.test(catOf(r))?'cases':'');
 /* "~1,500 boxes · 3 pallets" */
 function qtyTxt(r,qty,pal){let u=unitOf(r);if(u==='pallets'&&Math.round(qty)===1)u='pallet';let t='~'+n0(qty)+(u?' '+u:'');
   if(pal&&!/^pallet/.test(u))t+=' · '+pal+' pallet'+(pal>1?'s':'');return t;}
@@ -332,7 +336,7 @@ function planDays(r){
     if(s.carry)p.push('+ '+n0(s.carry)+' from today');
     return p.join(' · ')||'—';};
   const rows=r.plan.map(x=>`<tr><td>${dayTxt(x.d+'T12:00:00')}</td><td style="text-align:left;color:var(--text3);font-size:11.5px">${from(x)}</td><td>${n0(x.need)}</td><td>${x.inc?'+'+n0(x.inc):'—'}</td><td style="color:${x.left<0?'var(--danger)':x.left<(r.ss||0)?'var(--warn)':'inherit'}">${n0(x.left)}</td></tr>`).join('');
-  return `<div class="c-vend" style="color:var(--text2)"><b>📅 Juan's plan, day by day</b> (${u}) — we stick to it
+  return `<div class="c-vend" style="color:var(--text2)">${r.kind==='inv'?'<b>📅 Day by day</b> ('+u+') — use from the morning counts':'<b>📅 Juan\'s plan, day by day</b> ('+u+') — we stick to it'}
     <div style="font-size:12px;margin:2px 0 4px">The sheet shows each quantity on its <b>Inv Date</b>; the boxes are used the <b>working day before</b> (production runs a day ahead). "From the sheet" says which Inv Date each day comes from.</div>
     <table class="pd"><tr><th>Used on</th><th style="text-align:left">From the sheet (Inv Date)</th><th>Needs</th><th>Arrives</th><th>Left at night<br><span style="font-weight:400">(no new POs)</span></th></tr>${rows}
     <tr><td><b>Total</b></td><td style="text-align:left;color:var(--text3);font-size:11.5px">same as the sheet's Grand Total</td><td><b>${n0(r.ptot)}</b></td><td></td><td></td></tr></table>
@@ -358,6 +362,14 @@ function saveTooBig(mode){const t=window._tb,c=t.cfg;
   if(mode==='item')c.ssItem[t.r.base]=t.v;else if(mode==='reset')delete c.ssItem[t.r.base];else{c.ss[t.r.cls||'C']=t.v;delete c.ssItem[t.r.base];}
   closeSheet();sendSave({type:'wms-reorder-cfg',cfg:c});}
 /* ---------- Details: 1) Juan's plan day by day  2) the calculation  3) suggestions ---------- */
+/* where the daily use comes from: boxes = Juan's plan; trays = plan, then the counts; the rest = only the counts */
+function useBlock(r){const u=unitOf(r)||'',iu=r.iu;
+  const src=r.kind==='box'?"Juan's plan (Boxes Total today), then the usual use"
+    :r.kind==='tray'?"Juan's plan, then what goes down in the morning counts"
+    :'what goes down in the morning counts (Juan\'s plan and Power BI are not used for this item)';
+  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b> — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: the count went up (delivery or recount)`:''}`
+    :r.kind==='box'?'':'<span class="late">Not enough morning counts yet</span> — using what was received in Yooz (last 30 days) until there are 3+ mornings.';
+  return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From ${src}.${det?'<br>'+det:''}${r.kind==='inv'?'<br><span class="mut">Count it carefully every morning: a wrong count changes this number.</span>':''}</div></div>`;}
 function calcBlock(r){
   const c=r.dmpCheck,u=unitOf(r)||'';
   const L=Math.round(r.Lavg||r.L),o=groupOrders(r.orders).find(x=>!x.done&&!x.pending);
@@ -374,7 +386,7 @@ function calcBlock(r){
       ${line('+ POs below, arriving by then',(c.sug+c.marked)?'+ '+n0(c.sug+c.marked):'0')}
       ${line('<b>= Left with the POs</b>','<b>'+n0(after)+'</b>',after<0?'neg':after>=r.ss?'ok':'tot')}
     </table>`;
-  }else t=`<div class="blk-n">No production plan for today: using the usual use, ~${n0(r.dbar)} ${esc(u)} per day.</div>`;
+  }else t=`<div class="blk-n">${r.kind==='inv'?'Use from the morning counts':'No production plan for today: using the usual use'}, ~${n1(r.dbar)} ${esc(u)} per day.</div>`;
   const when=o?(o.rush?`we run out ${o.needBy?dayTxt(o.needBy+'T12:00:00'):'before a normal PO can arrive'} → <b>rush today</b>, must be in by ${dayTxt(o.arrive)}`
     :`stock + POs on the way last until <b>${r.coverDay==null?'6+ weeks':dayTxt(addDays(Math.max(0,r.coverDay-1)))}</b>; the supplier takes ~${L} days → <b>${whenTxt(o)}${dayTxt(o.orderBy)}</b>`):'nothing to order in the next 4 weeks';
   return `<div class="blk"><div class="blk-h">The calculation</div>${t}
@@ -394,18 +406,24 @@ function suggestions(r){
 }
 function facts(r){const m=r.main||{};
   return `<div class="blk-n" style="margin-top:6px">${esc(m.vendor||'')}${r.Lavg?' · ~'+Math.round(r.Lavg)+' days':''}${m.onTime!=null?' · '+m.onTime+'% on time':''}${r.pack?' · '+n0(r.pack.p)+' per pallet':''}${r.cls?' · priority '+r.cls:''}${r.y12?' · last 12 months '+n0(r.y12):''}</div>`;}
+/* items that do the same job: order either one (Julian, Nov 19: tape M1500 / M1150 — no need to bring both) */
+const SAME_USE=[['M1500','M1150']];
+function sameTxt(r){const b=String(r.base).replace(/-\d+$/,''),g=SAME_USE.find(x=>x.includes(b));if(!g)return '';
+  const others=(data.rows||[]).filter(x=>x.base!==r.base&&g.includes(String(x.base).replace(/-\d+$/,'')));
+  const oth=g.filter(x=>x!==b).join(' / ');
+  return `<div class="c-sub" style="background:rgba(37,99,235,.08);border-radius:10px;padding:6px 10px;margin:4px 0;font-size:13px">🔁 <b>Same use as ${esc(oth)}</b> — either one works, order only one.${others.map(x=>` ${esc(x.base)} in stock: <b>${n0(x.stock)}</b>${unitOf(x)?' '+esc(unitOf(x)):''}.`).join('')} Use what's on hand first.</div>`;}
 function card(r){
   const key=r.base;
-  const det=open.has(key)?`<div class="c-det c-det2">${planDays(r)}${calcBlock(r)}${suggestions(r)}${facts(r)}</div>`:'';
+  const det=open.has(key)?`<div class="c-det c-det2">${dmpLine(r)}${useBlock(r)}${planDays(r)}${calcBlock(r)}${suggestions(r)}${facts(r)}</div>`:'';
   const nSug=((r.orders||[]).some(o=>o.rush&&!o.done)?1:0)+((r.rcvNew||[]).length);
   return `<div class="card ${r.st}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
     <div class="c-main">${mainLine(r)}</div>
-    <div class="c-sub">${subLine(r)}</div>
-    ${lateTxt(r)}
-    ${orderedToday(r)}
-    ${dmpLine(r)}
     ${nextOrders(r)}
+    ${orderedToday(r)}
+    ${sameTxt(r)}
+    ${lateTxt(r)}
+    <div class="c-sub">${subLine(r)}</div>
     <button class="c-more" style="padding-top:2px" onclick="iOrdered('${esc(r.base)}')">📝 We ordered…</button>
     <button class="c-more" onclick="toggle('${esc(key).replace(/'/g,'')}')">${open.has(key)?'Hide details ▴':'Details: Juan\'s plan by day · calculation · suggestions'+(nSug?' ('+nSug+')':'')+' ▾'}</button>${det}
   </div>`;
@@ -612,6 +630,8 @@ function howExample(){
   </ol></div>`;
 }
 function render(keepFocus){
+  if(view==='chg'){renderChg();return;}
+  if(view==='tdy'){renderToday();return;}
   document.getElementById('status').innerHTML=statusLine();
   try{howExample();}catch(e){}
   document.getElementById('btn-refresh').disabled=busy;
@@ -633,6 +653,77 @@ function render(keepFocus){
   body.innerHTML=friBox()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
 }
 
+
+/* ===================== 🔄 PLAN CHANGES =====================
+   What production planning changed in Juan's plan, by Inv Date. index.html reads each day's last plan (SharePoint,
+   last week → today) and compares them. Only days still ahead count; days that appear because the plan reaches
+   further are "first planned", not changes. So when someone asks "why so many / so few boxes?", it is here. */
+let view='pos';const chg={h:null,busy:false,err:'',at:0,id:0,want:false,wk:'this',q:''};
+function setView(v){view=v;['pos','tdy','chg'].forEach(k=>document.getElementById('v-'+k).classList.toggle('on',v===k));
+  if(v==='chg'&&(!chg.h||Date.now()-chg.at>30*60e3))askChg();render();window.scrollTo({top:0});}
+function askChg(){ensureFrame();chg.busy=true;chg.err='';if(!ready){chg.want=true;return;}
+  chg.id=Date.now();frame.contentWindow.postMessage({type:'wms-reorder-changes',id:chg.id},location.origin);}
+const dShort=d=>dayTxt(d+'T12:00:00');
+function chgWeek(inv){const h=chg.h;const m=new Date(h.mon+'T12:00:00'),d=new Date(inv+'T12:00:00');const w=Math.floor((d-m)/(7*864e5));return w<0?'last':w===0?'this':'next';}
+function chgUnit(it){const c=String(it.cat||'').toUpperCase();return c==='BOXES'?'boxes':c==='TRAYS'?'trays':c==='FILM'?'m':c==='PATTY PAPER'||c==='SLEEVES'?'cases':'';}
+function chgSign(n){return (n>0?'+':n<0?'−':'')+n0(Math.abs(n));}
+function renderChg(){
+  document.getElementById('status').innerHTML=chg.busy?'⏳ Reading the plans of the last 2 weeks…':chg.err?'<span class="bad">'+esc(chg.err)+'</span>':
+    chg.h?'Plans compared: '+chg.h.snaps.map(x=>dShort(x.day).replace(/, \w+ \d+$/,'')+' '+(x.at?timeTxt(x.at):'')).join(' · '):'';
+  document.getElementById('btn-refresh').disabled=chg.busy;
+  const body=document.getElementById('body');
+  if(!chg.h){body.innerHTML=chg.busy?'<div class="loading"><div class="spin"></div>Comparing the daily plans…</div>':'<div class="empty"><b>⚠</b>Could not read the plans. '+esc(chg.err)+' <button class="refresh" onclick="askChg();render()">Try again</button></div>';return;}
+  const h=chg.h,wk=chg.wk;
+  // per item: only its Inv Dates in the chosen week
+  let its=h.items.map(it=>{const days=it.days.filter(d=>chgWeek(d.inv)===wk);const changed=days.filter(d=>d.ev.length);
+    return {...it,days,changed,delta:changed.reduce((a,d)=>a+d.delta,0)};}).filter(it=>it.days.length);
+  if(chg.q)its=its.filter(it=>(it.code+' '+it.name).toLowerCase().includes(chg.q));
+  const withCh=its.filter(it=>it.changed.length).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+  const boxes=withCh.filter(it=>chgUnit(it)==='boxes'),up=boxes.reduce((a,it)=>a+Math.max(0,it.delta),0),dn=boxes.reduce((a,it)=>a+Math.min(0,it.delta),0);
+  const nWk=k=>h.items.filter(it=>it.days.some(d=>chgWeek(d.inv)===k&&d.ev.length)).length;
+  const WK=[['last','Last week'],['this','This week'],['next','Next week']];
+  const card=it=>{const u=chgUnit(it);
+    const rows=it.days.map(d=>{
+      const evs=d.ev.map(e=>`${n0(e.from)} → <b>${n0(e.to)}</b> <span class="${e.to>e.from?'up':'dn'}">(${chgSign(e.to-e.from)})</span> <span class="mut">changed ${dShort(e.day)}</span>`).join('<br>');
+      return `<div class="chg-d"><span><b>${dShort(d.inv)}</b></span><span style="text-align:right">${evs||`${n0(d.end)} <span class="mut">${d.first?'first planned '+dShort(d.first.day)+' · ':''}no change</span>`}</span></div>`;}).join('');
+    return `<div class="card"><div class="c-top"><b>${esc(it.code)}</b> <span class="mut">${esc(it.name)}</span></div>
+      <div class="c-main">${it.changed.length?`<span class="${it.delta>0?'up':it.delta<0?'dn':''}">${chgSign(it.delta)} ${u}</span> vs. the first plan`:'No changes'}</div>
+      <div style="margin-top:4px">${rows}</div></div>`;};
+  const quiet=its.filter(it=>!it.changed.length);
+  body.innerHTML=`<div class="fri" style="line-height:1.5">
+      <b>What changed in Juan's plan</b> — by Inv Date (the day on the sheet). One photo of the plan per day (the last one uploaded that day); only days still ahead are compared, so what was already produced is not a change.
+      <div style="margin-top:6px">${boxes.length?`Boxes, ${WK.find(x=>x[0]===wk)[1].toLowerCase()}: <span class="up">${chgSign(up)} more</span> · <span class="dn">${chgSign(dn)} less</span> · ${withCh.length} item(s) changed`:'No changes in this week so far.'}</div>
+      <div class="mut" style="font-size:12px;margin-top:4px">Keeps last week and this week. Days that appear because the plan reaches further ahead are "first planned", not a change.</div>
+      <div style="margin-top:8px"><button class="refresh" onclick="chgExcel()">⬇ Excel</button></div></div>
+    <div class="cats">${WK.map(([k,l])=>`<button class="cat${wk===k?' on':''}" onclick="chg.wk='${k}';renderChg()">${l}<i>${nWk(k)}</i></button>`).join('')}</div>
+    <input class="search" type="search" placeholder="Search code or name…" value="${esc(chg.q)}" oninput="chg.q=this.value.trim().toLowerCase();renderChg();const i=document.querySelector('.search');i.focus();i.setSelectionRange(i.value.length,i.value.length)">
+    ${withCh.length?withCh.map(card).join(''):`<div class="empty"><b>✓</b>No plan changes ${wk==='last'?'last week':wk==='this'?'this week':'for next week'} so far.</div>`}
+    ${quiet.length?`<details style="margin:10px 0"><summary class="mut">${quiet.length} item(s) without changes</summary>${quiet.map(card).join('')}</details>`:''}`;
+}
+async function chgExcel(){if(!chg.h)return;try{await loadXlsx();}catch(e){toast('Could not load Excel');return;}
+  const head=['Code','Name','Unit','Inv Date','Week','First planned','Planned then','Now','Change','Changes (day: from → to)'];
+  const out=[];chg.h.items.forEach(it=>it.days.forEach(d=>{if(!d.ev.length)return;
+    out.push([it.code,it.name,chgUnit(it),d.inv,chgWeek(d.inv),d.first?d.first.day:'',d.start,d.end,d.delta,d.ev.map(e=>e.day+': '+e.from+' → '+e.to).join(' | ')]);}));
+  out.sort((a,b)=>Math.abs(b[8])-Math.abs(a[8]));
+  const ws=XLSX.utils.aoa_to_sheet([['Plan changes — '+PLANT+' — '+ymdL(new Date())],[],head].concat(out));
+  ws['!cols']=[{wch:12},{wch:34},{wch:6},{wch:11},{wch:6},{wch:12},{wch:12},{wch:10},{wch:10},{wch:60}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Plan changes');XLSX.writeFile(wb,'Plan_changes_'+PLANT+'_'+ymdL(new Date())+'.xlsx');toast('⬇ Excel downloaded');}
+
+/* 📝 TODAY: every PO marked Created / Pending / "We ordered…" today, on any device — with Undo */
+function renderToday(){
+  document.getElementById('status').innerHTML=statusLine();
+  const body=document.getElementById('body');if(!data||!data.rows){body.innerHTML='<div class="loading"><div class="spin"></div>Loading…</div>';return;}
+  const t0=ymdL(new Date()),L=[];
+  data.rows.forEach(r=>groupOrders(r.orders).forEach(o=>{if((o.done||o.pending||o.edited)&&o.at&&ymdL(o.at)===t0)L.push({r,o});}));
+  L.sort((a,b)=>String(b.o.at).localeCompare(String(a.o.at)));
+  const st=o=>o.done?'✅ Created':o.pending?'⏳ Pending':'✏️ Qty changed';
+  body.innerHTML=`<div class="fri"><b>📝 Today</b> — POs marked today on any device (${L.length}). Tap ↩ Undo if one was marked by mistake.</div>`+
+    (L.length?L.map(({r,o})=>`<div class="card"><div class="c-top"><span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
+      <div class="c-main">${st(o)} · ${qtyTxt(r,o.qty,o.pallets)}</div>
+      <div class="c-sub">${o.dl&&o.dl.length?'arrives '+o.dl.map(x=>dayTxt(x.d)+(o.dl.length>1?' ~'+n0(x.q):'')).join(' · '):''}${o.po?' · PO '+esc(o.po):''}${o.manual?' · written with "We ordered…"':''} · ${o.by?esc(o.by)+' · ':''}${timeTxt(o.at)}</div>
+      <div class="o-acts"><button class="st" onclick="setState('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}','none')">↩ Undo</button></div></div>`).join('')
+      :'<div class="empty"><b>—</b>Nothing marked today yet.</div>');
+}
 /* refresh when coming back to the page */
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!busy&&stale())ask(false);});
 window.addEventListener('pageshow',e=>{if(e.persisted&&!busy&&stale())ask(false);});
