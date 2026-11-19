@@ -162,7 +162,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19i</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19j</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -803,6 +803,11 @@ async function poExcel(gi){const g=(window._sg||[])[gi];if(!g)return;try{await l
   ws['!cols']=[{wch:22},{wch:30},{wch:10},{wch:7},{wch:8},{wch:24},{wch:12},{wch:14}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'PO');XLSX.writeFile(wb,'PO_'+g.k.replace(/\W+/g,'_')+'_'+PLANT+'_'+g.day+'.xlsx');toast('⬇ Excel downloaded');}
 
+/* ↩ Undo in "Today": removes what was marked today, whatever it was (Created, Pending or a changed quantity) —
+   the PO goes back to the app's suggestion. (Nov 19: a "Qty changed" line could not be undone: setState saw "not ordered" and did nothing.) */
+function undoMark(base,key){const {r,o}=findPO(base,key);if(!o)return;
+  withPin(()=>{const prev=markOf(r,o,{});sendSave({type:'wms-reorder-mark',key,mark:null});
+    undoToast('↩ Undone · '+esc((r.codes||[r.base])[0])+' — back to the suggestion',()=>sendSave({type:'wms-reorder-mark',key,mark:prev}));});}
 /* 📝 TODAY: every PO marked Created / Pending / "We ordered…" today, on any device — with Undo */
 function renderToday(){
   document.getElementById('status').innerHTML=statusLine();
@@ -815,7 +820,7 @@ function renderToday(){
     (L.length?L.map(({r,o})=>`<div class="card"><div class="c-top"><span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
       <div class="c-main">${st(o)} · ${qtyTxt(r,o.qty,o.pallets)}</div>
       <div class="c-sub">${o.dl&&o.dl.length?'arrives '+o.dl.map(x=>dayTxt(x.d)+(o.dl.length>1?' ~'+n0(x.q):'')).join(' · '):''}${o.po?' · PO '+esc(o.po):''}${o.manual?' · written with "We ordered…"':''} · ${o.by?esc(o.by)+' · ':''}${timeTxt(o.at)}</div>
-      <div class="o-acts"><button class="st" onclick="setState('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}','none')">↩ Undo</button></div></div>`).join('')
+      <div class="o-acts"><button class="st" onclick="undoMark('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">↩ Undo</button></div></div>`).join('')
       :'<div class="empty"><b>—</b>Nothing marked today yet.</div>');
 }
 /* refresh when coming back to the page */
