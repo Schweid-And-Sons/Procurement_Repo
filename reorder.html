@@ -162,7 +162,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19j</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19k</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -281,6 +281,10 @@ function mainLine(r){
   if(new Date(o.orderBy)<=addDays(0))return 'Order today'+q;
   return whenTxt(o)+dayTxt(o.orderBy)+q;
 }
+/* on hand, on the way and daily use — always visible on the card (Julian, Nov 19: sleeves / patty paper showed the suggestion but not the stock) */
+function stockLine(r){const u=unitOf(r)?' '+esc(unitOf(r)):'';const ow=(r.coming||[]).reduce((a,x)=>a+(+x.qty||0),0);
+  const d=r.dbar>0?(r.stock/r.dbar):null;
+  return `<div class="c-sub" style="margin:2px 0 4px">📦 On hand <b>${n0(r.stock)}</b>${u}${d!=null&&r.st!=='none'?` <span class="mut">(≈ ${d<10?n1(d):n0(d)} days)</span>`:''}${ow?` · on the way <b>${n0(ow)}</b>`:''}${r.dbar>0&&r.st!=='none'?` · uses ~${r.dbar<10?n1(r.dbar):n0(r.dbar)}/day`:''}</div>`;}
 function subLine(r){
   if(r.st==='none')return 'Nothing planned and nothing received in 30 days.';
   const cov=r.coverDay==null?'Covered for the next 6 weeks':r.coverDay<=0?'Not covered today':'Covered until '+dayTxt(addDays(r.coverDay-1));
@@ -418,6 +422,7 @@ function card(r){
   const nSug=((r.orders||[]).some(o=>o.rush&&!o.done)?1:0)+((r.rcvNew||[]).length);
   return `<div class="card ${r.st}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
+    ${stockLine(r)}
     <div class="c-main">${mainLine(r)}</div>
     ${nextOrders(r)}
     ${orderedToday(r)}
