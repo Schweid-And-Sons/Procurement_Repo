@@ -162,7 +162,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20f</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20j</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -275,6 +275,7 @@ function groupOrders(os){const out=[];(os||[]).forEach(o=>{const l=out.find(x=>x
 function dlTxt(o){if(o.rush&&o.needBy)return 'must be IN by '+dayTxt(o.arrive)+' (we run out '+dayTxt(o.needBy+'T12:00:00')+')';return o.dl.length<2?'arrives ~'+dayTxt(o.dl[0]?o.dl[0].d:o.arrive):'deliveries '+o.dl.map(x=>dayTxt(x.d)+' ~'+n0(x.q)).join(' · ');}
 function mainLine(r){
   const all=groupOrders(r.orders),o=all.find(x=>!x.done&&!x.pending);
+  if(r.notNeeded)return '🚫 Not needed in '+PLANT;
   if(r.noOrder)return "⛔ Don't order";
   if(r.st==='none')return r.kind==='inv'&&!r.iu?'Not enough morning counts yet':'No recent use';
   if(!o)return all.length?(all.some(x=>x.pending)?'⏳ Pending POs — nothing else to order now':'✓ All POs created — nothing else for 4 weeks'):'OK — nothing to order for the next 4 weeks';
@@ -287,6 +288,7 @@ function stockLine(r){const u=unitOf(r)?' '+esc(unitOf(r)):'';const ow=(r.coming
   const d=r.dbar>0?(r.stock/r.dbar):null;
   return `<div class="c-sub" style="margin:2px 0 4px">📦 On hand <b>${n0(r.stock)}</b>${u}${d!=null&&r.st!=='none'?` <span class="mut">(≈ ${d<10?n1(d):n0(d)} days)</span>`:''}${ow?` · on the way <b>${n0(ow)}</b>`:''}${r.dbar>0&&r.st!=='none'?` · uses ~${r.dbar<10?n1(r.dbar):n0(r.dbar)}/day`:''}</div>`;}
 function subLine(r){
+  if(r.notNeeded)return 'No orders are suggested for this item in '+PLANT+'. Tap “Needed again” if the product is made here again.';
   if(r.noOrder)return '⛔ '+esc(r.noOrder);
   if(r.st==='none')return r.kind==='inv'&&!r.iu?'It needs 3+ morning counts without a delivery in between to know the use — count it carefully every morning.':'Nothing planned and nothing received in 30 days.';
   const cov=r.coverDay==null?'Covered for the next 6 weeks':r.coverDay<=0?'Not covered today':'Covered until '+dayTxt(addDays(r.coverDay-1));
@@ -371,10 +373,17 @@ function saveTooBig(mode){const t=window._tb,c=t.cfg;
 /* ---------- Details: 1) Juan's plan day by day  2) the calculation  3) suggestions ---------- */
 /* where the daily use comes from: boxes = Juan's plan; trays = plan, then the counts; the rest = only the counts */
 function useBlock(r){const u=unitOf(r)||'',iu=r.iu;
+  if(r.pbi){const p=r.pbi,sz=/^T2100/.test(r.base)?'2.5 oz (sliders)':'5.3 oz';
+    return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From <b>Juan's plan</b>${p.planTo?' until '+dShort(p.planTo):''}, then <b>Power BI</b> (${sz} sleeves scanned = trays used).
+      <br><b>~${n0(p.avg)} trays per production day</b> <span class="mut">· middle day ${n0(p.med)} · highest ${n0(p.max)} · ${p.days} days, ${dShort(p.from)} → ${dShort(p.to)}</span>
+      ${p.old?`<br><span class="late">⚠ Power BI data is ${p.age} days old — upload the new export.</span>`:''}
+      ${iu?`<br><span class="mut">Morning counts would say ~${n0(iu.rate)}/working day — only a check (they mix T2000 and T2100).</span>`:''}
+      <br><span class="mut">${p.up?'Uploaded '+(p.at?new Date(p.at).toLocaleDateString('en-US'):'')+(p.by?' · '+esc(p.by):''):'Data sent Nov 19 (no upload yet)'}</span>
+      <br><button class="c-more" style="margin-top:6px" onclick="event.stopPropagation();pbiPick()">⬆ Upload Power BI</button></div></div>`;}
   const src=r.kind==='box'?"Juan's plan (Boxes Total today), then the usual use"
     :r.kind==='tray'?"Juan's plan, then what goes down in the morning counts"
     :'what goes down in the morning counts (Juan\'s plan and Power BI are not used for this item)';
-  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b> — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: a delivery came in (or a recount)`:''}`
+  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b>${iu.how==='balance'?` — balance ${dShort(iu.from)} → ${dShort(iu.to)}: count went from start to end, plus ${n0(iu.rcvAll)} received in Yooz, over ${iu.wAll} working days`:` — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: a delivery came in (or a recount)`:''}`}${iu.bal!=null&&iu.how!=='balance'?` <span class="mut">(balance of the period: ~${n1(Math.max(0,iu.bal))}/day)</span>`:''}${r.capped?`<br><span class="late">⚠ The counts gave far more than Juan's plan (~${n0(r.capped)}/day) — using the plan × 1.2. Check the morning counts (pallets taken to the line before the count?).</span>`:''}`
     :r.kind==='box'?'':'<span class="late">Not enough morning counts yet</span> — using what was received in Yooz (last 30 days) until there are 3+ mornings.';
   return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From ${src}.${det?'<br>'+det:''}${r.kind==='inv'?'<br><span class="mut">Count it carefully every morning: a wrong count changes this number.</span>':''}</div></div>`;}
 function calcBlock(r){
@@ -438,6 +447,7 @@ function card(r){
     ${lateTxt(r)}
     <div class="c-sub">${subLine(r)}</div>
     <button class="c-more" style="padding-top:2px" onclick="iOrdered('${esc(r.base)}')">📝 We ordered…</button>
+    <button class="c-more" style="padding-top:2px;color:var(--text3)" onclick="toggleNeed('${esc(r.base)}')">${r.notNeeded?'↩ Needed again':'🚫 Not needed in '+PLANT}</button>
     <button class="c-more" onclick="toggle('${esc(key).replace(/'/g,'')}')">${open.has(key)?'Hide details ▴':'Details: Juan\'s plan by day · calculation · suggestions'+(nSug?' ('+nSug+')':'')+' ▾'}</button>${det}
   </div>`;
 }
@@ -487,6 +497,14 @@ function findPO(base,key){const r=(data.rows||[]).find(x=>x.base===base);if(!r)r
 function markOf(r,o,extra){return Object.assign({base:r.base,ob:ymdL(o.orderBy),qty:o.qty,dl:o.dl.map(x=>({d:ymdL(x.d),q:x.q})),rush:!!o.rush,early:!!o.early,fri:!!o.fri,edited:!!o.edited,done:!!o.done,pending:!!o.pending},o.vendor?{vendor:o.vendor}:{},o.po?{po:o.po}:{},o.manual?{manual:true}:{},extra);}
 /* "📝 We ordered…": write down what was really ordered (any amount, any delivery day). It counts as coming on every
    device; the app then shows only what is STILL missing — e.g. 4,000 ordered in the morning, the plan grew at noon. */
+/* 🚫 Not needed here: stops the suggestions for an item in this plant (labels in NJ, a product no longer made);
+   kept in All items, greyed out, and turned back on with one tap. Saved in Settings → same on every device (PIN). */
+function toggleNeed(base){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return;
+  withPin(()=>{const prev=JSON.parse(JSON.stringify(data.cfg||{})),c=JSON.parse(JSON.stringify(prev));c.noNeed=c.noNeed||{};c.need=c.need||{};const was=!!r.notNeeded;
+    if(was){delete c.noNeed[base];c.need[base]=true;}          // on again (also for items off by default in this plant)
+    else{c.noNeed[base]=true;delete c.need[base];}
+    sendSave({type:'wms-reorder-cfg',cfg:c});
+    undoToast((was?'↩ Needed again · ':'🚫 Not needed in '+PLANT+' · ')+esc((r.codes||[r.base])[0]),()=>sendSave({type:'wms-reorder-cfg',cfg:prev}));});}
 function iOrdered(base){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return;
   const per=r.per||1,u=unitOf(r)||'units',o=groupOrders(r.orders).find(x=>!x.done&&!x.pending);
   const d0=o&&o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(addDays(1));
@@ -620,6 +638,47 @@ function printList(){
   el.innerHTML=h;setTimeout(()=>window.print(),50);
 }
 
+/* ---------- ⬆ Power BI: trays used (sleeves scanned) ---------- (Nov 20)
+   Accepts the "Sleeve Usage" exports as they come: one file per day (the date and warehouse are read from the
+   "Applied filters" note), several files at once, or one table with a date column. Warehouse 1 / code -1 = NJ, 4 / -4 = GA.
+   5.3 oz sleeves → T2000, 2.5 oz sliders (SL15099, SL2150) → T2100. Saved for every device in this plant's settings. */
+const PBI_SMALL=/^(SL15099|SL2150)-\d$/;
+function pbiPick(){let i=document.getElementById('pbi-in');if(!i){i=document.createElement('input');i.type='file';i.id='pbi-in';i.multiple=true;
+  i.accept='.xlsx,.xls,.csv';i.style.display='none';i.onchange=()=>{pbiFiles([...i.files]);i.value='';};document.body.appendChild(i);}i.click();}
+function pbiYmd(x){if(x instanceof Date&&!isNaN(x))return ymdL(x);if(typeof x==='number'&&x>20000&&x<80000){const d=new Date(Math.round((x-25569)*864e5));return d.toISOString().slice(0,10);}
+  const d=new Date(String(x||'').replace(/^\w+day,\s*/i,''));return isNaN(d)?'':ymdL(d);}
+async function pbiFiles(files){if(!files.length)return;
+  try{await loadXlsx();}catch(e){toast('⚠ '+e.message);return;}
+  const got={NJ:{},GA:{}},add=(pl,d,code,q)=>{if(!pl||!d||!/^SL/i.test(code)||!(q>0))return;const t=(got[pl][d]=got[pl][d]||[0,0]);t[PBI_SMALL.test(code)?1:0]+=q;};
+  const plOf=(code,wh)=>/-1$/.test(code)?'NJ':/-4$/.test(code)?'GA':wh==='1'?'NJ':wh==='4'?'GA':'';
+  let bad=0;
+  for(const f of files){try{
+    const wb=XLSX.read(await f.arrayBuffer(),{cellDates:true});
+    for(const nm of wb.SheetNames){const rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:true,defval:''});
+      const note=rows.map(r=>r.join(' ')).find(t=>/applied filters/i.test(t))||'';
+      const wh=(note.match(/warehouse_code is (\d)/i)||[])[1]||'';
+      const hi=rows.findIndex(r=>r.some(c=>/sleeve/i.test(String(c))));if(hi<0)continue;
+      const H=rows[hi].map(c=>String(c).trim().toLowerCase());
+      const cD=H.findIndex(h=>/date/.test(h)),cC=H.findIndex(h=>h==='sleeve'||/item|code/.test(h)),cQ=H.findIndex(h=>/usage|qty|quantity/.test(h));
+      const cc=cC>=0?cC:0,cq=cQ>=0?cQ:1;
+      if(cD>=0){rows.slice(hi+1).forEach(r=>{const code=String(r[cc]||'').trim().toUpperCase();add(plOf(code,wh),pbiYmd(r[cD]),code,+r[cq]||0);});continue;}
+      // no date column: the dates come from the filter note ("on or after …, … and is before …")
+      const a=(note.match(/on or after (?:\w+,\s*)?(\w+ \d{1,2}, \d{4})/i)||[])[1],b=(note.match(/is before (?:\w+,\s*)?(\w+ \d{1,2}, \d{4})/i)||[])[1];
+      const d0=a?new Date(a+' 12:00'):null,d1=b?new Date(b+' 12:00'):null;if(!d0||isNaN(d0)){bad++;continue;}
+      const days=[];for(let d=new Date(d0);!d1||d<d1;d.setDate(d.getDate()+1)){if(d.getDay()>0&&d.getDay()<6||!d1||+d1-+d0<=864e5)days.push(ymdL(d));if(!d1)break;}
+      if(!days.length){bad++;continue;}
+      rows.slice(hi+1).forEach(r=>{const code=String(r[cc]||'').trim().toUpperCase();if(!/^SL/.test(code))return;
+        days.forEach(d=>add(plOf(code,wh),d,code,(+r[cq]||0)/days.length));});   // a file of several days: spread over its weekdays
+    }}catch(e){bad++;}}
+  const mine=got[PLANT],n=Object.keys(mine).length,other=PLANT==='NJ'?'GA':'NJ',no=Object.keys(got[other]).length;
+  if(!n){toast(no?'⚠ These files are '+other+' — open Next POs in '+other+' to upload them':'⚠ No sleeve usage found in '+(files.length>1?'these files':'this file'));return;}
+  const c=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));
+  const dl=Object.assign({},(c.pbi&&c.pbi.daily)||{});Object.entries(mine).forEach(([d,v])=>dl[d]=[Math.round(v[0]),Math.round(v[1])]);
+  const keep=Object.keys(dl).sort().slice(-60);c.pbi={daily:Object.fromEntries(keep.map(k=>[k,dl[k]])),at:new Date().toISOString()};
+  const ks=Object.keys(mine).sort();
+  withPin(()=>{sendSave({type:'wms-reorder-cfg',cfg:c});
+    toast('⬆ Power BI '+PLANT+': '+n+' day(s), '+dShort(ks[0])+' → '+dShort(ks[ks.length-1])+(no?' · '+other+' files skipped (upload them in '+other+')':'')+(bad?' · '+bad+' file(s) not read':''));});}
+
 /* ---------- Excel: the POs to create (to share) ---------- */
 const XLSX_SRC='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',XLSX_SRI='sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==';
 function loadXlsx(){return new Promise((ok,bad)=>{if(window.XLSX)return ok();const sc=document.createElement('script');sc.src=XLSX_SRC;sc.integrity=XLSX_SRI;sc.crossOrigin='anonymous';sc.referrerPolicy='no-referrer';
@@ -634,7 +693,7 @@ async function exportExcel(){
     out.push([(r.codes||[r.base]).join(' + '),Math.round(o.qty),unitOf(r),o.pallets||'',ymdL(o.orderBy),o.dl.map(x=>ymdL(x.d)+' '+n0(x.q)).join(' | '),
       o.done?'Created':o.pending?'Pending':o.edited?'Not ordered (qty changed)':'Not ordered',(r.main||{}).vendor||'',r.cls||'',o.rush?'YES':'',r.name||'',catOf(r),
       r.coverDay==null?'6+ weeks':ymdL(addDays(Math.max(0,r.coverDay-1))),Math.round(r.stock||0),Math.round((r.coming||[]).reduce((a,x)=>a+(+x.qty||0),0)),
-      r.dbar>0?Math.round(r.dbar*10)/10:'',r.dbar>0?Math.round(r.stock/r.dbar*10)/10:'',r.kind==='box'?"Juan's plan":r.iu?'Morning counts ('+r.iu.days+' days)':r.kind==='tray'?"Juan's plan":'Yooz received (30 days)',o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
+      r.dbar>0?Math.round(r.dbar*10)/10:'',r.dbar>0?Math.round(r.stock/r.dbar*10)/10:'',r.kind==='box'?"Juan's plan":r.pbi?"Juan's plan + Power BI ("+r.pbi.days+' days)':r.iu?'Morning counts ('+r.iu.days+' days)':r.kind==='tray'?"Juan's plan":'Yooz received (30 days)',o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
   if(!out.length){toast('No POs to export');return;}
   out.sort((a,b)=>a[4].localeCompare(b[4])||a[0].localeCompare(b[0]));
   const title=['Schweid & Sons · Next POs · '+(PLANT==='NJ'?'New Jersey':'Georgia')+(cat!=='ALL'?' · '+cat:'')+' · '+new Date().toLocaleString('en-US')];
