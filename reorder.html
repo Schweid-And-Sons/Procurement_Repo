@@ -162,7 +162,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20b</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20d</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -412,10 +412,14 @@ function facts(r){const m=r.main||{};
   return `<div class="blk-n" style="margin-top:6px">${esc(m.vendor||'')}${r.Lavg?' · ~'+Math.round(r.Lavg)+' days':''}${m.onTime!=null?' · '+m.onTime+'% on time':''}${r.pack?' · '+n0(r.pack.p)+' per pallet':''}${r.cls?' · priority '+r.cls:''}${r.y12?' · last 12 months '+n0(r.y12):''}</div>`;}
 /* items that do the same job: order either one (Julian, Nov 19: tape M1500 / M1150 — no need to bring both) */
 const SAME_USE=[['M1500','M1150']];
+/* machine tape, meters per case (6 rolls × 1,500 m / 6 × 914 m) — Julian counts cases (Nov 19) */
+const TAPE_M_CASE={M1500:9000,M1150:5484};
 function sameTxt(r){const b=String(r.base).replace(/-\d+$/,''),g=SAME_USE.find(x=>x.includes(b));if(!g)return '';
   const others=(data.rows||[]).filter(x=>x.base!==r.base&&g.includes(String(x.base).replace(/-\d+$/,'')));
   const oth=g.filter(x=>x!==b).join(' / ');
-  return `<div class="c-sub" style="background:rgba(37,99,235,.08);border-radius:10px;padding:6px 10px;margin:4px 0;font-size:13px">🔁 <b>Same use as ${esc(oth)}</b> — either one works, order only one.${others.map(x=>` ${esc(x.base)} in stock: <b>${n0(x.stock)}</b>${unitOf(x)?' '+esc(unitOf(x)):''}.`).join('')} Use what's on hand first.</div>`;}
+  const mB=TAPE_M_CASE[b];   // tape: the other one's stock in cases of THIS one (same meters)
+  return `<div class="c-sub" style="background:rgba(37,99,235,.08);border-radius:10px;padding:6px 10px;margin:4px 0;font-size:13px">🔁 <b>Same use as ${esc(oth)}</b> — either one works, order only one.${others.map(x=>{const mO=TAPE_M_CASE[String(x.base).replace(/-\d+$/,'')];
+    return ` ${esc(x.base)} in stock: <b>${n0(x.stock)}</b> cases${mB&&mO?` = ${n0(x.stock*mO)} m ≈ <b>${n1(x.stock*mO/mB)}</b> cases of ${esc(b)}`:''}.`;}).join('')} Use what's on hand first.</div>`;}
 function card(r){
   const key=r.base;
   const det=open.has(key)?`<div class="c-det c-det2">${dmpLine(r)}${useBlock(r)}${planDays(r)}${calcBlock(r)}${suggestions(r)}${facts(r)}</div>`:'';

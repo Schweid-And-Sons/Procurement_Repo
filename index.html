@@ -3837,9 +3837,9 @@ function setReoFilter(f){reoFilter=f;renderStatsView();}
 const TRAY_PAL=2640;
 function toUnits(code,q){q=+q||0;return /^T2[01]00/i.test(String(code))&&q>0&&q<500?q*TRAY_PAL:q;}
 const PACK_NJ={
-  BX1000:{p:500,d:1000},BX1000PCA:{p:600,d:1200},BX1003:{p:500,d:1000},BX1050:{p:500,d:1000},BX1075:{p:500,d:500},
-  BX1100:{p:500,d:1000},BX1200:{p:500,d:500},BX1300:{p:375,d:750},BX1350:{p:275,d:550},BX1400:{p:500,d:1000},
-  BX1850:{p:375,d:750},BX1875:{p:1000,d:1000},BX1850PCA:{p:375,d:750},BX1900:{p:750,d:750},BX2003:{p:375,d:750},BX2050:{p:550,d:1100},
+  BX1000:{p:500,d:1000},BX1000PCA:{p:500,d:1000},BX1003:{p:500,d:1000},BX1050:{p:500,d:1000},BX1075:{p:500,d:500},
+  BX1100:{p:500,d:1000},BX1200:{p:500,d:500},BX1300:{p:375,d:750},BX1350:{p:250,d:500},BX1400:{p:500,d:1000},
+  BX1850:{p:375,d:750},BX1875:{p:1000,d:1000}/* arrives 1,100–1,120; we ask Sonic for 1,000 */,BX1850PCA:{p:375,d:750},BX1900:{p:750,d:750},BX2003:{p:375,d:750},BX2050:{p:550,d:1100},
   BX2075:{p:750,d:750},BX2300:{p:500,d:500},BX3000:{p:500,d:1000},BX3050:{p:500,d:1000},BX3100:{p:750,d:750},
   BX3125:{p:375,d:750},BX3150:{p:500,d:1000},BX3200:{p:500,d:1000},BX3300:{p:500,d:500},BX6550:{p:500,d:500},
   BX7500:{p:375,d:750},BX7600:{p:375,d:750},BX7700PCA:{p:360,d:720},BX7800:{p:250,d:250},BX7900:{p:160,d:160},BX8200:{p:500,d:500},
@@ -7565,7 +7565,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.20b';
+const APP_VERSION='2026.11.20d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
