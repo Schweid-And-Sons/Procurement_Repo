@@ -3846,7 +3846,7 @@ const PACK_NJ={
   T2000:{p:2640,u:'trays'},T2100:{p:2640,u:'trays'},
   F1000:{p:18,d:18,u:'rolls'},F1400:{p:27,d:27,u:'rolls'},F1750:{p:27,d:27,u:'rolls'},F1900:{p:27,d:27,u:'rolls'},F1060:{p:10,d:30,u:'rolls'},
   P2000:{p:50,d:100,u:'cases'},P3100:{p:45,d:45,u:'cases'},P4100:{p:35,d:35,u:'cases'},
-  BG1000:{p:50,d:50,u:'cases'},BG2000:{p:50,d:50,u:'cases'},STRWRAP:{p:12,d:48,u:'rolls'}};
+  BG1000:{p:35,d:35,u:'cases'},S5050:{p:50,d:50,u:'cases'},BG2000:{p:50,d:50,u:'cases'},STRWRAP:{p:12,d:48,u:'rolls'}};
 /* Use in the last 12 months (Power BI · Production Receipts · Nov 17 2025 – Nov 16 2026, no pork).
    Units: boxes, trays, sleeves (pieces), patty paper (sheets), bags (bags). Used for the A/B/C priority
    (ranking inside each category) and as use/day for boxes and trays when there is no plan and no receipts. */
@@ -3862,6 +3862,15 @@ const REO_CFG_DAY='2000-01-03',REO_MARK_DAY='2000-01-04';
 const REO_SS_DAYS={A:2,B:1,C:1};   // safety stock in days of use, by priority (editable in Next POs → Settings). Nov 18: was A3/B2/C1 — too much;
 // John keeps ~1 day (Sonic / PCA deliver next day, even same day), so a next-day supplier's cushion is at most 1 day (REO_SS_FAST)
 const REO_SS_FAST=1;
+/* supplies John orders that Yooz's lead-time data doesn't bring (Nov 19): who supplies them (John's master sheet) */
+const REO_SUPPLY=[[/^L1\d{4}(FRONT|BACK)(-PLAS)?-\d$/,'PACKAGED, LLC'],[/^(H264B\/L|GLOVCOT|1809B|BG1450|M1500|STRWRAP)-\d$/,'BUNZL'],
+  [/^(H134XL|H134L|H134\/S|H242\/XL-120C|P400|H219\/B)-\d$/,'AMERISAN'],[/^BG(1000|2000)-\d$/,'IMPERIAL DADE'],
+  [/^(S5050|F0719[012])-\d$/,'NU SPICE'],[/^(M1150|M1200)-\d$/,'BRADY INDUSTRIES']];
+function reoSupplier(b){const x=REO_SUPPLY.find(y=>y[0].test(b));return x?x[1]:'';}
+function reoVendorKey(v){v=String(v||'').toUpperCase();return /SONIC/.test(v)?'SONIC':/PACKAGING CORP|\bPCA\b/.test(v)?'PCA':/PACKAGED/.test(v)?'PACKAGED':/BUNZL/.test(v)?'BUNZL':/AMERISAN/.test(v)?'AMERISAN':/IMPERIAL/.test(v)?'IMPERIAL':/NU SPICE/.test(v)?'NU SPICE':/BRADY/.test(v)?'BRADY':/CRYOVAC/.test(v)?'CRYOVAC':v.replace(/[,.]|\b(LLC|INC|CORP|CO)\b/g,'').trim();}
+const REO_LT_DEFAULT=7;   // days, when nothing better is known (Settings → Lead time)
+/* shown on the card instead of an order (Julian, Nov 19) */
+const REO_NO_ORDER=[[/^(H134L|H134\/S)-\d$/,"Don't order — we only order XL. People wear up to 2 cotton gloves under the blue gloves because of the cold, so only XL fits."]];
 function reoCfgDefault(){return {days:[false,false,true,true,true,true,false],holidays:REO_HOLIDAYS.map(([d,n])=>({d,n})),extra:{},ss:Object.assign({},REO_SS_DAYS),by:'',at:''};}
 function loadReoCfg(){try{const o=JSON.parse(localStorage.getItem('wms_reocfg_'+currentPlant)||'null');if(o&&Array.isArray(o.days)){
   // the old default (A3 · B2 · C1) saved with the receiving days → the new, lower default; a value someone changed stays
@@ -4001,8 +4010,15 @@ function reorderRows(summary){
   }catch(e){console.error(e);}
   const card=potCard(currentPlant);
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
-  // not ordered from Next POs: wooden pallets M2000 are counted, but not ordered this way (Julian, Nov 19)
-  const REO_SKIP=/^M2000-/;
+  // not ordered from Next POs (Julian, Nov 19): pallets M2000, thermal / pallet labels (the warehouse orders them),
+  // gel pack (not ordered), Salt & Pepper F06984 (discontinued), and NJ's bulk Taco / Steakhouse / Korean BBQ (not used in NJ)
+  const REO_SKIP=/^(M2000|MWHITE|MYELLOW|LABELS4X6|VT104953|F06984)-\d$|^F0700[345]-1$/;
+  // supplies John orders that the Yooz lead-time data doesn't bring: added with a manual lead time per supplier
+  // (⚙️ Settings → Lead time; 7 days until set). Use = what goes down in the morning counts (labels: Juan's plan).
+  for(const f of Object.values(fam)){if(f.lt.length||REO_SKIP.test(f.base))continue;
+    const v=reoSupplier(f.base);if(!v)continue;
+    f.lt.push({code:f.base,plant:currentPlant,vendor:v,lt:0,ltAvg:0,pos:0,onTime:null,last:'',manual:true});}
+  const ltSup=cfg.ltSup||{},ltItem=cfg.ltItem||{};
   const rows=Object.values(fam).filter(f=>f.lt.length&&!REO_SKIP.test(f.base)).map(f=>{
     // active supplier = the one with the most recent PO (not the one with most POs: trays left Bunzl / Packaged)
     // supplier: among the ones used in the last 3 months, the one we order from the most (Sonic over PCA for BX1850);
@@ -4012,11 +4028,15 @@ function reorderRows(summary){
     const main=recent.length?recent.slice().sort((a,b)=>b.pos-a.pos)[0]:vs[0];
     const fast=(recent.length?recent:[main]).find(v=>/SONIC/i.test(String(v.vendor)))   // rush: Sonic when it makes this box (faster than PCA — Julian, Nov 19)
       ||(recent.length?recent:[main]).filter(v=>v.ltAvg||v.lt).sort((a,b)=>(a.ltAvg||a.lt)-(b.ltAvg||b.lt))[0]||main;   // otherwise the quickest one
-    const P90=main.lt||main.ltAvg||0,Lavg=main.ltAvg||P90;
+    // lead time: set for this item > real from Yooz > set for the supplier > 7 days (Settings → Lead time)
+    const vK=reoVendorKey(main.vendor);let ltSrc='yooz',ltMan=null;
+    if(ltItem[f.base]>0){ltMan=+ltItem[f.base];ltSrc='item';}
+    else if(main.manual||!(main.lt||main.ltAvg)){ltMan=ltSup[vK]>0?+ltSup[vK]:REO_LT_DEFAULT;ltSrc=ltSup[vK]>0?'supplier':'default';}
+    const P90=ltMan||main.lt||main.ltAvg||0,Lavg=ltMan||main.ltAvg||P90;
     const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
     const hist=f.recv/REO_USE_DAYS;
     const it=ITEMS.find(i=>i.code===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base);   // the name of the item in use, not a discontinued one (BX7700 → PCA)
-    const kind=f.cat==='BOXES'?'box':(f.cat==='TRAYS'||/^T2\d/.test(f.base))?'tray':'inv';   // how its use is measured
+    const kind=f.cat==='BOXES'?'box':(f.cat==='TRAYS'||/^T2\d/.test(f.base)||/^L1\d{4}(FRONT|BACK)-\d$/.test(f.base))?'tray':'inv';   // how its use is measured (brick labels: Juan's plan, then the counts, like trays)
     const pk=packFor(f.base,main.vendor),div=pk&&pk.pal?pk.pal:1;                  // trays: plan in trays → pallets
     const pday={},psrc={};let ptot=0,pdone=0;
     if(dm&&kind!=='inv')Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;pdone+=(o.past||0)/div;
@@ -4040,13 +4060,14 @@ function reorderRows(summary){
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const iu=kind!=='box'?invUse(f.base):null;                       // trays and the rest: what goes down in the counts
     const rate=iu?iu.rate:(hist>0?hist:(ptot>0?ptot/H:y12day));       // after the plan ends: what we usually use
-    const r={kind,iu,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
+    const r={kind,iu,ltSrc,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
       use:hist,rate,have:f.stock+open,L:P90,Lavg,ptot,dmp,pack:pk?{p:pk.p,d:pk.d||0,pal:pk.pal||0,u:pk.u||'boxes'}:null,
       planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
     r.recount=recount(f.base,kind,iu?iu.rate:rate);
+    const no=REO_NO_ORDER.find(x=>x[0].test(f.base));if(no){r.st='none';r.noOrder=no[1];return r;}   // e.g. blue gloves L / S: we only order XL
     if(!(rate>0||ptot>0)){r.st='none';return r;}
     // after the plan: the usual use, only on production days (Mon–Fri, no holidays) — the same total per week,
     // so a weekend doesn't look like a shortage
@@ -5006,7 +5027,7 @@ function parseSleeveLineSheet(rows,retailOnly){
    boxes = Open Cs · film = "QTY (m per roll)" (rolls) · patty paper, bags, sleeves = "(cases)" · trays = units.
    Production day = the weekday in "Day" on or before the Inv Date; blank Day → the day before the Inv Date.
    (Labels are left out: the plan counts them in rolls, Yooz in labels.) */
-const DM_VER=7;   // 7 = day before the Inv Date (Juan), carry-over today, and the sheet's Inv Date kept per day (src)
+const DM_VER=8;   // 8 = brick labels (Label Code Front / Back) added   // 7 = day before the Inv Date (Juan), carry-over today, and the sheet's Inv Date kept per day (src)
 function dmFromSchedule(wb,baseDay){
   const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));if(!sheet)return null;
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
@@ -5017,6 +5038,8 @@ function dmFromSchedule(wb,baseDay){
   const PAIRS=[['Box Code',cQty],['Forming Film Code',col('Forming Film QTY (m per roll)')],['Non-Forming Film Code',col('Non-Forming Film QTY (m per roll)')],
     [col('Patty Paper Code')>-1?'Patty Paper Code':'Patty Paper',col('Patty Paper QTY (cases)')],['Plastic Bag Code',col('Plastic Bag QTY (cases)')],
     ['Sleeve Code',col('Sleeve Code QTY (cases)')],['Tray Code',col('Tray Code QTY')]].map(([n,q])=>[col(n),q]).filter(([c,q])=>c>-1&&q>-1);
+  // brick labels (Nov 19): "L15308-1 - Front" with QTY in rolls of 10,500 → L15308FRONT-1, in cases (3 rolls = 31,500 labels)
+  const LBL=[[col('Label Code Front'),col('Label Code Front QTY'),'FRONT'],[col('Label Code Back'),col('Label Code Back QTY'),'BACK']].filter(([c,q])=>c>-1&&q>-1);
   const DN=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
   const base=new Date(baseDay+'T00:00:00');
   const toDate=v=>{if(typeof v==='number'&&v>20000){const d=new Date(Math.round((v-25569)*864e5));return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());}
@@ -5045,8 +5068,15 @@ function dmFromSchedule(wb,baseDay){
       const o=codes[code]||(codes[code]={t:0,d:{},past:0,src:{}});if(past)o.past=(o.past||0)+v;o.t+=v;o.d[key]=(o.d[key]||0)+v;
       const iv=ymd(inv);(o.src[key]=o.src[key]||{})[iv]=(o.src[key][iv]||0)+v;          // which Inv Date (sheet) it comes from
     });
+    LBL.forEach(([cc,qc,side])=>{
+      const m=String(r[cc]||'').trim().toUpperCase().match(/^(L\d{4,6})-(\d)/);if(!m)return;
+      const code=m[1]+side+'-'+m[2],v=Number(r[qc])/3;if(!(v>0))return;                   // rolls → cases of 3 rolls
+      const o=codes[code]||(codes[code]={t:0,d:{},past:0,src:{}});if(past)o.past=(o.past||0)+v;o.t+=v;o.d[key]=(o.d[key]||0)+v;
+      const iv=ymd(inv);(o.src[key]=o.src[key]||{})[iv]=(o.src[key][iv]||0)+v;
+    });
   }
-  Object.values(codes).forEach(o=>{o.t=Math.round(o.t*100)/100;o.past=Math.round((o.past||0)*100)/100;Object.keys(o.d).forEach(k=>o.d[k]=Math.round(o.d[k]*100)/100);});
+  const rd=x=>Math.round(x*1e4)/1e4;   // 4 decimals: label cases are small (0.24 case = 7,560 labels)
+  Object.values(codes).forEach(o=>{o.t=rd(o.t);o.past=rd(o.past||0);Object.keys(o.d).forEach(k=>o.d[k]=rd(o.d[k]));});
   // what the "Direct Material Planning" sheet shows (its tables by production Day = only orders that already have a day)
   const dmp={};
   try{const dn=wb.SheetNames.find(n=>/direct material planning/i.test(n));
@@ -7567,7 +7597,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.20e';
+const APP_VERSION='2026.11.20f';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

@@ -162,7 +162,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20e</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20f</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -255,10 +255,10 @@ function statusLine(){
   const ago=lastAt?Math.round((Date.now()-lastAt)/60000):null;
   return (busy?'⏳ Updating… · ':ago!=null?'Updated '+(ago<1?'just now':ago+' min ago')+' · ':'')+p.join(' · ');
 }
-const CATS=[['ALL','All'],['BOXES','Boxes'],['TRAYS','Trays'],['FILM','Film'],['SLEEVES','Sleeves'],['PATTY PAPER','Patty paper'],['OTHER','Other']];
+const CATS=[['ALL','All'],['BOXES','Boxes'],['TRAYS','Trays'],['FILM','Film'],['SLEEVES','Sleeves'],['PATTY PAPER','Patty paper'],['LABELS','Labels'],['PPE','PPE'],['OTHER','Other']];
 const catOf=r=>{const c=String(r.cat||'').toUpperCase();return CATS.some(x=>x[0]===c)?c:'OTHER';};
 const inCat=r=>cat==='ALL'||catOf(r)===cat;
-const unitOf=r=>(r.pack&&r.pack.u)||(catOf(r)==='BOXES'?'boxes':/SLEEVES|PATTY PAPER|LINER BAGS/.test(catOf(r))?'cases':'');
+const unitOf=r=>(r.pack&&r.pack.u)||(catOf(r)==='BOXES'?'boxes':'cases');   // Julian counts everything else in cases (Nov 19)
 /* "~1,500 boxes · 3 pallets" */
 function qtyTxt(r,qty,pal){let u=unitOf(r);if(u==='pallets'&&Math.round(qty)===1)u='pallet';let t='~'+n0(qty)+(u?' '+u:'');
   if(pal&&!/^pallet/.test(u))t+=' · '+pal+' pallet'+(pal>1?'s':'');return t;}
@@ -275,7 +275,8 @@ function groupOrders(os){const out=[];(os||[]).forEach(o=>{const l=out.find(x=>x
 function dlTxt(o){if(o.rush&&o.needBy)return 'must be IN by '+dayTxt(o.arrive)+' (we run out '+dayTxt(o.needBy+'T12:00:00')+')';return o.dl.length<2?'arrives ~'+dayTxt(o.dl[0]?o.dl[0].d:o.arrive):'deliveries '+o.dl.map(x=>dayTxt(x.d)+' ~'+n0(x.q)).join(' · ');}
 function mainLine(r){
   const all=groupOrders(r.orders),o=all.find(x=>!x.done&&!x.pending);
-  if(r.st==='none')return 'No recent use';
+  if(r.noOrder)return "⛔ Don't order";
+  if(r.st==='none')return r.kind==='inv'&&!r.iu?'Not enough morning counts yet':'No recent use';
   if(!o)return all.length?(all.some(x=>x.pending)?'⏳ Pending POs — nothing else to order now':'✓ All POs created — nothing else for 4 weeks'):'OK — nothing to order for the next 4 weeks';
   const q=' · '+qtyTxt(r,o.qty,o.pallets)+(o.rush?' · rush':o.early?' · can\'t wait for Friday':'');
   if(new Date(o.orderBy)<=addDays(0))return 'Order today'+q;
@@ -286,9 +287,11 @@ function stockLine(r){const u=unitOf(r)?' '+esc(unitOf(r)):'';const ow=(r.coming
   const d=r.dbar>0?(r.stock/r.dbar):null;
   return `<div class="c-sub" style="margin:2px 0 4px">📦 On hand <b>${n0(r.stock)}</b>${u}${d!=null&&r.st!=='none'?` <span class="mut">(≈ ${d<10?n1(d):n0(d)} days)</span>`:''}${ow?` · on the way <b>${n0(ow)}</b>`:''}${r.dbar>0&&r.st!=='none'?` · uses ~${r.dbar<10?n1(r.dbar):n0(r.dbar)}/day`:''}</div>`;}
 function subLine(r){
-  if(r.st==='none')return 'Nothing planned and nothing received in 30 days.';
+  if(r.noOrder)return '⛔ '+esc(r.noOrder);
+  if(r.st==='none')return r.kind==='inv'&&!r.iu?'It needs 3+ morning counts without a delivery in between to know the use — count it carefully every morning.':'Nothing planned and nothing received in 30 days.';
   const cov=r.coverDay==null?'Covered for the next 6 weeks':r.coverDay<=0?'Not covered today':'Covered until '+dayTxt(addDays(r.coverDay-1));
-  return cov+' (stock + POs on the way) · the supplier takes up to '+r.L+' days';
+  const src=r.ltSrc==='item'?' (set for this item)':r.ltSrc==='supplier'?' ('+esc(r.vKey)+', set by hand)':r.ltSrc==='default'?' (estimated — set it in ⚙️ Settings → Lead time)':'';
+  return cov+' (stock + POs on the way) · the supplier takes up to '+r.L+' days'+src;
 }
 const whenTxt=o=>o.fri?(new Date(o.orderBy).getDay()===5?'Friday order · ':'Order day (holiday Friday) · '):'Order by ';
 const ordTxt=['1st','2nd','3rd','4th','5th','6th'];
@@ -545,7 +548,7 @@ function saveQty(){const e=window._edit;let v=+document.getElementById('nq').val
 
 /* ---------- receiving days (shared) ---------- */
 let cfgEdit=null;
-function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:2,B:1,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};drawDays();}
+function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:2,B:1,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};cfgEdit.ltSup=cfgEdit.ltSup||{};cfgEdit.ltItem=cfgEdit.ltItem||{};drawDays();}
 function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
   const hol=(c.holidays||[]).slice().sort((a,b)=>a.d.localeCompare(b.d));
   const ex=Object.entries(c.extra).sort((a,b)=>a[0].localeCompare(b[0]));
@@ -565,8 +568,25 @@ function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
     <div class="hint">Extra stock so a late truck or an extra run doesn't stop the line. A = most used items.</div>
     <div class="row2">${['A','B','C'].map(k=>`<label style="font-size:13px;font-weight:700">${k}<input type="number" inputmode="decimal" min="0" max="30" step="0.5" value="${(c.ss||{})[k]??({A:2,B:1,C:1})[k]}" onchange="cfgEdit.ss=cfgEdit.ss||{};cfgEdit.ss['${k}']=Math.max(0,+this.value||0)"></label>`).join('')}</div>
     ${Object.keys(c.ssItem||{}).length?`<div class="hint">Items with their own cushion: ${Object.entries(c.ssItem).map(([k,v])=>esc(k)+' '+v+' d <a href="#" onclick="delete cfgEdit.ssItem[\''+esc(k)+'\'];drawDays();return false">✕</a>').join(' · ')}</div>`:''}
+    ${ltSection(c)}
     ${data&&data.cfg&&data.cfg.by?`<div class="hint" style="margin-top:12px">Last change: ${esc(data.cfg.by)} · ${timeTxt(data.cfg.at)}</div>`:''}
     <button class="big" onclick="saveDays()">Save for every device</button><button class="big gray" onclick="closeSheet()">Cancel</button>`);}
+/* 🚚 Lead time (days): per supplier where Yooz has no data, and per item (wins over everything) */
+function ltSection(c){const sup={};(data&&data.rows||[]).forEach(r=>{const k=r.vKey;if(!k)return;const s2=sup[k]||(sup[k]={yooz:0,man:0,days:[],name:(r.main||{}).vendor||k});
+    if(r.ltSrc==='yooz'){s2.yooz++;s2.days.push(r.L);}else s2.man++;});
+  const rowsS=Object.entries(sup).sort((a,b)=>(a[1].man?0:1)-(b[1].man?0:1)||a[0].localeCompare(b[0])).map(([k,v])=>{
+    const med=v.days.length?v.days.slice().sort((a,b)=>a-b)[Math.floor(v.days.length/2)]:0;
+    return `<div><span><b>${esc(k)}</b> <span style="color:var(--text3)">${v.yooz?'from Yooz ~'+n0(med)+' d':''}${v.yooz&&v.man?' · ':''}${v.man?v.man+' item(s) set by hand':''}</span></span>${v.man?`<input type="number" inputmode="numeric" min="1" max="90" style="width:70px" value="${(c.ltSup||{})[k]||''}" placeholder="7" onchange="cfgEdit.ltSup['${esc(k)}']=+this.value||undefined">`:''}</div>`;}).join('');
+  const it=Object.entries(c.ltItem||{});
+  return `<div class="sec" style="margin-top:16px">🚚 Lead time (days)</div>
+    <div class="hint">From the PO to our dock. Suppliers with Yooz data use their real days. The others use what you type here (7 until set). An item set below wins over everything.</div>
+    <div class="lst">${rowsS||'<div>—</div>'}</div>
+    <div class="hint" style="margin-top:8px">Items with their own lead time: ${it.length?it.map(([k,v])=>esc(k)+' '+v+' d <a href="#" onclick="delete cfgEdit.ltItem[\''+esc(k)+'\'];drawDays();return false">✕</a>').join(' · '):'none'}</div>
+    <div class="row2"><input type="text" id="lti" placeholder="Code (e.g. BG1000-1)" style="text-transform:uppercase"><input type="number" id="ltd" inputmode="numeric" min="1" max="90" placeholder="Days"></div>
+    <button class="big gray" onclick="addLtItem()">+ Set lead time for this item</button>`;}
+function addLtItem(){const c=document.getElementById('lti').value.trim().toUpperCase(),d=+document.getElementById('ltd').value;
+  const r=(data.rows||[]).find(x=>x.base===c||(x.codes||[]).includes(c));if(!r){toast('Code not found in Next POs');return;}if(!(d>0)){toast('Type the days');return;}
+  cfgEdit.ltItem[r.base]=d;drawDays();}
 function addHol(){const d=document.getElementById('hd').value,n=document.getElementById('hn').value.trim()||'Holiday';if(!d){toast('Pick a date');return;}
   cfgEdit.holidays=(cfgEdit.holidays||[]).filter(x=>x.d!==d).concat([{d,n}]);drawDays();}
 function addEx(on){const d=document.getElementById('xd').value;if(!d){toast('Pick a date');return;}cfgEdit.extra[d]=on;drawDays();}
