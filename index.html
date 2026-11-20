@@ -3849,21 +3849,18 @@ const PACK_NJ={
   F1000:{p:18,d:18,u:'rolls'},F1400:{p:27,d:27,u:'rolls'},F1750:{p:27,d:27,u:'rolls'},F1900:{p:27,d:27,u:'rolls'},F1060:{p:10,d:30,u:'rolls'},
   P2000:{p:50,d:100,u:'cases'},P3100:{p:45,d:45,u:'cases'},P4100:{p:35,d:35,u:'cases'},
   BG1000:{p:35,d:35,u:'cases'},S5050:{p:50,d:50,u:'cases'},BG2000:{p:50,d:50,u:'cases'},STRWRAP:{p:36,d:36,u:'cases'},M1450:{p:48,d:48,u:'cases'}};   // stretch wrap: 36–48 cases of 4 rolls; foam: 48 cases (Nov 20)
-/* Trays from Power BI (Nov 20): every retail pack = 1 tray + 1 sleeve, so the sleeves scanned in Power BI (Production
-   Receipts) are the trays used. 5.3 oz sleeves → T2000, 2.5 oz sliders (SL15099, SL2150) → T2100. Julian uploads the
-   export once a week (Next POs → ⬆ Power BI); until then, the days he sent on Nov 19 (Oct 27 – Nov 18). Per day: [T2000, T2100]. */
+/* Trays from Power BI (Nov 20): trays used per production day. Julian types in Next POs how many T2000 and T2100
+   Power BI shows for a date range (last 4 weeks); the app divides by the production days (Mon–Fri, no holidays).
+   Orange reminder after 14 days. Until the first entry: the days Julian sent on Nov 19 (Oct 27 – Nov 18). Per day: [T2000, T2100]. */
 const PBI_DEFAULT={"NJ":{"2026-10-27":[15420,1386],"2026-10-28":[19416,24],"2026-10-29":[18756,0],"2026-10-30":[17526,2034],"2026-11-02":[16464,1356],"2026-11-03":[7278,546],"2026-11-04":[3876,300],"2026-11-05":[5688,534],"2026-11-06":[20022,0],"2026-11-10":[14964,1788],"2026-11-11":[16758,642],"2026-11-12":[16542,120],"2026-11-13":[11682,1692],"2026-11-16":[20160,0],"2026-11-18":[11502,0]},"GA":{"2026-10-27":[22386,0],"2026-10-28":[26328,690],"2026-10-29":[21648,0],"2026-10-30":[20790,2394],"2026-11-02":[12726,1608],"2026-11-03":[26916,1482],"2026-11-04":[13404,36],"2026-11-05":[12684,0],"2026-11-06":[13080,1770],"2026-11-09":[19236,4050],"2026-11-10":[20928,0],"2026-11-11":[19440,576],"2026-11-12":[20310,996],"2026-11-13":[25890,4008],"2026-11-16":[18780,0],"2026-11-17":[19170,714],"2026-11-18":[16752,0]}};
-const PBI_SMALL=/^(SL15099|SL2150)-\d$/,PBI_WINDOW=28,PBI_OLD=14;
-function pbiTrays(cfg){
-  const d=Object.assign({},PBI_DEFAULT[currentPlant]||{},(cfg&&cfg.pbi&&cfg.pbi.daily)||{});
-  const ds=Object.keys(d).sort();if(!ds.length)return null;
-  const to=ds[ds.length-1],from=ymd(new Date(new Date(to+'T12:00:00').getTime()-(PBI_WINDOW-1)*864e5));
-  const use=ds.filter(k=>k>=from&&(d[k][0]+d[k][1])>0);if(use.length<5)return null;
-  const st=i=>{const v=use.map(k=>+d[k][i]||0),srt=v.slice().sort((a,b)=>a-b);
-    return {avg:v.reduce((a,x)=>a+x,0)/v.length,med:srt[Math.floor(srt.length/2)],max:srt[srt.length-1]};};
-  const age=Math.round((Date.now()-new Date(to+'T12:00:00').getTime())/864e5);
-  return {T2000:st(0),T2100:st(1),from:use[0],to,days:use.length,age,old:age>PBI_OLD,
-    up:!!(cfg&&cfg.pbi&&cfg.pbi.at),at:cfg&&cfg.pbi?cfg.pbi.at:'',by:cfg&&cfg.pbi?cfg.pbi.by||'':''};}
+const PBI_OLD=14;
+function pbiTrays(cfg){const e=cfg&&cfg.pbi;
+  if(e&&e.from&&e.days>0){const age=Math.floor((Date.now()-new Date(e.at).getTime())/864e5);
+    return {T2000:{avg:(+e.T2000||0)/e.days},T2100:{avg:(+e.T2100||0)/e.days},from:e.from,to:e.to,days:e.days,age,old:age>=PBI_OLD,up:true,at:e.at,by:e.by||''};}
+  const d=PBI_DEFAULT[currentPlant]||{},ds=Object.keys(d).sort();if(ds.length<5)return null;
+  const avg=i=>ds.reduce((a,k)=>a+(+d[k][i]||0),0)/ds.length,to=ds[ds.length-1];
+  const age=Math.floor((Date.now()-new Date(to+'T12:00:00').getTime())/864e5);
+  return {T2000:{avg:avg(0)},T2100:{avg:avg(1)},from:ds[0],to,days:ds.length,age,old:age>=PBI_OLD,up:false,at:'',by:''};}
 /* Use in the last 12 months (Power BI · Production Receipts · Nov 17 2025 – Nov 16 2026, no pork).
    Units: boxes, trays, sleeves (pieces), patty paper (sheets), bags (bags). Used for the A/B/C priority
    (ranking inside each category) and as use/day for boxes and trays when there is no plan and no receipts. */
@@ -4011,7 +4008,7 @@ function reorderRows(summary){
   // POs marked "created" or with a changed quantity (shared): they count as coming, so they are not suggested again
   const marks=loadReoMarks(),yzAt=yz&&yz.loaded?new Date(yz.loaded).getTime():0;
   const H=dm?Math.max(1,Math.round((new Date(dm.end+'T00:00:00')-today)/864e5)+1):0;   // days the plan covers
-  const PBI=pbiTrays(cfg);   // trays from Power BI (sleeves scanned)
+  const PBI=pbiTrays(cfg);   // trays used per production day, from Power BI
   // what is coming, by day: open Yooz POs + POs that are only in John's planner yet (the planner's delivery day wins)
   const inc={};
   try{
@@ -4091,15 +4088,19 @@ function reorderRows(summary){
     const open=coming.reduce((a,x)=>a+x.qty,0);
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const iu=kind!=='box'?invUse(f.base):null;                       // trays and the rest: what goes down in the counts
-    let rate=iu?iu.rate:(hist>0?hist:(ptot>0?ptot/H:y12day));         // after the plan ends: what we usually use
+    // rate = per CALENDAR day (dem() turns it into rate × 7/5 on each work day). The counts give use per WORKING day,
+    // so × 5/7 here (Nov 20: before, count-based items ordered ~40% more than they use)
+    let rate=iu?iu.rate*5/7:(hist>0?hist:(ptot>0?ptot/H:y12day));         // after the plan ends: what we usually use
     // sanity check (Nov 20): trays / labels with a plan — use from the counts more than 2× the plan's daily average
     // is a count problem, not real use → plan × 1.2, and the card says to check the counts
     let capped=false;if(kind==='tray'&&iu&&ptot>0){const pd=Object.keys(pday).length?ptot/Math.max(1,Object.values(pday).filter(v=>v>0).length):0;
       if(pd>0&&rate>2*pd){rate=pd*1.2;capped=pd;}}
-    // T2000 / T2100 (Nov 20): use per day = Power BI (sleeves scanned), both plants — counts mix the two trays and the
+    // T2000 / T2100 (Nov 20): use per day = Power BI (trays used), both plants — counts mix the two trays and the
     // planner can be wrong. Juan's plan still gives the days it has; after its last day with trays, Power BI.
     const pbK=(f.base.match(/^(T2000|T2100)-\d$/)||[])[1],pbT=PBI&&pbK&&PBI[pbK]&&PBI[pbK].avg>0?PBI[pbK]:null;
-    let Hd=H;if(pbT){rate=pbT.avg*5/7;capped=false;let last=-1;for(let i=0;i<H;i++)if((pday[ymd(new Date(today.getTime()+i*864e5))]||0)>0)last=i;Hd=last+1;}
+    // count-based items are not in Juan's plan: their use starts today, not after the plan's last day (Nov 20: before,
+    // the plan days counted as 0 use for gloves, bags, tape, patty paper, film, sleeves)
+    let Hd=kind==='inv'?0:H;if(pbT){rate=pbT.avg*5/7;capped=false;let last=-1;for(let i=0;i<H;i++)if((pday[ymd(new Date(today.getTime()+i*864e5))]||0)>0)last=i;Hd=last+1;}
     const r={kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
@@ -4115,7 +4116,7 @@ function reorderRows(summary){
     const dem=i=>{const d=new Date(today.getTime()+i*864e5);if(i<Hd)return pday[ymd(d)]||0;const w=d.getDay();return w===0||w===6||hol.has(ymd(d))?0:rate*7/5;};
     // daily use and how much it moves (from the plan days; after the plan, the usual use)
     const dd=[];for(let i=0;i<Math.max(Hd,1);i++)dd.push(dem(i));
-    const dbar=Math.max(rate,dd.reduce((a,x)=>a+x,0)/dd.length);
+    const dbar=kind==='inv'?rate*7/5:Math.max(rate,dd.reduce((a,x)=>a+x,0)/dd.length);   // inv: use per working day
     const sd=dd.length>2?Math.sqrt(dd.reduce((a,x)=>a+(x-dd.reduce((p,q)=>p+q,0)/dd.length)**2,0)/(dd.length-1)):dbar*0.3;
     r.dbar=dbar;r.sd=sd;r.sL=sL;
     const arr={};coming.forEach(x=>{const i=dayIdx(x.date);arr[i]=(arr[i]||0)+x.qty;});
@@ -7638,7 +7639,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.20j';
+const APP_VERSION='2026.11.20l';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

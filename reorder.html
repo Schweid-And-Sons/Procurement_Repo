@@ -162,7 +162,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20j</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20l</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -373,13 +373,13 @@ function saveTooBig(mode){const t=window._tb,c=t.cfg;
 /* ---------- Details: 1) Juan's plan day by day  2) the calculation  3) suggestions ---------- */
 /* where the daily use comes from: boxes = Juan's plan; trays = plan, then the counts; the rest = only the counts */
 function useBlock(r){const u=unitOf(r)||'',iu=r.iu;
-  if(r.pbi){const p=r.pbi,sz=/^T2100/.test(r.base)?'2.5 oz (sliders)':'5.3 oz';
-    return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From <b>Juan's plan</b>${p.planTo?' until '+dShort(p.planTo):''}, then <b>Power BI</b> (${sz} sleeves scanned = trays used).
-      <br><b>~${n0(p.avg)} trays per production day</b> <span class="mut">· middle day ${n0(p.med)} · highest ${n0(p.max)} · ${p.days} days, ${dShort(p.from)} → ${dShort(p.to)}</span>
-      ${p.old?`<br><span class="late">⚠ Power BI data is ${p.age} days old — upload the new export.</span>`:''}
-      ${iu?`<br><span class="mut">Morning counts would say ~${n0(iu.rate)}/working day — only a check (they mix T2000 and T2100).</span>`:''}
-      <br><span class="mut">${p.up?'Uploaded '+(p.at?new Date(p.at).toLocaleDateString('en-US'):'')+(p.by?' · '+esc(p.by):''):'Data sent Nov 19 (no upload yet)'}</span>
-      <br><button class="c-more" style="margin-top:6px" onclick="event.stopPropagation();pbiPick()">⬆ Upload Power BI</button></div></div>`;}
+  if(r.pbi){const p=r.pbi;
+    return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From <b>Juan's plan</b>${p.planTo?' until '+dShort(p.planTo):''}, then <b>Power BI</b>.
+      <br><b>~${n0(p.avg)} trays per production day</b> <span class="mut">· ${dShort(p.from)} → ${dShort(p.to)}, ${p.days} production days</span>
+      ${p.old?`<br><span class="late">⚠ ${p.age} days without updating the trays from Power BI.</span>`:''}
+      ${iu?`<br><span class="mut">Morning counts would say ~${n0(iu.rate)}/working day — only a check (T2000 and T2100 get mixed in the count).</span>`:''}
+      <br><span class="mut">${p.up?'Typed '+(p.at?new Date(p.at).toLocaleDateString('en-US'):'')+(p.by?' · '+esc(p.by):''):'Data from Nov 19 (not typed yet)'}</span>
+      <br><button class="c-more" style="margin-top:6px" onclick="event.stopPropagation();pbiForm()">✏️ Update from Power BI</button></div></div>`;}
   const src=r.kind==='box'?"Juan's plan (Boxes Total today), then the usual use"
     :r.kind==='tray'?"Juan's plan, then what goes down in the morning counts"
     :'what goes down in the morning counts (Juan\'s plan and Power BI are not used for this item)';
@@ -638,46 +638,33 @@ function printList(){
   el.innerHTML=h;setTimeout(()=>window.print(),50);
 }
 
-/* ---------- ⬆ Power BI: trays used (sleeves scanned) ---------- (Nov 20)
-   Accepts the "Sleeve Usage" exports as they come: one file per day (the date and warehouse are read from the
-   "Applied filters" note), several files at once, or one table with a date column. Warehouse 1 / code -1 = NJ, 4 / -4 = GA.
-   5.3 oz sleeves → T2000, 2.5 oz sliders (SL15099, SL2150) → T2100. Saved for every device in this plant's settings. */
-const PBI_SMALL=/^(SL15099|SL2150)-\d$/;
-function pbiPick(){let i=document.getElementById('pbi-in');if(!i){i=document.createElement('input');i.type='file';i.id='pbi-in';i.multiple=true;
-  i.accept='.xlsx,.xls,.csv';i.style.display='none';i.onchange=()=>{pbiFiles([...i.files]);i.value='';};document.body.appendChild(i);}i.click();}
-function pbiYmd(x){if(x instanceof Date&&!isNaN(x))return ymdL(x);if(typeof x==='number'&&x>20000&&x<80000){const d=new Date(Math.round((x-25569)*864e5));return d.toISOString().slice(0,10);}
-  const d=new Date(String(x||'').replace(/^\w+day,\s*/i,''));return isNaN(d)?'':ymdL(d);}
-async function pbiFiles(files){if(!files.length)return;
-  try{await loadXlsx();}catch(e){toast('⚠ '+e.message);return;}
-  const got={NJ:{},GA:{}},add=(pl,d,code,q)=>{if(!pl||!d||!/^SL/i.test(code)||!(q>0))return;const t=(got[pl][d]=got[pl][d]||[0,0]);t[PBI_SMALL.test(code)?1:0]+=q;};
-  const plOf=(code,wh)=>/-1$/.test(code)?'NJ':/-4$/.test(code)?'GA':wh==='1'?'NJ':wh==='4'?'GA':'';
-  let bad=0;
-  for(const f of files){try{
-    const wb=XLSX.read(await f.arrayBuffer(),{cellDates:true});
-    for(const nm of wb.SheetNames){const rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:true,defval:''});
-      const note=rows.map(r=>r.join(' ')).find(t=>/applied filters/i.test(t))||'';
-      const wh=(note.match(/warehouse_code is (\d)/i)||[])[1]||'';
-      const hi=rows.findIndex(r=>r.some(c=>/sleeve/i.test(String(c))));if(hi<0)continue;
-      const H=rows[hi].map(c=>String(c).trim().toLowerCase());
-      const cD=H.findIndex(h=>/date/.test(h)),cC=H.findIndex(h=>h==='sleeve'||/item|code/.test(h)),cQ=H.findIndex(h=>/usage|qty|quantity/.test(h));
-      const cc=cC>=0?cC:0,cq=cQ>=0?cQ:1;
-      if(cD>=0){rows.slice(hi+1).forEach(r=>{const code=String(r[cc]||'').trim().toUpperCase();add(plOf(code,wh),pbiYmd(r[cD]),code,+r[cq]||0);});continue;}
-      // no date column: the dates come from the filter note ("on or after …, … and is before …")
-      const a=(note.match(/on or after (?:\w+,\s*)?(\w+ \d{1,2}, \d{4})/i)||[])[1],b=(note.match(/is before (?:\w+,\s*)?(\w+ \d{1,2}, \d{4})/i)||[])[1];
-      const d0=a?new Date(a+' 12:00'):null,d1=b?new Date(b+' 12:00'):null;if(!d0||isNaN(d0)){bad++;continue;}
-      const days=[];for(let d=new Date(d0);!d1||d<d1;d.setDate(d.getDate()+1)){if(d.getDay()>0&&d.getDay()<6||!d1||+d1-+d0<=864e5)days.push(ymdL(d));if(!d1)break;}
-      if(!days.length){bad++;continue;}
-      rows.slice(hi+1).forEach(r=>{const code=String(r[cc]||'').trim().toUpperCase();if(!/^SL/.test(code))return;
-        days.forEach(d=>add(plOf(code,wh),d,code,(+r[cq]||0)/days.length));});   // a file of several days: spread over its weekdays
-    }}catch(e){bad++;}}
-  const mine=got[PLANT],n=Object.keys(mine).length,other=PLANT==='NJ'?'GA':'NJ',no=Object.keys(got[other]).length;
-  if(!n){toast(no?'⚠ These files are '+other+' — open Next POs in '+other+' to upload them':'⚠ No sleeve usage found in '+(files.length>1?'these files':'this file'));return;}
+/* ---------- ✏️ Power BI: trays used (Nov 20) ----------
+   Julian filters Power BI by a date range (last 4 weeks to yesterday) and types how many T2000 and T2100 were used.
+   The app divides by the production days of that range (Mon–Fri, no holidays). Saved for every device of this plant (PIN). */
+function pbiProdDays(f,t){const hol=new Set(((data&&data.cfg&&data.cfg.holidays)||[]).map(h=>h.d));let n=0;
+  if(!f||!t||t<f)return 0;for(let d=new Date(f+'T12:00:00');ymdL(d)<=t;d.setDate(d.getDate()+1)){const w=d.getDay();if(w>0&&w<6&&!hol.has(ymdL(d)))n++;}return n;}
+function pbiRange(){const t=new Date();t.setDate(t.getDate()-1);const f=new Date(t);f.setDate(f.getDate()-27);return [ymdL(f),ymdL(t)];}
+function pbiOld(){return (data&&data.rows||[]).map(r=>r.pbi).find(p=>p&&p.old)||null;}
+function pbiBar(){const p=pbiOld();if(!p)return '';const [f,t]=pbiRange();
+  return `<div class="blk" style="border-left:4px solid #e8890c;cursor:pointer" onclick="pbiForm()"><div class="blk-n"><span class="late"><b>⚠ ${p.age} days without updating the trays from Power BI.</b></span><br>Filter Power BI from <b>${dShort(f)}</b> to <b>${dShort(t)}</b> and type how many T2000 and T2100 were used. <b>Tap here.</b></div></div>`;}
+function pbiForm(){const [f,t]=pbiRange();
+  sheet(`<h2>✏️ Trays from Power BI · ${PLANT}</h2>
+    <div class="hint">In Power BI, filter the dates below and type how many trays were used in that time.</div>
+    <div class="row2"><input type="date" id="pbf" value="${f}" onchange="pbiDays()"><input type="date" id="pbt" value="${t}" onchange="pbiDays()"></div>
+    <div class="hint" id="pbn"></div>
+    <div class="row2"><input type="number" id="pb0" inputmode="numeric" min="0" placeholder="T2000 used" oninput="pbiDays()"><input type="number" id="pb1" inputmode="numeric" min="0" placeholder="T2100 used" oninput="pbiDays()"></div>
+    <div class="hint" id="pbr"></div>
+    <button class="big" onclick="pbiSave()">Save</button><button class="big gray" onclick="closeSheet()">Cancel</button>`);pbiDays();}
+function pbiDays(){const f=document.getElementById('pbf').value,t=document.getElementById('pbt').value,n=pbiProdDays(f,t);
+  document.getElementById('pbn').innerHTML=n?`<b>${n}</b> production days (Mon–Fri, no holidays)`:'<span class="late">Pick a valid range</span>';
+  const a=+document.getElementById('pb0').value||0,b=+document.getElementById('pb1').value||0;
+  document.getElementById('pbr').innerHTML=n&&(a||b)?`= T2000 <b>${n0(a/n)}</b> per day · T2100 <b>${n0(b/n)}</b> per day`:'';}
+function pbiSave(){const f=document.getElementById('pbf').value,t=document.getElementById('pbt').value,n=pbiProdDays(f,t);
+  const a=+document.getElementById('pb0').value,b=+document.getElementById('pb1').value;
+  if(!n){toast('Pick a valid date range');return;}if(!(a>0)||!(b>=0)||document.getElementById('pb1').value===''){toast('Type both: T2000 and T2100 (0 if none)');return;}
   const c=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));
-  const dl=Object.assign({},(c.pbi&&c.pbi.daily)||{});Object.entries(mine).forEach(([d,v])=>dl[d]=[Math.round(v[0]),Math.round(v[1])]);
-  const keep=Object.keys(dl).sort().slice(-60);c.pbi={daily:Object.fromEntries(keep.map(k=>[k,dl[k]])),at:new Date().toISOString()};
-  const ks=Object.keys(mine).sort();
-  withPin(()=>{sendSave({type:'wms-reorder-cfg',cfg:c});
-    toast('⬆ Power BI '+PLANT+': '+n+' day(s), '+dShort(ks[0])+' → '+dShort(ks[ks.length-1])+(no?' · '+other+' files skipped (upload them in '+other+')':'')+(bad?' · '+bad+' file(s) not read':''));});}
+  c.pbi={from:f,to:t,days:n,T2000:Math.round(a),T2100:Math.round(b),at:new Date().toISOString()};
+  withPin(()=>{closeSheet();sendSave({type:'wms-reorder-cfg',cfg:c});toast('✓ Trays: T2000 '+n0(a/n)+'/day · T2100 '+n0(b/n)+'/day');});}
 
 /* ---------- Excel: the POs to create (to share) ---------- */
 const XLSX_SRC='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',XLSX_SRI='sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==';
@@ -693,7 +680,7 @@ async function exportExcel(){
     out.push([(r.codes||[r.base]).join(' + '),Math.round(o.qty),unitOf(r),o.pallets||'',ymdL(o.orderBy),o.dl.map(x=>ymdL(x.d)+' '+n0(x.q)).join(' | '),
       o.done?'Created':o.pending?'Pending':o.edited?'Not ordered (qty changed)':'Not ordered',(r.main||{}).vendor||'',r.cls||'',o.rush?'YES':'',r.name||'',catOf(r),
       r.coverDay==null?'6+ weeks':ymdL(addDays(Math.max(0,r.coverDay-1))),Math.round(r.stock||0),Math.round((r.coming||[]).reduce((a,x)=>a+(+x.qty||0),0)),
-      r.dbar>0?Math.round(r.dbar*10)/10:'',r.dbar>0?Math.round(r.stock/r.dbar*10)/10:'',r.kind==='box'?"Juan's plan":r.pbi?"Juan's plan + Power BI ("+r.pbi.days+' days)':r.iu?'Morning counts ('+r.iu.days+' days)':r.kind==='tray'?"Juan's plan":'Yooz received (30 days)',o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
+      r.dbar>0?Math.round(r.dbar*10)/10:'',r.dbar>0?Math.round(r.stock/r.dbar*10)/10:'',r.kind==='box'?"Juan's plan":r.pbi?"Juan's plan + Power BI ("+r.pbi.days+' production days)':r.iu?'Morning counts ('+r.iu.days+' days)':r.kind==='tray'?"Juan's plan":'Yooz received (30 days)',o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
   if(!out.length){toast('No POs to export');return;}
   out.sort((a,b)=>a[4].localeCompare(b[4])||a[0].localeCompare(b[0]));
   const title=['Schweid & Sons · Next POs · '+(PLANT==='NJ'?'New Jersey':'Georgia')+(cat!=='ALL'?' · '+cat:'')+' · '+new Date().toLocaleString('en-US')];
@@ -742,7 +729,7 @@ function render(keepFocus){
   const cc=c2=>(data.rows||[]).filter(r=>c2==='ALL'||catOf(r)===c2).length;
   const cats=`<div class="cats">${CATS.filter(([k])=>k==='ALL'||cc(k)).map(([k,l])=>`<button class="cat${cat===k?' on':''}" onclick="setCat('${k}')">${l}<i>${cc(k)}</i></button>`).join('')}</div>`;
   if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;document.querySelector('.tabs').outerHTML=tabs;return;}
-  body.innerHTML=friBox()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
+  body.innerHTML=friBox()+pbiBar()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
 }
 
 
