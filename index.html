@@ -3875,7 +3875,7 @@ const REO_HOLIDAYS=[['2026-01-01','New Year'],['2026-05-25','Memorial Day'],['20
 const REO_CFG_DAY='2000-01-03',REO_MARK_DAY='2000-01-04';
 const REO_SS_DAYS={A:2,B:1,C:1};   // safety stock in days of use, by priority (editable in Next POs → Settings). Nov 18: was A3/B2/C1 — too much;
 // John keeps ~1 day (Sonic / PCA deliver next day, even same day), so a next-day supplier's cushion is at most 1 day (REO_SS_FAST)
-const REO_SS_FAST=1;
+const REO_SS_FAST=1,REO_SS_SONIC=0.5;   // NJ Sonic: same-day delivery (Julian, Nov 20)
 /* supplies John orders that Yooz's lead-time data doesn't bring (Nov 19): who supplies them (John's master sheet) */
 const REO_SUPPLY=[[/^L1\d{4}(FRONT|BACK)(-PLAS)?-\d$/,'PACKAGED, LLC'],[/^(H264B\/L|GLOVCOT|1809B|BG1450|M1500|STRWRAP)-\d$/,'BUNZL'],
   [/^(H134XL|H134L|H134\/S|H242\/XL-120C|P400|H219\/B)-\d$/,'AMERISAN'],[/^BG(1000|2000)-\d$/,'IMPERIAL DADE'],
@@ -4054,14 +4054,23 @@ function reorderRows(summary){
     // if none in 3 months, the one with the most recent PO (trays left Bunzl / Packaged)
     const vs=f.lt.slice().sort((a,b)=>String(b.last).localeCompare(String(a.last))||b.pos-a.pos);
     const recent=vs.filter(v=>v.last&&(today-new Date(v.last+'T00:00:00'))/864e5<=90);
-    const main=recent.length?recent.slice().sort((a,b)=>b.pos-a.pos)[0]:vs[0];
+    let main=recent.length?recent.slice().sort((a,b)=>b.pos-a.pos)[0]:vs[0];
+    // NJ (Julian, Nov 20): Sonic delivers the same day, PCA is not reliable (says tomorrow, comes the day after).
+    // A box both make → suggest Sonic. Only BX7700 is PCA's alone.
+    const sonicV=currentPlant==='NJ'&&!/^BX7700-\d$/.test(f.base)?vs.find(v=>/SONIC/i.test(String(v.vendor))):null;
+    if(sonicV)main=sonicV;
     const fast=(recent.length?recent:[main]).find(v=>/SONIC/i.test(String(v.vendor)))   // rush: Sonic when it makes this box (faster than PCA — Julian, Nov 19)
       ||(recent.length?recent:[main]).filter(v=>v.ltAvg||v.lt).sort((a,b)=>(a.ltAvg||a.lt)-(b.ltAvg||b.lt))[0]||main;   // otherwise the quickest one
     // lead time: set for this item > real from Yooz > set for the supplier > 7 days (Settings → Lead time)
     const vK=reoVendorKey(main.vendor);let ltSrc='yooz',ltMan=null;
     if(ltItem[f.base]>0){ltMan=+ltItem[f.base];ltSrc='item';}
     else if(main.manual||!(main.lt||main.ltAvg)){ltMan=ltSup[vK]>0?+ltSup[vK]:REO_LT_DEFAULT;ltSrc=ltSup[vK]>0?'supplier':'default';}
-    const P90=ltMan||main.lt||main.ltAvg||0,Lavg=ltMan||main.ltAvg||P90;
+    let P90=ltMan||main.lt||main.ltAvg||0,Lavg=ltMan||main.ltAvg||P90;
+    // NJ: PCA can be a day late → at least 2 days, unless this item has its own lead time
+    const pcaSlow=currentPlant==='NJ'&&ltSrc!=='item'&&/PACKAGING CORP|\bPCA\b/i.test(String(main.vendor));
+    // NJ Sonic: ordered in the morning, here the same night → in the next morning's count = 1 day (unless set for the item)
+    if(currentPlant==='NJ'&&ltSrc!=='item'&&/SONIC/i.test(String(main.vendor))){P90=1;Lavg=1;ltSrc='sonic';}
+    if(pcaSlow){P90=Math.max(P90,2);Lavg=Math.max(Lavg,2);if(ltSrc==='yooz'&&!(main.ltAvg>=2))ltSrc='pca';}
     const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
     const hist=f.recv/REO_USE_DAYS;
     const it=ITEMS.find(i=>i.code===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base);   // the name of the item in use, not a discontinued one (BX7700 → PCA)
@@ -4148,7 +4157,9 @@ left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left,src:psrc[ymd(dOf(i))]||n
       const own=cfg.ssItem&&cfg.ssItem[f.base]!=null;                   // this item has its own cushion ("too big?")
       const fastSup=/SONIC|PACKAGING CORP|\bPCA\b/i.test(String(main.vendor));
       let ssd=own?+cfg.ssItem[f.base]:(cfg.ss&&cfg.ss[cls]!=null?+cfg.ss[cls]:REO_SS_DAYS[cls]);r.ssOwn=own;
-      if(!own&&fastSup&&ssd>REO_SS_FAST){ssd=REO_SS_FAST;r.ssFast=true;}   // delivers next day → 1 day of cushion is enough
+      // delivers next day → 1 day of cushion is enough; NJ Sonic delivers the same day (ordered in the morning, here at night) → half a day
+      const fastCap=currentPlant==='NJ'&&/SONIC/i.test(String(main.vendor))?REO_SS_SONIC:REO_SS_FAST;
+      if(!own&&fastSup&&ssd>fastCap){ssd=fastCap;r.ssFast=true;}
       const ss=ssd*dbar;
       const z=REO_Z[cls];r.ssFormulaDays=dbar?Math.min(z*Math.sqrt(Lavg*sd*sd+dbar*dbar*sL*sL)/dbar,30):0;
       r.ss=ss;r.sdays=ssd;
@@ -4717,8 +4728,11 @@ function invCheck(){
   const lastD=last?new Date(last):null,tm=d=>d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
   const out=[];
   if(n.getHours()>=9&&(!lastD||isoDay(lastD)!==today))out.push('⚠ No inventory updates today yet'+(lastD?' (last: '+tm(lastD)+')':''));
-  const h=loadCntHist();
-  if(n.getHours()>=10&&h&&h.at&&isoDay(new Date(h.at))===today&&new Date(h.at).getHours()>=10&&!(h.days||{})[today])out.push("⚠ Today's Before 9am count was not saved");
+  // the morning copy of a day is saved when the next shift starts or the next day → check the previous work day's
+  const h=loadCntHist();let pw=new Date(n);do{pw.setDate(pw.getDate()-1);}while(pw.getDay()===0||pw.getDay()===6||hol.has(isoDay(pw)));
+  const pk=isoDay(pw);
+  if(n.getHours()>=10&&h&&h.at&&isoDay(new Date(h.at))===today&&new Date(h.at).getHours()>=10&&!(h.days||{})[pk])
+    out.push('⚠ The Before 9am count of '+pw.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' was not saved');
   return out.length?`<span class="lv-warn">${out.join(' · ')}</span>`:'';
 }
 function isoDay(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -6785,6 +6799,15 @@ function syncEntryRow(i){
     <button class="cal-entry-btn load" onclick="syncImportEntry(${i})">⬇ Load</button>
   </div>`;
 }
+/* Today's count before it is saved (Nov 20): the calendar copy of a shift is saved when the next shift starts (or the
+   next day). Meanwhile the calendar shows today with the LIVE count, to look at or download — nothing is saved. */
+function calLiveEntry(){if(!live.on||!live.rec||live.rec.day!==isoToday())return null;
+  return {date:liveDayLabel(live.rec.day),turno:live.rec.turno,turnoLabel:(SYNC_TURNO_LABELS[live.rec.turno]||'')+' — live, not saved yet',data:inventory,live:true};}
+function calLiveRow(){const it=calLiveEntry();if(!it)return '';
+  return `<div class="cal-entry"><span class="cal-entry-dot" style="background:${CAL_SHIFT[syncShiftRank(it)].c};box-shadow:0 0 0 3px rgba(37,99,235,.25)"></span>
+    <span class="cal-entry-lbl">${it.turnoLabel}<br><small style="color:var(--text3)">Saved by itself when the next shift starts, or tomorrow</small></span>
+    <button class="cal-entry-btn" onclick="syncViewEntry(-1)">👁 View</button>
+    <button class="cal-entry-btn" onclick="syncExportEntry(-1)">📊 Excel</button></div>`;}
 function renderSyncCalendar(scrollTo){
   const wrap=document.getElementById('sync-history-list');
   if(!wrap)return;
@@ -6814,21 +6837,23 @@ function renderSyncCalendar(scrollTo){
   for(let d=1;d<=days;d++){
     const k=syncDayKey({y,m:mo,d});
     const idxs=_syncByDay[k]||[];
+    const lv=k===todayKey&&calLiveEntry();
     const ranks=[...new Set(idxs.map(i=>syncShiftRank(_syncHistoryCache[i])))].sort();
     const cls='cal2-day'+(idxs.length?' data':'')+(k===_calSelKey?' sel':'')+(k===todayKey?' today':'');
-    const dots=ranks.map(r=>`<span style="background:${CAL_SHIFT[r].c}"></span>`).join('');
-    html+=idxs.length
+    const dots=ranks.map(r=>`<span style="background:${CAL_SHIFT[r].c}"></span>`).join('')+(lv?`<span style="background:transparent;border:2px solid ${CAL_SHIFT[syncShiftRank(lv)].c};box-sizing:border-box"></span>`:'');
+    html+=(idxs.length||lv)
       ?`<button class="${cls}" onclick="calSelectDay('${k}')"><b>${d}</b><em>${dots}</em></button>`
       :`<div class="${cls}"><b>${d}</b></div>`;
   }
   html+=`</div>
     <div class="cal2-legend">${CAL_SHIFT.map(s=>`<span><i style="background:${s.c}"></i>${s.l}</span>`).join('')}<button class="cal2-latest" onclick="calGoLatest()">Latest copy</button></div>
   </div>`;
-  if(_calSelKey&&_syncByDay[_calSelKey]){
+  const selLive=_calSelKey===todayKey?calLiveRow():'';
+  if(_calSelKey&&(_syncByDay[_calSelKey]||selLive)){
     const [sy,sm,sd]=_calSelKey.split('-').map(Number);
-    const idxs=_syncByDay[_calSelKey].slice().sort((a,b)=>syncShiftRank(_syncHistoryCache[a])-syncShiftRank(_syncHistoryCache[b]));
+    const idxs=(_syncByDay[_calSelKey]||[]).slice().sort((a,b)=>syncShiftRank(_syncHistoryCache[a])-syncShiftRank(_syncHistoryCache[b]));
     const dow=new Date(sy,sm-1,sd).toLocaleDateString('en-US',{weekday:'long'});
-    html+=`<div class="cal-day-panel" id="cal-day-panel"><div class="cal-day-title">${dow}, ${CAL_MONTHS[sm-1]} ${sd}, ${sy}<span>${idxs.length} cop${idxs.length>1?'ies':'y'}</span></div>${idxs.map(syncEntryRow).join('')}</div>`;
+    html+=`<div class="cal-day-panel" id="cal-day-panel"><div class="cal-day-title">${dow}, ${CAL_MONTHS[sm-1]} ${sd}, ${sy}<span>${idxs.length?idxs.length+' cop'+(idxs.length===1?'y':'ies')+(selLive?' + live':''):'live count'}</span></div>${idxs.map(syncEntryRow).join('')}${selLive}</div>`;
   }else{
     html+=`<div class="cal-day-panel cal-hint">Tap a day with dots to see its saved inventories.</div>`;
   }
@@ -6933,7 +6958,7 @@ async function exportFullHistory(){
 
 /* Excel of a saved copy, without touching today's inventory: the copy is swapped in only while the file is built. */
 function syncExportEntry(i){
-  const it=_syncHistoryCache[i];
+  const it=i===-1?calLiveEntry():_syncHistoryCache[i];
   if(!it){showToast('Entry not found.','error');return;}
   let d=String(it.date||'').trim();
   const iso=d.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -6946,7 +6971,7 @@ function syncExportEntry(i){
   finally{inventory=keep;}
 }
 function syncViewEntry(i){
-  const it=_syncHistoryCache[i];
+  const it=i===-1?calLiveEntry():_syncHistoryCache[i];
   if(!it){showToast('Entry not found.','error');return;}
   const label=it.turnoLabel||SYNC_TURNO_LABELS[it.turno]||it.turno||'';
   document.getElementById('sync-view-title').textContent='👁 '+it.date+' · '+label;
@@ -7671,7 +7696,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.20m';
+const APP_VERSION='2026.11.20o';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
