@@ -3941,7 +3941,8 @@ async function loadCntHistFromFlow(){
     const j=await res.json();const raw=Array.isArray(j)?j:(j.value||j.items||[]);
     const cut=ymd(new Date(Date.now()-CNT_HIST_DAYS*864e5)),pick={};
     raw.map(normalizeSyncRecord).filter(r=>r.plant===currentPlant&&syncShiftRank(r)===0).forEach(r=>{   // morning copies only
-      const dp=syncDateParts(r.date);if(!dp)return;const k=syncDayKey(dp);if(k<cut)return;if(!pick[k])pick[k]=r;});
+      const dp=syncDateParts(r.date);if(!dp)return;const k=syncDayKey(dp);if(k<cut)return;
+      const p0=pick[k];if(!p0||(r.at&&p0.at?r.at>p0.at:r.id>p0.id))pick[k]=r;});   // two morning copies of a day (saved by hand + by itself) → the newest
     const days={};
     Object.entries(pick).forEach(([k,r])=>{const t={};Object.values(r.data||{}).forEach(occ=>occItems(occ).forEach(x=>{
       const b=reoBase(x.item);t[b]=(t[b]||0)+toUnits(x.item,+x.qty||0);}));days[k]=t;});
@@ -6657,7 +6658,8 @@ function normalizeSyncRecord(r){
   const m=label.match(/^([A-Z]{2}) · (.*)$/);
   if(m&&PLANTS[m[1]]){plant=m[1];label=m[2];}
   else if(r.plant&&PLANTS[r.plant])plant=r.plant;
-  return{date:r.date||r.InventoryDate||r.WMS_Backups||'',turno:r.turno||'',turnoLabel:label,plant,data:data||{}};
+  return{date:r.date||r.InventoryDate||r.WMS_Backups||'',turno:r.turno||'',turnoLabel:label,plant,data:data||{},
+    at:String(r.Modified||r.Created||r.ts||''),id:+(r.ID||r.Id||r.id)||0};   // when it was saved: two copies of one shift → use the newest
 }
 function syncMode(){return getFlowUrl()?'sharepoint':'local';}
 function loadSyncHistoryLocal(){try{const s=localStorage.getItem(SYNC_HISTORY_KEY);return s?JSON.parse(s):[];}catch(e){return [];}}
@@ -6802,6 +6804,9 @@ function syncEntryRow(i){
 /* Today's count before it is saved (Nov 20): the calendar copy of a shift is saved when the next shift starts (or the
    next day). Meanwhile the calendar shows today with the LIVE count, to look at or download — nothing is saved. */
 function calLiveEntry(){if(!live.on||!live.rec||live.rec.day!==isoToday())return null;
+  // already saved by hand today for this shift → don't show it twice
+  const n=new Date(),tk=syncDayKey({y:n.getFullYear(),m:n.getMonth()+1,d:n.getDate()});
+  if((_syncByDay[tk]||[]).some(i=>syncShiftRank(_syncHistoryCache[i])===syncShiftRank({turno:live.rec.turno,turnoLabel:SYNC_TURNO_LABELS[live.rec.turno]})))return null;
   return {date:liveDayLabel(live.rec.day),turno:live.rec.turno,turnoLabel:(SYNC_TURNO_LABELS[live.rec.turno]||'')+' — live, not saved yet',data:inventory,live:true};}
 function calLiveRow(){const it=calLiveEntry();if(!it)return '';
   return `<div class="cal-entry"><span class="cal-entry-dot" style="background:${CAL_SHIFT[syncShiftRank(it)].c};box-shadow:0 0 0 3px rgba(37,99,235,.25)"></span>
@@ -7696,7 +7701,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.20o';
+const APP_VERSION='2026.11.20p';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
