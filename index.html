@@ -3951,7 +3951,9 @@ function reorderRows(summary){
       if(!w)continue;
       const qa=ch.days[a][b]||0,qc=ch.days[c][b]||0;if(!qa&&!qc)continue;
       const got=Object.entries(rcvD[b]||{}).reduce((s,[k,q])=>k>a&&k<=c?s+q:s,0);
-      const u=qa-qc+got;if(u<0){skip++;continue;}            // went up: a delivery or a recount → left out
+      // a delivery in between (count went up, or Yooz received something) → left out. Adding Yooz receipts made it far
+      // too high when the truck entered the count on another day (Nov 19: trays T2000 ~42,800/day vs ~16,000 real)
+      const u=qa-qc;if(u<0||got>0){skip++;continue;}
       used+=u;wd+=w;n++;}
     if(n<3||wd<3)return null;                                 // not enough mornings yet → the old way
     return {rate:used/wd,used,days:wd,pairs:n,skip,from:ds[0],to:ds[ds.length-1]};};
@@ -4011,7 +4013,7 @@ function reorderRows(summary){
     const P90=main.lt||main.ltAvg||0,Lavg=main.ltAvg||P90;
     const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
     const hist=f.recv/REO_USE_DAYS;
-    const it=ITEMS.find(i=>i.code===f.base)||ITEMS.find(i=>reoBase(i.code)===f.base);
+    const it=ITEMS.find(i=>i.code===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base);   // the name of the item in use, not a discontinued one (BX7700 → PCA)
     const kind=f.cat==='BOXES'?'box':(f.cat==='TRAYS'||/^T2\d/.test(f.base))?'tray':'inv';   // how its use is measured
     const pk=packFor(f.base,main.vendor),div=pk&&pk.pal?pk.pal:1;                  // trays: plan in trays → pallets
     const pday={},psrc={};let ptot=0,pdone=0;
@@ -7563,7 +7565,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.19k';
+const APP_VERSION='2026.11.20b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

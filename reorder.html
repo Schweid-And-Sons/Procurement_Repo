@@ -162,7 +162,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19k</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20b</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -371,7 +371,7 @@ function useBlock(r){const u=unitOf(r)||'',iu=r.iu;
   const src=r.kind==='box'?"Juan's plan (Boxes Total today), then the usual use"
     :r.kind==='tray'?"Juan's plan, then what goes down in the morning counts"
     :'what goes down in the morning counts (Juan\'s plan and Power BI are not used for this item)';
-  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b> — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: the count went up (delivery or recount)`:''}`
+  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b> — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: a delivery came in (or a recount)`:''}`
     :r.kind==='box'?'':'<span class="late">Not enough morning counts yet</span> — using what was received in Yooz (last 30 days) until there are 3+ mornings.';
   return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From ${src}.${det?'<br>'+det:''}${r.kind==='inv'?'<br><span class="mut">Count it carefully every morning: a wrong count changes this number.</span>':''}</div></div>`;}
 function calcBlock(r){
@@ -604,17 +604,18 @@ async function exportExcel(){
   if(!data||!(data.rows||[]).length){toast('Nothing to export yet');return;}
   try{await loadXlsx();}catch(e){toast('⚠ '+e.message);return;}
   // what to order first and together: code · quantity · unit · pallets; then when, status and the rest
-  const head=['Code','Quantity','Unit','Pallets','Order by','Deliveries','Status','Supplier','Priority','Rush','Description','Category','Covered until','Changed / created by'];
+  const head=['Code','Quantity','Unit','Pallets','Order by','Deliveries','Status','Supplier','Priority','Rush','Description','Category','Covered until','On hand','On the way','Uses per day','Days of stock','Use from','Changed / created by'];
   const out=[];
   (data.rows||[]).filter(inCat).forEach(r=>groupOrders(r.orders).forEach(o=>{
     out.push([(r.codes||[r.base]).join(' + '),Math.round(o.qty),unitOf(r),o.pallets||'',ymdL(o.orderBy),o.dl.map(x=>ymdL(x.d)+' '+n0(x.q)).join(' | '),
       o.done?'Created':o.pending?'Pending':o.edited?'Not ordered (qty changed)':'Not ordered',(r.main||{}).vendor||'',r.cls||'',o.rush?'YES':'',r.name||'',catOf(r),
-      r.coverDay==null?'6+ weeks':ymdL(addDays(Math.max(0,r.coverDay-1))),o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
+      r.coverDay==null?'6+ weeks':ymdL(addDays(Math.max(0,r.coverDay-1))),Math.round(r.stock||0),Math.round((r.coming||[]).reduce((a,x)=>a+(+x.qty||0),0)),
+      r.dbar>0?Math.round(r.dbar*10)/10:'',r.dbar>0?Math.round(r.stock/r.dbar*10)/10:'',r.kind==='box'?"Juan's plan":r.iu?'Morning counts ('+r.iu.days+' days)':r.kind==='tray'?"Juan's plan":'Yooz received (30 days)',o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
   if(!out.length){toast('No POs to export');return;}
   out.sort((a,b)=>a[4].localeCompare(b[4])||a[0].localeCompare(b[0]));
   const title=['Schweid & Sons · Next POs · '+(PLANT==='NJ'?'New Jersey':'Georgia')+(cat!=='ALL'?' · '+cat:'')+' · '+new Date().toLocaleString('en-US')];
   const ws=XLSX.utils.aoa_to_sheet([title,['Guide only — the official PO is made in Yooz.'],[],head].concat(out));
-  ws['!cols']=[24,10,8,8,11,40,14,16,8,6,30,12,13,26].map(w=>({wch:w}));
+  ws['!cols']=[24,10,8,8,11,40,14,16,8,6,30,12,13,10,10,11,10,20,26].map(w=>({wch:w}));
   ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:3,c:0},e:{r:3+out.length,c:head.length-1}})};
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Next POs');
   XLSX.writeFile(wb,'Next_POs_'+PLANT+'_'+ymdL(new Date())+'.xlsx');toast('⬇ Excel downloaded');
