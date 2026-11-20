@@ -4001,7 +4001,9 @@ function reorderRows(summary){
   }catch(e){console.error(e);}
   const card=potCard(currentPlant);
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
-  const rows=Object.values(fam).filter(f=>f.lt.length).map(f=>{
+  // not ordered from Next POs: wooden pallets M2000 are counted, but not ordered this way (Julian, Nov 19)
+  const REO_SKIP=/^M2000-/;
+  const rows=Object.values(fam).filter(f=>f.lt.length&&!REO_SKIP.test(f.base)).map(f=>{
     // active supplier = the one with the most recent PO (not the one with most POs: trays left Bunzl / Packaged)
     // supplier: among the ones used in the last 3 months, the one we order from the most (Sonic over PCA for BX1850);
     // if none in 3 months, the one with the most recent PO (trays left Bunzl / Packaged)
@@ -7565,7 +7567,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.20d';
+const APP_VERSION='2026.11.20e';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
