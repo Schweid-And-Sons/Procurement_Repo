@@ -3226,7 +3226,7 @@ function applyPlant(p){
   document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===currentMode));
   refresh();
   updateCountSessionUI();
-  liveInit().then(()=>autoLoadIfEmpty()).then(()=>planAutoFetch(false));
+  liveInit().then(()=>autoLoadIfEmpty()).then(()=>planAutoFetch(false)).then(()=>bgRefreshAll(true));
 }
 function plantSummary(p){
   const cfg=PLANTS[p], areas=PLANT_DATA[p].areas;
@@ -4691,6 +4691,38 @@ function planFileDay(name){                      // "… 2026 NJ Nov 9th.xlsx" �
   return y+'-'+String(MONTHS.indexOf(m[2])+1).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
 }
 let planAuto={busy:false,tried:{},checked:{}};
+/* Opening the WMS brings EVERYTHING up to date in the background, one source after the other (Nov 20): Yooz, John's
+   planner, Eleni's PO Tracker, the receiving reports and the morning counts — no need to open each screen first.
+   Each source keeps its own limit (Yooz after 8:30 AM / PM, planner and tracker once an hour, counts once a day after
+   10 AM), so opening the app many times does not repeat the calls. Then every 10 min while the app is on screen. */
+async function bgRefreshAll(first){
+  if(RCV_ONLY)return;
+  const step=async f=>{try{await Promise.resolve(f());}catch(e){}};
+  await step(()=>yoozAutoRefresh());await step(()=>plannerAutoRefresh());await step(()=>potAutoRefresh());
+  if(first)await step(()=>syncReceiptsFromSP(false));
+  if(cntHistOld()&&!cntFetch.busy&&Date.now()-(cntFetch.tried||0)>20*60000)await step(()=>loadCntHistFromFlow());
+  try{renderLiveBar();}catch(e){}
+}
+setInterval(()=>{if(document.visibilityState==='visible')bgRefreshAll(false);},10*60000);
+// the planning file: look again once an hour on ANY screen (Reorder too), so plan changes show up during the day
+setInterval(()=>{if(document.visibilityState==='visible'&&PLAN_FILE_URL&&currentView!=='plan')planAutoFetch(false);},5*60000);
+/* Is the inventory really being updated? (Nov 20) On a work day: after 9 AM, no change from any device today → warning;
+   after 10 AM, today's "Before 9am" copy not saved → warning. Shown in the live bar on every screen. */
+function invCheck(){
+  const n=new Date(),w=n.getDay(),today=isoToday();
+  let hol=new Set();try{hol=new Set((loadReoCfg().holidays||[]).map(h=>h.d));}catch(e){}
+  if(w===0||w===6||hol.has(today))return '';
+  const st0=String((live.rec&&live.rec.startedAt)||'');   // starting a shift stamps every item with its start time: that is not a count
+  const last=[...Object.values(live.ts||{}),...Object.values(live.del||{})].map(String).filter(v=>v&&v!==st0).sort().pop()||'';
+  const lastD=last?new Date(last):null,tm=d=>d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const out=[];
+  if(n.getHours()>=9&&(!lastD||isoDay(lastD)!==today))out.push('⚠ No inventory updates today yet'+(lastD?' (last: '+tm(lastD)+')':''));
+  const h=loadCntHist();
+  if(n.getHours()>=10&&h&&h.at&&isoDay(new Date(h.at))===today&&new Date(h.at).getHours()>=10&&!(h.days||{})[today])out.push("⚠ Today's Before 9am count was not saved");
+  return out.length?`<span class="lv-warn">${out.join(' · ')}</span>`:'';
+}
+function isoDay(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
 async function planAutoFetch(manual){
   if(!PLAN_FILE_URL||planAuto.busy||RCV_ONLY)return;
   const d=isoToday(),p0=currentPlant,k=p0+'|'+d;
@@ -4699,7 +4731,7 @@ async function planAutoFetch(manual){
     if(planData&&planData.day===d&&(planData.items||[]).length){
       // today's plan is already here — but the planners keep editing the file during the day:
       // look again at most once an hour (only while the Plan screen is open) and reload it if the file changed.
-      if(currentView!=='plan'||document.visibilityState!=='visible'||Date.now()-(planAuto.checked[k]||0)<60*60000)return;
+      if(document.visibilityState!=='visible'||Date.now()-(planAuto.checked[k]||0)<60*60000)return;   // any screen (Nov 20), not only Plan
       recheck=true;
     }
     if(Date.now()-(planAuto.tried[k]||0)<20*60000)return;
@@ -4985,7 +5017,7 @@ function liveBarInner(){
   const st=live.err?`<span class="lv-warn">⚠ Offline — changes stay on this device${live.pending?' and upload when back':''} · <a href="#" onclick="livePull(true,true);return false">Retry</a></span>`
     :`<span>☁ Live · ${live.pending?'uploading…':'all devices in sync'}${live.at?' · '+new Date(live.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):''}</span>`;
   // the shift is changed in ONE place only: Menu → Sync (the ▶ shortcut buttons were removed — they confused people)
-  return `<span class="lv-shift">${r?SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day):'Connecting…'}</span>${st}`;
+  return `<span class="lv-shift">${r?SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day):'Connecting…'}</span>${st}${invCheck()}`;
 }
 function renderLiveBar(){const el=document.getElementById('live-bar');if(el)el.innerHTML=liveBarInner();syncTurnoSelects();renderShiftBox();}
 /* Actions → the count buttons. Shows which count is being edited and only the buttons that make sense from here. */
@@ -7639,7 +7671,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.20l';
+const APP_VERSION='2026.11.19k';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

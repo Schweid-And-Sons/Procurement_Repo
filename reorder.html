@@ -162,7 +162,11 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
+<<<<<<< HEAD
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20m</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+=======
   <div class="head"><h1>Next POs <span class="ver">v 2026.11.20l</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+>>>>>>> 9d27454a8580ee60f4957cbf536b0ccef2fcfa53
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -215,7 +219,7 @@ function ensureFrame(){if(!frameOn){frameOn=true;bootT=Date.now();frame.src='ind
 window.addEventListener('message',ev=>{
   if(ev.source!==frame.contentWindow)return;const m=ev.data||{};
   if(m.type==='wms-reorder-ready'){ready=true;bootS=(Date.now()-bootT)/1000;if(chg.want){chg.want=false;askChg();}if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
-  if(m.type==='wms-reorder-changes-data'&&m.id===chg.id){chg.busy=false;chg.at=Date.now();if(m.ok)chg.h=m.hist;chg.err=m.ok?'':m.err;if(view==='chg')renderChg();return;}
+  if(m.type==='wms-reorder-changes-data'&&m.id===chg.id){chg.busy=false;chg.at=Date.now();if(m.ok)chg.h=m.hist;chg.err=m.ok?'':m.err;chgBadge();if(view==='chg')renderChg();else if(view==='pos')render();return;}
   if(m.type==='wms-reorder-data'&&m.id===reqId){busy=!!m.partial;data=m;
     if(m.saveErr)toast('⚠ '+m.saveErr);else if(m.saved)toast(m.saved==='cfg'?'✓ Settings saved for every device':'✓ Saved for every device');
     if(!tab){const c=counts();tab=c.red?'now':c.amber?'week':'all';}
@@ -729,7 +733,11 @@ function render(keepFocus){
   const cc=c2=>(data.rows||[]).filter(r=>c2==='ALL'||catOf(r)===c2).length;
   const cats=`<div class="cats">${CATS.filter(([k])=>k==='ALL'||cc(k)).map(([k,l])=>`<button class="cat${cat===k?' on':''}" onclick="setCat('${k}')">${l}<i>${cc(k)}</i></button>`).join('')}</div>`;
   if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;document.querySelector('.tabs').outerHTML=tabs;return;}
+<<<<<<< HEAD
+  body.innerHTML=friBox()+chgBar()+pbiBar()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
+=======
   body.innerHTML=friBox()+pbiBar()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
+>>>>>>> 9d27454a8580ee60f4957cbf536b0ccef2fcfa53
 }
 
 
@@ -738,14 +746,31 @@ function render(keepFocus){
    last week → today) and compares them. Only days still ahead count; days that appear because the plan reaches
    further are "first planned", not changes. So when someone asks "why so many / so few boxes?", it is here. */
 let view='pos';const chg={h:null,busy:false,err:'',at:0,id:0,want:false,wk:'this',q:''};
-function setView(v){view=v;['pos','sup','tdy','chg'].forEach(k=>document.getElementById('v-'+k).classList.toggle('on',v===k));
-  if(v==='chg'&&(!chg.h||Date.now()-chg.at>30*60e3))askChg();render();window.scrollTo({top:0});}
+function setView(v){if(v==='chg'&&view!=='chg'){chg.prevSeen=chgSeen();chgSetSeen();}view=v;['pos','sup','tdy','chg'].forEach(k=>document.getElementById('v-'+k).classList.toggle('on',v===k));
+  if(v==='chg'&&(!chg.h||Date.now()-chg.at>30*60e3))askChg();chgBadge();render();window.scrollTo({top:0});}
 function askChg(){ensureFrame();chg.busy=true;chg.err='';if(!ready){chg.want=true;return;}
   chg.id=Date.now();frame.contentWindow.postMessage({type:'wms-reorder-changes',id:chg.id},location.origin);}
 const dShort=d=>dayTxt(d+'T12:00:00');
 function chgWeek(inv){const h=chg.h;const m=new Date(h.mon+'T12:00:00'),d=new Date(inv+'T12:00:00');const w=Math.floor((d-m)/(7*864e5));return w<0?'last':w===0?'this':'next';}
 function chgUnit(it){const c=String(it.cat||'').toUpperCase();return c==='BOXES'?'boxes':c==='TRAYS'?'trays':c==='FILM'?'m':c==='PATTY PAPER'||c==='SLEEVES'?'cases':'';}
 function chgSign(n){return (n>0?'+':n<0?'−':'')+n0(Math.abs(n));}
+/* 🔔 Plan changes notice (Nov 20, for Eleni): Reorder reads the plan changes in the background (on open and every
+   30 min) and shows how many are new since this device last opened 🔄 Changes: a number on the tab and a bar on By item.
+   Only inside the app — no emails or Teams messages. New = a change saved after the last visit (first time: since today 00:00). */
+const CHG_SEEN_K='reo_chgseen_'+PLANT;
+function chgSeen(){try{const v=localStorage.getItem(CHG_SEEN_K);if(v)return v;}catch(e){}const t=new Date();t.setHours(0,0,0,0);return t.toISOString();}
+function chgSetSeen(){try{localStorage.setItem(CHG_SEEN_K,new Date().toISOString());}catch(e){}}
+function chgIsNew(e,seen){if(!seen||!e||!e.at)return false;const t=new Date(e.at).getTime();return !isNaN(t)&&t>new Date(seen).getTime();}
+function chgNew(){if(!chg.h)return [];const seen=chgSeen(),out=[];
+  chg.h.items.forEach(it=>it.days.forEach(d=>d.ev.forEach(e=>{if(chgIsNew(e,seen))out.push({code:it.code,name:it.name,cat:it.cat,inv:d.inv,from:e.from,to:e.to});})));
+  return out.sort((a,b)=>Math.abs(b.to-b.from)-Math.abs(a.to-a.from));}
+function chgBadge(){const b=document.getElementById('v-chg');if(!b)return;const n=view==='chg'?0:chgNew().length;
+  b.innerHTML='🔄 Changes'+(n?` <span style="background:#d93025;color:#fff;border-radius:10px;padding:0 7px;font-size:12px;margin-left:4px">${n}</span>`:'');}
+function chgBar(){const nw=chgNew();if(!nw.length)return '';
+  const top=nw.slice(0,3).map(x=>`<b>${esc(x.code)}</b> ${dShort(x.inv)}: ${n0(x.from)} → <b>${n0(x.to)}</b> <span class="${x.to>x.from?'up':'dn'}">(${chgSign(x.to-x.from)})</span>`).join('<br>');
+  return `<div class="blk" style="border-left:4px solid #1a56db;cursor:pointer" onclick="setView('chg')"><div class="blk-n">🔔 <b>Juan's plan changed — ${nw.length} new change${nw.length>1?'s':''}</b><br>${top}${nw.length>3?'<br><span class="mut">+ '+(nw.length-3)+' more</span>':''}<br><b>Tap to see them in 🔄 Changes.</b></div></div>`;}
+setInterval(()=>{if(document.visibilityState==='visible'&&!chg.busy&&Date.now()-chg.at>30*60e3)askChg();},60e3);
+
 function renderChg(){
   document.getElementById('status').innerHTML=chg.busy?'⏳ Reading the plans of the last 2 weeks…':chg.err?'<span class="bad">'+esc(chg.err)+'</span>':
     chg.h?'Plans compared: '+chg.h.snaps.map(x=>dShort(x.day).replace(/, \w+ \d+$/,'')+' '+(x.at?timeTxt(x.at):'')).join(' · '):'';
@@ -763,7 +788,7 @@ function renderChg(){
   const WK=[['last','Last week'],['this','This week'],['next','Next week']];
   const card=it=>{const u=chgUnit(it);
     const rows=it.days.map(d=>{
-      const evs=d.ev.map(e=>`${n0(e.from)} → <b>${n0(e.to)}</b> <span class="${e.to>e.from?'up':'dn'}">(${chgSign(e.to-e.from)})</span> <span class="mut">changed ${dShort(e.day)}</span>`).join('<br>');
+      const evs=d.ev.map(e=>`${n0(e.from)} → <b>${n0(e.to)}</b> <span class="${e.to>e.from?'up':'dn'}">(${chgSign(e.to-e.from)})</span> <span class="mut">changed ${dShort(e.day)}</span>${chgIsNew(e,chg.prevSeen)?' <b class="up">🆕</b>':''}`).join('<br>');
       return `<div class="chg-d"><span><b>${dShort(d.inv)}</b></span><span style="text-align:right">${evs||`${n0(d.end)} <span class="mut">${d.first?'first planned '+dShort(d.first.day)+' · ':''}no change</span>`}</span></div>`;}).join('');
     return `<div class="card"><div class="c-top"><b>${esc(it.code)}</b> <span class="mut">${esc(it.name)}</span></div>
       <div class="c-main">${it.changed.length?`<span class="${it.delta>0?'up':it.delta<0?'dn':''}">${chgSign(it.delta)} ${u}</span> vs. the first plan`:'No changes'}</div>
@@ -914,6 +939,7 @@ paintThemeMini();
 try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<12*3600e3){data=last.data;lastAt=last.at;const c=counts();tab=c.red?'now':c.amber?'week':'all';}}catch(e){}
 if(stale())ask(false);
 render();
+askChg();chgBadge();   // plan changes in the background → 🔔 number on the tab
 </script>
 </body>
 </html>
