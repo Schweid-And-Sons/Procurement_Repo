@@ -3226,7 +3226,7 @@ function applyPlant(p){
   document.querySelectorAll('.mode-tab').forEach((b,i)=>b.classList.toggle('active',['browse','count'][i]===currentMode));
   refresh();
   updateCountSessionUI();
-  liveInit().then(()=>autoLoadIfEmpty()).then(()=>planAutoFetch(false));
+  liveInit().then(()=>autoLoadIfEmpty()).then(()=>planAutoFetch(false)).then(()=>bgRefreshAll(true));
 }
 function plantSummary(p){
   const cfg=PLANTS[p], areas=PLANT_DATA[p].areas;
@@ -3836,17 +3836,31 @@ function setReoFilter(f){reoFilter=f;renderStatsView();}
    Yooz and the production plan in trays → small numbers (< 500) are pallets and are × 2,640. */
 const TRAY_PAL=2640;
 function toUnits(code,q){q=+q||0;return /^T2[01]00/i.test(String(code))&&q>0&&q<500?q*TRAY_PAL:q;}
+/* a Yooz quantity in the unit we COUNT in: stretch wrap is bought in rolls but counted in cases of 4 rolls (Julian, Nov 20) */
+function yzUnits(code,q){return /^STRWRAP-/i.test(String(code))?(+q||0)/4:toUnits(code,q);}
 const PACK_NJ={
-  BX1000:{p:500,d:1000},BX1000PCA:{p:600,d:1200},BX1003:{p:500,d:1000},BX1050:{p:500,d:1000},BX1075:{p:500,d:500},
-  BX1100:{p:500,d:1000},BX1200:{p:500,d:500},BX1300:{p:375,d:750},BX1350:{p:275,d:550},BX1400:{p:500,d:1000},
-  BX1850:{p:375,d:750},BX1875:{p:1000,d:1000},BX1850PCA:{p:375,d:750},BX1900:{p:750,d:750},BX2003:{p:375,d:750},BX2050:{p:550,d:1100},
+  BX1000:{p:500,d:1000},BX1000PCA:{p:500,d:1000},BX1003:{p:500,d:1000},BX1050:{p:500,d:1000},BX1075:{p:500,d:500},
+  BX1100:{p:500,d:1000},BX1200:{p:500,d:500},BX1300:{p:375,d:750},BX1350:{p:250,d:500},BX1400:{p:500,d:1000},
+  BX1850:{p:375,d:750},BX1875:{p:1000,d:1000}/* arrives 1,100–1,120; we ask Sonic for 1,000 */,BX1850PCA:{p:375,d:750},BX1900:{p:750,d:750},BX2003:{p:375,d:750},BX2050:{p:550,d:1100},
   BX2075:{p:750,d:750},BX2300:{p:500,d:500},BX3000:{p:500,d:1000},BX3050:{p:500,d:1000},BX3100:{p:750,d:750},
   BX3125:{p:375,d:750},BX3150:{p:500,d:1000},BX3200:{p:500,d:1000},BX3300:{p:500,d:500},BX6550:{p:500,d:500},
   BX7500:{p:375,d:750},BX7600:{p:375,d:750},BX7700PCA:{p:360,d:720},BX7800:{p:250,d:250},BX7900:{p:160,d:160},BX8200:{p:500,d:500},
   T2000:{p:2640,u:'trays'},T2100:{p:2640,u:'trays'},
   F1000:{p:18,d:18,u:'rolls'},F1400:{p:27,d:27,u:'rolls'},F1750:{p:27,d:27,u:'rolls'},F1900:{p:27,d:27,u:'rolls'},F1060:{p:10,d:30,u:'rolls'},
   P2000:{p:50,d:100,u:'cases'},P3100:{p:45,d:45,u:'cases'},P4100:{p:35,d:35,u:'cases'},
-  BG1000:{p:50,d:50,u:'cases'},BG2000:{p:50,d:50,u:'cases'},STRWRAP:{p:12,d:48,u:'rolls'}};
+  BG1000:{p:35,d:35,u:'cases'},S5050:{p:50,d:50,u:'cases'},BG2000:{p:50,d:50,u:'cases'},STRWRAP:{p:36,d:36,u:'cases'},M1450:{p:48,d:48,u:'cases'}};   // stretch wrap: 36–48 cases of 4 rolls; foam: 48 cases (Nov 20)
+/* Trays from Power BI (Nov 20): trays used per production day. Julian types in Next POs how many T2000 and T2100
+   Power BI shows for a date range (last 4 weeks); the app divides by the production days (Mon–Fri, no holidays).
+   Orange reminder after 14 days. Until the first entry: the days Julian sent on Nov 19 (Oct 27 – Nov 18). Per day: [T2000, T2100]. */
+const PBI_DEFAULT={"NJ":{"2026-10-27":[15420,1386],"2026-10-28":[19416,24],"2026-10-29":[18756,0],"2026-10-30":[17526,2034],"2026-11-02":[16464,1356],"2026-11-03":[7278,546],"2026-11-04":[3876,300],"2026-11-05":[5688,534],"2026-11-06":[20022,0],"2026-11-10":[14964,1788],"2026-11-11":[16758,642],"2026-11-12":[16542,120],"2026-11-13":[11682,1692],"2026-11-16":[20160,0],"2026-11-18":[11502,0]},"GA":{"2026-10-27":[22386,0],"2026-10-28":[26328,690],"2026-10-29":[21648,0],"2026-10-30":[20790,2394],"2026-11-02":[12726,1608],"2026-11-03":[26916,1482],"2026-11-04":[13404,36],"2026-11-05":[12684,0],"2026-11-06":[13080,1770],"2026-11-09":[19236,4050],"2026-11-10":[20928,0],"2026-11-11":[19440,576],"2026-11-12":[20310,996],"2026-11-13":[25890,4008],"2026-11-16":[18780,0],"2026-11-17":[19170,714],"2026-11-18":[16752,0]}};
+const PBI_OLD=14;
+function pbiTrays(cfg){const e=cfg&&cfg.pbi;
+  if(e&&e.from&&e.days>0){const age=Math.floor((Date.now()-new Date(e.at).getTime())/864e5);
+    return {T2000:{avg:(+e.T2000||0)/e.days},T2100:{avg:(+e.T2100||0)/e.days},from:e.from,to:e.to,days:e.days,age,old:age>=PBI_OLD,up:true,at:e.at,by:e.by||''};}
+  const d=PBI_DEFAULT[currentPlant]||{},ds=Object.keys(d).sort();if(ds.length<5)return null;
+  const avg=i=>ds.reduce((a,k)=>a+(+d[k][i]||0),0)/ds.length,to=ds[ds.length-1];
+  const age=Math.floor((Date.now()-new Date(to+'T12:00:00').getTime())/864e5);
+  return {T2000:{avg:avg(0)},T2100:{avg:avg(1)},from:ds[0],to,days:ds.length,age,old:age>=PBI_OLD,up:false,at:'',by:''};}
 /* Use in the last 12 months (Power BI · Production Receipts · Nov 17 2025 – Nov 16 2026, no pork).
    Units: boxes, trays, sleeves (pieces), patty paper (sheets), bags (bags). Used for the A/B/C priority
    (ranking inside each category) and as use/day for boxes and trays when there is no plan and no receipts. */
@@ -3862,6 +3876,20 @@ const REO_CFG_DAY='2000-01-03',REO_MARK_DAY='2000-01-04';
 const REO_SS_DAYS={A:2,B:1,C:1};   // safety stock in days of use, by priority (editable in Next POs → Settings). Nov 18: was A3/B2/C1 — too much;
 // John keeps ~1 day (Sonic / PCA deliver next day, even same day), so a next-day supplier's cushion is at most 1 day (REO_SS_FAST)
 const REO_SS_FAST=1;
+/* supplies John orders that Yooz's lead-time data doesn't bring (Nov 19): who supplies them (John's master sheet) */
+const REO_SUPPLY=[[/^L1\d{4}(FRONT|BACK)(-PLAS)?-\d$/,'PACKAGED, LLC'],[/^(H264B\/L|GLOVCOT|1809B|BG1450|M1500|STRWRAP)-\d$/,'BUNZL'],
+  [/^(H134XL|H134L|H134\/S|H242\/XL-120C|P400|H219\/B)-\d$/,'AMERISAN'],[/^BG(1000|2000)-\d$/,'IMPERIAL DADE'],
+  [/^(S5050|F0719[012]|F0700[345]|F06984)-\d$/,'NU SPICE'],[/^(M1150|M1200)-\d$/,'BRADY INDUSTRIES']];
+function reoSupplier(b){const x=REO_SUPPLY.find(y=>y[0].test(b));return x?x[1]:'';}
+function reoVendorKey(v){v=String(v||'').toUpperCase();return /SONIC/.test(v)?'SONIC':/PACKAGING CORP|\bPCA\b/.test(v)?'PCA':/PACKAGED/.test(v)?'PACKAGED':/BUNZL/.test(v)?'BUNZL':/AMERISAN/.test(v)?'AMERISAN':/IMPERIAL/.test(v)?'IMPERIAL':/NU SPICE/.test(v)?'NU SPICE':/BRADY/.test(v)?'BRADY':/CRYOVAC/.test(v)?'CRYOVAC':v.replace(/[,.]|\b(LLC|INC|CORP|CO)\b/g,'').trim();}
+const REO_LT_DEFAULT=7;
+/* 🚫 off by default in a plant (Julian, Nov 20): NJ uses no brick labels and no seasoning but S5050; earplugs P400 barely
+   move (~1 package every 1–2 months, ear muffs now). Still listed, greyed; "Needed again" turns one on (cfg.need). */
+const REO_NONEED_DEFAULT={NJ:[/^L1\d{4}(FRONT|BACK)(-PLAS)?-1$/,/^F0(6984|700[345])-1$/,/^P400-1$/],GA:[]};
+function reoNotNeeded(b,cfg){cfg=cfg||{};if((cfg.noNeed||{})[b])return true;if((cfg.need||{})[b])return false;
+  return (REO_NONEED_DEFAULT[currentPlant]||[]).some(x=>x.test(b));}   // days, when nothing better is known (Settings → Lead time)
+/* shown on the card instead of an order (Julian, Nov 19) */
+const REO_NO_ORDER=[[/^(H134L|H134\/S)-\d$/,"Don't order — we only order XL. People wear up to 2 cotton gloves under the blue gloves because of the cold, so only XL fits."]];
 function reoCfgDefault(){return {days:[false,false,true,true,true,true,false],holidays:REO_HOLIDAYS.map(([d,n])=>({d,n})),extra:{},ss:Object.assign({},REO_SS_DAYS),by:'',at:''};}
 function loadReoCfg(){try{const o=JSON.parse(localStorage.getItem('wms_reocfg_'+currentPlant)||'null');if(o&&Array.isArray(o.days)){
   // the old default (A3 · B2 · C1) saved with the receiving days → the new, lower default; a value someone changed stays
@@ -3891,7 +3919,7 @@ async function reoSaveMark(key,mark,list){   // mark = {base,ob,qty,dl,done,edit
   await planPost({key:currentPlant+'|reomarks',plant:currentPlant,kind:'reomarks',day:REO_MARK_DAY,status:'',batchNo:'',meatBlock:'',updatedAt:now,updatedBy:planDevice(),json:JSON.stringify({plant:currentPlant,marks})});
 }
 function packFor(code,vendor){const k=String(code).toUpperCase().replace(/-\d+$/,'').replace(/-(B|P)$/,'');   // GA uses the same standard as NJ
-  const pca=/PCA/i.test(vendor||'');return (pca&&PACK_NJ[k+'PCA'])||PACK_NJ[k]||(/^F\d/.test(k)?{p:27,d:27,u:'rolls'}:null);}   // any other film: 27 rolls per pallet
+  const pca=/PCA/i.test(vendor||'');return (pca&&PACK_NJ[k+'PCA'])||PACK_NJ[k]||(/^F1\d{3}(ABX)?$/.test(k)?{p:27,d:27,u:'rolls'}:null);}   // any other film (F1xxx): 27 rolls per pallet — not seasonings F0xxxx
 /* ---------- use from the MORNING COUNTS (Julian, Nov 19) ----------
    Boxes: Juan's plan + Boxes Total + daily use (unchanged). Trays: Juan's plan, then what goes down in the counts.
    Everything else (sleeves, patty paper, films, bags, tape, labels, misc): ONLY what goes down in the counts —
@@ -3927,8 +3955,8 @@ function reorderRows(summary){
   const F=b=>fam[b]||(fam[b]={base:b,codes:new Set(),stock:0,open:0,recv:0,lt:[]});
   ITEMS.forEach(it=>{if(it.disc)return;const f=F(reoBase(it.code));f.codes.add(it.code);if(!f.cat)f.cat=it.cat;const q=summary[it.code];if(q)f.stock+=toUnits(it.code,q.qty);});
   lines.forEach(l=>{const f=fam[reoBase(l.code)];if(!f)return;
-    if(!l.recv){const o=Math.max(0,l.ordered-l.received);f.open+=toUnits(l.code,o);}
-    else{const d=new Date(l.recv+'T00:00:00');if(d>=since)f.recv+=toUnits(l.code,l.received);}});
+    if(!l.recv){const o=Math.max(0,l.ordered-l.received);f.open+=yzUnits(l.code,o);}
+    else{const d=new Date(l.recv+'T00:00:00');if(d>=since)f.recv+=yzUnits(l.code,l.received);}});
   lt.filter(r=>r.plant===currentPlant).forEach(r=>{const f=fam[r.code];if(f)f.lt.push(r);});
   // the week ahead from today's production plan (if it was loaded with the schedule detail)
   const dm=planData&&planData.day===isoToday()&&planData.dm&&planData.dm.codes?planData.dm:null;
@@ -3942,7 +3970,7 @@ function reorderRows(summary){
   const fixArrive=(ad,min)=>{if(canReceive(ad))return ad;for(let b=1;b<=6;b++)if(ad-b>=min&&canReceive(ad-b))return ad-b;for(let f=1;f<=14;f++)if(canReceive(ad+f))return ad+f;return ad;};
   // use from the morning counts (see loadCntHist): received in Yooz by day, so a delivery isn't read as "no use"
   const ch=loadCntHist(),rcvD={};
-  lines.forEach(l=>{if(l.recv&&l.received>0){const b=reoBase(l.code);(rcvD[b]=rcvD[b]||{})[l.recv]=((rcvD[b]||{})[l.recv]||0)+toUnits(l.code,l.received);}});
+  lines.forEach(l=>{if(l.recv&&l.received>0){const b=reoBase(l.code);(rcvD[b]=rcvD[b]||{})[l.recv]=((rcvD[b]||{})[l.recv]||0)+yzUnits(l.code,l.received);}});
   const isWork=k=>{const d=new Date(k+'T12:00:00'),w=d.getDay();return w>0&&w<6&&!hol.has(k);};
   const invUse=b=>{if(!ch||!ch.days)return null;const ds=Object.keys(ch.days).sort();if(ds.length<2)return null;
     let used=0,wd=0,n=0,skip=0;
@@ -3951,10 +3979,21 @@ function reorderRows(summary){
       if(!w)continue;
       const qa=ch.days[a][b]||0,qc=ch.days[c][b]||0;if(!qa&&!qc)continue;
       const got=Object.entries(rcvD[b]||{}).reduce((s,[k,q])=>k>a&&k<=c?s+q:s,0);
-      const u=qa-qc+got;if(u<0){skip++;continue;}            // went up: a delivery or a recount → left out
+      // a delivery in between (count went up, or Yooz received something) → left out. Adding Yooz receipts made it far
+      // too high when the truck entered the count on another day (Nov 19: trays T2000 ~42,800/day vs ~16,000 real)
+      const u=qa-qc;if(u<0||got>0){skip++;continue;}
       used+=u;wd+=w;n++;}
     if(n<3||wd<3)return null;                                 // not enough mornings yet → the old way
-    return {rate:used/wd,used,days:wd,pairs:n,skip,from:ds[0],to:ds[ds.length-1]};};
+    // BALANCE of the whole period (Nov 20): first count − last count + everything received in Yooz, over the working days.
+    // Pallets taken to the line before a count and brought back later (count down, then up) cancel out here, while
+    // the stretch method kept the drop and left out the rise (T2000: ~51,000/day vs ~11,000–16,000 real → 129 pallets).
+    const f0=ds[0],fl=ds[ds.length-1];let wAll=0;for(let d=new Date(f0+'T12:00:00');ymd(d)<fl;d.setDate(d.getDate()+1))if(isWork(ymd(d)))wAll++;
+    const rcvAll=Object.entries(rcvD[b]||{}).reduce((s,[k,q])=>k>f0&&k<=fl?s+q:s,0);
+    const bal=wAll>=3?((ch.days[f0][b]||0)-(ch.days[fl][b]||0)+rcvAll)/wAll:null;
+    const st=used/wd;
+    // the balance wins when it makes sense (> 0); if it is ≤ 0, deliveries are missing in Yooz → the stretches
+    const rate=bal!=null&&bal>0?Math.min(st,bal):st;
+    return {rate,used,days:wd,pairs:n,skip,from:f0,to:fl,st,bal,rcvAll,wAll,how:bal!=null&&bal>0&&bal<st?'balance':'stretches'};};
   // 🔎 recount: the last morning count looks wrong → listed so the counter checks it before 9 AM
   const recount=(b,kind,rate)=>{if(!ch||!ch.days)return null;const ds=Object.keys(ch.days).sort();if(ds.length<2)return null;
     const c=ds[ds.length-1],a=ds[ds.length-2];if((today-new Date(c+'T00:00:00'))/864e5>4)return null;   // only if the last copy is recent
@@ -3969,6 +4008,7 @@ function reorderRows(summary){
   // POs marked "created" or with a changed quantity (shared): they count as coming, so they are not suggested again
   const marks=loadReoMarks(),yzAt=yz&&yz.loaded?new Date(yz.loaded).getTime():0;
   const H=dm?Math.max(1,Math.round((new Date(dm.end+'T00:00:00')-today)/864e5)+1):0;   // days the plan covers
+  const PBI=pbiTrays(cfg);   // trays used per production day, from Power BI
   // what is coming, by day: open Yooz POs + POs that are only in John's planner yet (the planner's delivery day wins)
   const inc={};
   try{
@@ -3980,7 +4020,7 @@ function reorderRows(summary){
     const since=Date.now()-2*864e5;
     recs.forEach(x=>{if(!(new Date(x.ts).getTime()>since))return;
       (x.lines||[]).forEach(l=>{const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:+l.ordered||0;if(!(q>0))return;
-        const fam2=fam[reoBase(l.code)];if(!fam2)return;(fam2.rcv=fam2.rcv||[]).push({po:x.po,qty:toUnits(l.code,q),ts:x.ts});});});
+        const fam2=fam[reoBase(l.code)];if(!fam2)return;(fam2.rcv=fam2.rcv||[]).push({po:x.po,qty:yzUnits(l.code,q),ts:x.ts});});});
     // Eleni's PO Tracker: a PO with a received date is closed; an open one uses her estimated delivery (unless it's planner-only)
     const poNum=x=>{const m=String(x||'').match(/(\d{4,})\s*$/);return m?m[1]:String(x||'').toUpperCase();};
     const pt={};((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).forEach(x=>{pt[x.po]=x;pt[poNum(x.po)]=x;});
@@ -3995,11 +4035,20 @@ function reorderRows(summary){
       if(dueD&&dueD<ymd(today)){const d=new Date(dueD+'T00:00:00');while(d<today){d.setDate(d.getDate()+1);const w=d.getDay();if(w>0&&w<6&&!hol.has(ymd(d)))wl++;}}
       const late=dueD&&dueD<ymd(today)?dueD:'',stale=!!late;   // due before today → assumed in this morning's count (not counted)
       g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
-        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:toUnits(l.code,q),po:g.po,planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
+        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:yzUnits(l.code,q),po:g.po,planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
   }catch(e){console.error(e);}
   const card=potCard(currentPlant);
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
-  const rows=Object.values(fam).filter(f=>f.lt.length).map(f=>{
+  // not ordered from Next POs (Julian, Nov 19): pallets M2000, thermal / pallet labels (the warehouse orders them),
+  // gel pack (not ordered), Salt & Pepper F06984 (discontinued), and NJ's bulk Taco / Steakhouse / Korean BBQ (not used in NJ)
+  const REO_SKIP=/^(M2000|MWHITE|MYELLOW|LABELS4X6|VT104953)-\d$|^F06984-4$/;
+  // supplies John orders that the Yooz lead-time data doesn't bring: added with a manual lead time per supplier
+  // (⚙️ Settings → Lead time; 7 days until set). Use = what goes down in the morning counts (labels: Juan's plan).
+  for(const f of Object.values(fam)){if(f.lt.length||REO_SKIP.test(f.base))continue;
+    const v=reoSupplier(f.base);if(!v)continue;
+    f.lt.push({code:f.base,plant:currentPlant,vendor:v,lt:0,ltAvg:0,pos:0,onTime:null,last:'',manual:true});}
+  const ltSup=cfg.ltSup||{},ltItem=cfg.ltItem||{};
+  const rows=Object.values(fam).filter(f=>f.lt.length&&!REO_SKIP.test(f.base)).map(f=>{
     // active supplier = the one with the most recent PO (not the one with most POs: trays left Bunzl / Packaged)
     // supplier: among the ones used in the last 3 months, the one we order from the most (Sonic over PCA for BX1850);
     // if none in 3 months, the one with the most recent PO (trays left Bunzl / Packaged)
@@ -4008,11 +4057,15 @@ function reorderRows(summary){
     const main=recent.length?recent.slice().sort((a,b)=>b.pos-a.pos)[0]:vs[0];
     const fast=(recent.length?recent:[main]).find(v=>/SONIC/i.test(String(v.vendor)))   // rush: Sonic when it makes this box (faster than PCA — Julian, Nov 19)
       ||(recent.length?recent:[main]).filter(v=>v.ltAvg||v.lt).sort((a,b)=>(a.ltAvg||a.lt)-(b.ltAvg||b.lt))[0]||main;   // otherwise the quickest one
-    const P90=main.lt||main.ltAvg||0,Lavg=main.ltAvg||P90;
+    // lead time: set for this item > real from Yooz > set for the supplier > 7 days (Settings → Lead time)
+    const vK=reoVendorKey(main.vendor);let ltSrc='yooz',ltMan=null;
+    if(ltItem[f.base]>0){ltMan=+ltItem[f.base];ltSrc='item';}
+    else if(main.manual||!(main.lt||main.ltAvg)){ltMan=ltSup[vK]>0?+ltSup[vK]:REO_LT_DEFAULT;ltSrc=ltSup[vK]>0?'supplier':'default';}
+    const P90=ltMan||main.lt||main.ltAvg||0,Lavg=ltMan||main.ltAvg||P90;
     const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
     const hist=f.recv/REO_USE_DAYS;
-    const it=ITEMS.find(i=>i.code===f.base)||ITEMS.find(i=>reoBase(i.code)===f.base);
-    const kind=f.cat==='BOXES'?'box':(f.cat==='TRAYS'||/^T2\d/.test(f.base))?'tray':'inv';   // how its use is measured
+    const it=ITEMS.find(i=>i.code===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base);   // the name of the item in use, not a discontinued one (BX7700 → PCA)
+    const kind=f.cat==='BOXES'?'box':(f.cat==='TRAYS'||/^T2\d/.test(f.base)||/^L1\d{4}(FRONT|BACK)-\d$/.test(f.base))?'tray':'inv';   // how its use is measured (brick labels: Juan's plan, then the counts, like trays)
     const pk=packFor(f.base,main.vendor),div=pk&&pk.pal?pk.pal:1;                  // trays: plan in trays → pallets
     const pday={},psrc={};let ptot=0,pdone=0;
     if(dm&&kind!=='inv')Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;pdone+=(o.past||0)/div;
@@ -4035,21 +4088,35 @@ function reorderRows(summary){
     const open=coming.reduce((a,x)=>a+x.qty,0);
     const y12=(USE12[currentPlant]||{})[f.base]||0,y12day=/^(BX|T2)/.test(f.base)?y12/365:0;
     const iu=kind!=='box'?invUse(f.base):null;                       // trays and the rest: what goes down in the counts
-    const rate=iu?iu.rate:(hist>0?hist:(ptot>0?ptot/H:y12day));       // after the plan ends: what we usually use
-    const r={kind,iu,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
+    // rate = per CALENDAR day (dem() turns it into rate × 7/5 on each work day). The counts give use per WORKING day,
+    // so × 5/7 here (Nov 20: before, count-based items ordered ~40% more than they use)
+    let rate=iu?iu.rate*5/7:(hist>0?hist:(ptot>0?ptot/H:y12day));         // after the plan ends: what we usually use
+    // sanity check (Nov 20): trays / labels with a plan — use from the counts more than 2× the plan's daily average
+    // is a count problem, not real use → plan × 1.2, and the card says to check the counts
+    let capped=false;if(kind==='tray'&&iu&&ptot>0){const pd=Object.keys(pday).length?ptot/Math.max(1,Object.values(pday).filter(v=>v>0).length):0;
+      if(pd>0&&rate>2*pd){rate=pd*1.2;capped=pd;}}
+    // T2000 / T2100 (Nov 20): use per day = Power BI (trays used), both plants — counts mix the two trays and the
+    // planner can be wrong. Juan's plan still gives the days it has; after its last day with trays, Power BI.
+    const pbK=(f.base.match(/^(T2000|T2100)-\d$/)||[])[1],pbT=PBI&&pbK&&PBI[pbK]&&PBI[pbK].avg>0?PBI[pbK]:null;
+    // count-based items are not in Juan's plan: their use starts today, not after the plan's last day (Nov 20: before,
+    // the plan days counted as 0 use for gloves, bags, tape, patty paper, film, sleeves)
+    let Hd=kind==='inv'?0:H;if(pbT){rate=pbT.avg*5/7;capped=false;let last=-1;for(let i=0;i<H;i++)if((pday[ymd(new Date(today.getTime()+i*864e5))]||0)>0)last=i;Hd=last+1;}
+    const r={kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
       use:hist,rate,have:f.stock+open,L:P90,Lavg,ptot,dmp,pack:pk?{p:pk.p,d:pk.d||0,pal:pk.pal||0,u:pk.u||'boxes'}:null,
       planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
-    r.recount=recount(f.base,kind,iu?iu.rate:rate);
+    r.recount=recount(f.base,kind,pbT?pbT.avg:(iu?iu.rate:rate));
+    const no=REO_NO_ORDER.find(x=>x[0].test(f.base));if(no){r.st='none';r.noOrder=no[1];return r;}
+    if(reoNotNeeded(f.base,cfg)){r.st='none';r.notNeeded=true;return r;}   // 🚫 "Not needed here" (set by hand, or off by default in this plant)   // e.g. blue gloves L / S: we only order XL
     if(!(rate>0||ptot>0)){r.st='none';return r;}
     // after the plan: the usual use, only on production days (Mon–Fri, no holidays) — the same total per week,
     // so a weekend doesn't look like a shortage
-    const dem=i=>{const d=new Date(today.getTime()+i*864e5);if(i<H)return pday[ymd(d)]||0;const w=d.getDay();return w===0||w===6||hol.has(ymd(d))?0:rate*7/5;};
+    const dem=i=>{const d=new Date(today.getTime()+i*864e5);if(i<Hd)return pday[ymd(d)]||0;const w=d.getDay();return w===0||w===6||hol.has(ymd(d))?0:rate*7/5;};
     // daily use and how much it moves (from the plan days; after the plan, the usual use)
-    const dd=[];for(let i=0;i<Math.max(H,1);i++)dd.push(dem(i));
-    const dbar=Math.max(rate,dd.reduce((a,x)=>a+x,0)/dd.length);
+    const dd=[];for(let i=0;i<Math.max(Hd,1);i++)dd.push(dem(i));
+    const dbar=kind==='inv'?rate*7/5:Math.max(rate,dd.reduce((a,x)=>a+x,0)/dd.length);   // inv: use per working day
     const sd=dd.length>2?Math.sqrt(dd.reduce((a,x)=>a+(x-dd.reduce((p,q)=>p+q,0)/dd.length)**2,0)/(dd.length-1)):dbar*0.3;
     r.dbar=dbar;r.sd=sd;r.sL=sL;
     const arr={};coming.forEach(x=>{const i=dayIdx(x.date);arr[i]=(arr[i]||0)+x.qty;});
@@ -4624,6 +4691,38 @@ function planFileDay(name){                      // "… 2026 NJ Nov 9th.xlsx" �
   return y+'-'+String(MONTHS.indexOf(m[2])+1).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
 }
 let planAuto={busy:false,tried:{},checked:{}};
+/* Opening the WMS brings EVERYTHING up to date in the background, one source after the other (Nov 20): Yooz, John's
+   planner, Eleni's PO Tracker, the receiving reports and the morning counts — no need to open each screen first.
+   Each source keeps its own limit (Yooz after 8:30 AM / PM, planner and tracker once an hour, counts once a day after
+   10 AM), so opening the app many times does not repeat the calls. Then every 10 min while the app is on screen. */
+async function bgRefreshAll(first){
+  if(RCV_ONLY)return;
+  const step=async f=>{try{await Promise.resolve(f());}catch(e){}};
+  await step(()=>yoozAutoRefresh());await step(()=>plannerAutoRefresh());await step(()=>potAutoRefresh());
+  if(first)await step(()=>syncReceiptsFromSP(false));
+  if(cntHistOld()&&!cntFetch.busy&&Date.now()-(cntFetch.tried||0)>20*60000)await step(()=>loadCntHistFromFlow());
+  try{renderLiveBar();}catch(e){}
+}
+setInterval(()=>{if(document.visibilityState==='visible')bgRefreshAll(false);},10*60000);
+// the planning file: look again once an hour on ANY screen (Reorder too), so plan changes show up during the day
+setInterval(()=>{if(document.visibilityState==='visible'&&PLAN_FILE_URL&&currentView!=='plan')planAutoFetch(false);},5*60000);
+/* Is the inventory really being updated? (Nov 20) On a work day: after 9 AM, no change from any device today → warning;
+   after 10 AM, today's "Before 9am" copy not saved → warning. Shown in the live bar on every screen. */
+function invCheck(){
+  const n=new Date(),w=n.getDay(),today=isoToday();
+  let hol=new Set();try{hol=new Set((loadReoCfg().holidays||[]).map(h=>h.d));}catch(e){}
+  if(w===0||w===6||hol.has(today))return '';
+  const st0=String((live.rec&&live.rec.startedAt)||'');   // starting a shift stamps every item with its start time: that is not a count
+  const last=[...Object.values(live.ts||{}),...Object.values(live.del||{})].map(String).filter(v=>v&&v!==st0).sort().pop()||'';
+  const lastD=last?new Date(last):null,tm=d=>d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const out=[];
+  if(n.getHours()>=9&&(!lastD||isoDay(lastD)!==today))out.push('⚠ No inventory updates today yet'+(lastD?' (last: '+tm(lastD)+')':''));
+  const h=loadCntHist();
+  if(n.getHours()>=10&&h&&h.at&&isoDay(new Date(h.at))===today&&new Date(h.at).getHours()>=10&&!(h.days||{})[today])out.push("⚠ Today's Before 9am count was not saved");
+  return out.length?`<span class="lv-warn">${out.join(' · ')}</span>`:'';
+}
+function isoDay(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
 async function planAutoFetch(manual){
   if(!PLAN_FILE_URL||planAuto.busy||RCV_ONLY)return;
   const d=isoToday(),p0=currentPlant,k=p0+'|'+d;
@@ -4632,7 +4731,7 @@ async function planAutoFetch(manual){
     if(planData&&planData.day===d&&(planData.items||[]).length){
       // today's plan is already here — but the planners keep editing the file during the day:
       // look again at most once an hour (only while the Plan screen is open) and reload it if the file changed.
-      if(currentView!=='plan'||document.visibilityState!=='visible'||Date.now()-(planAuto.checked[k]||0)<60*60000)return;
+      if(document.visibilityState!=='visible'||Date.now()-(planAuto.checked[k]||0)<60*60000)return;   // any screen (Nov 20), not only Plan
       recheck=true;
     }
     if(Date.now()-(planAuto.tried[k]||0)<20*60000)return;
@@ -4918,7 +5017,7 @@ function liveBarInner(){
   const st=live.err?`<span class="lv-warn">⚠ Offline — changes stay on this device${live.pending?' and upload when back':''} · <a href="#" onclick="livePull(true,true);return false">Retry</a></span>`
     :`<span>☁ Live · ${live.pending?'uploading…':'all devices in sync'}${live.at?' · '+new Date(live.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):''}</span>`;
   // the shift is changed in ONE place only: Menu → Sync (the ▶ shortcut buttons were removed — they confused people)
-  return `<span class="lv-shift">${r?SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day):'Connecting…'}</span>${st}`;
+  return `<span class="lv-shift">${r?SYNC_TURNO_LABELS[r.turno]+' · '+liveDayLabel(r.day):'Connecting…'}</span>${st}${invCheck()}`;
 }
 function renderLiveBar(){const el=document.getElementById('live-bar');if(el)el.innerHTML=liveBarInner();syncTurnoSelects();renderShiftBox();}
 /* Actions → the count buttons. Shows which count is being edited and only the buttons that make sense from here. */
@@ -5002,7 +5101,7 @@ function parseSleeveLineSheet(rows,retailOnly){
    boxes = Open Cs · film = "QTY (m per roll)" (rolls) · patty paper, bags, sleeves = "(cases)" · trays = units.
    Production day = the weekday in "Day" on or before the Inv Date; blank Day → the day before the Inv Date.
    (Labels are left out: the plan counts them in rolls, Yooz in labels.) */
-const DM_VER=7;   // 7 = day before the Inv Date (Juan), carry-over today, and the sheet's Inv Date kept per day (src)
+const DM_VER=8;   // 8 = brick labels (Label Code Front / Back) added   // 7 = day before the Inv Date (Juan), carry-over today, and the sheet's Inv Date kept per day (src)
 function dmFromSchedule(wb,baseDay){
   const sheet=wb.SheetNames.find(n=>/^[lI]nput$/.test(n.trim()));if(!sheet)return null;
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:''});
@@ -5013,6 +5112,8 @@ function dmFromSchedule(wb,baseDay){
   const PAIRS=[['Box Code',cQty],['Forming Film Code',col('Forming Film QTY (m per roll)')],['Non-Forming Film Code',col('Non-Forming Film QTY (m per roll)')],
     [col('Patty Paper Code')>-1?'Patty Paper Code':'Patty Paper',col('Patty Paper QTY (cases)')],['Plastic Bag Code',col('Plastic Bag QTY (cases)')],
     ['Sleeve Code',col('Sleeve Code QTY (cases)')],['Tray Code',col('Tray Code QTY')]].map(([n,q])=>[col(n),q]).filter(([c,q])=>c>-1&&q>-1);
+  // brick labels (Nov 19): "L15308-1 - Front" with QTY in rolls of 10,500 → L15308FRONT-1, in cases (3 rolls = 31,500 labels)
+  const LBL=[[col('Label Code Front'),col('Label Code Front QTY'),'FRONT'],[col('Label Code Back'),col('Label Code Back QTY'),'BACK']].filter(([c,q])=>c>-1&&q>-1);
   const DN=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
   const base=new Date(baseDay+'T00:00:00');
   const toDate=v=>{if(typeof v==='number'&&v>20000){const d=new Date(Math.round((v-25569)*864e5));return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());}
@@ -5041,8 +5142,15 @@ function dmFromSchedule(wb,baseDay){
       const o=codes[code]||(codes[code]={t:0,d:{},past:0,src:{}});if(past)o.past=(o.past||0)+v;o.t+=v;o.d[key]=(o.d[key]||0)+v;
       const iv=ymd(inv);(o.src[key]=o.src[key]||{})[iv]=(o.src[key][iv]||0)+v;          // which Inv Date (sheet) it comes from
     });
+    LBL.forEach(([cc,qc,side])=>{
+      const m=String(r[cc]||'').trim().toUpperCase().match(/^(L\d{4,6})-(\d)/);if(!m)return;
+      const code=m[1]+side+'-'+m[2],v=Number(r[qc])/3;if(!(v>0))return;                   // rolls → cases of 3 rolls
+      const o=codes[code]||(codes[code]={t:0,d:{},past:0,src:{}});if(past)o.past=(o.past||0)+v;o.t+=v;o.d[key]=(o.d[key]||0)+v;
+      const iv=ymd(inv);(o.src[key]=o.src[key]||{})[iv]=(o.src[key][iv]||0)+v;
+    });
   }
-  Object.values(codes).forEach(o=>{o.t=Math.round(o.t*100)/100;o.past=Math.round((o.past||0)*100)/100;Object.keys(o.d).forEach(k=>o.d[k]=Math.round(o.d[k]*100)/100);});
+  const rd=x=>Math.round(x*1e4)/1e4;   // 4 decimals: label cases are small (0.24 case = 7,560 labels)
+  Object.values(codes).forEach(o=>{o.t=rd(o.t);o.past=rd(o.past||0);Object.keys(o.d).forEach(k=>o.d[k]=rd(o.d[k]));});
   // what the "Direct Material Planning" sheet shows (its tables by production Day = only orders that already have a day)
   const dmp={};
   try{const dn=wb.SheetNames.find(n=>/direct material planning/i.test(n));
@@ -7563,7 +7671,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.19k';
+const APP_VERSION='2026.11.20m';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

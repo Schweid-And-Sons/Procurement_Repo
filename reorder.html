@@ -162,7 +162,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.19k</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20m</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -215,7 +215,7 @@ function ensureFrame(){if(!frameOn){frameOn=true;bootT=Date.now();frame.src='ind
 window.addEventListener('message',ev=>{
   if(ev.source!==frame.contentWindow)return;const m=ev.data||{};
   if(m.type==='wms-reorder-ready'){ready=true;bootS=(Date.now()-bootT)/1000;if(chg.want){chg.want=false;askChg();}if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
-  if(m.type==='wms-reorder-changes-data'&&m.id===chg.id){chg.busy=false;chg.at=Date.now();if(m.ok)chg.h=m.hist;chg.err=m.ok?'':m.err;if(view==='chg')renderChg();return;}
+  if(m.type==='wms-reorder-changes-data'&&m.id===chg.id){chg.busy=false;chg.at=Date.now();if(m.ok)chg.h=m.hist;chg.err=m.ok?'':m.err;chgBadge();if(view==='chg')renderChg();else if(view==='pos')render();return;}
   if(m.type==='wms-reorder-data'&&m.id===reqId){busy=!!m.partial;data=m;
     if(m.saveErr)toast('⚠ '+m.saveErr);else if(m.saved)toast(m.saved==='cfg'?'✓ Settings saved for every device':'✓ Saved for every device');
     if(!tab){const c=counts();tab=c.red?'now':c.amber?'week':'all';}
@@ -255,10 +255,10 @@ function statusLine(){
   const ago=lastAt?Math.round((Date.now()-lastAt)/60000):null;
   return (busy?'⏳ Updating… · ':ago!=null?'Updated '+(ago<1?'just now':ago+' min ago')+' · ':'')+p.join(' · ');
 }
-const CATS=[['ALL','All'],['BOXES','Boxes'],['TRAYS','Trays'],['FILM','Film'],['SLEEVES','Sleeves'],['PATTY PAPER','Patty paper'],['OTHER','Other']];
+const CATS=[['ALL','All'],['BOXES','Boxes'],['TRAYS','Trays'],['FILM','Film'],['SLEEVES','Sleeves'],['PATTY PAPER','Patty paper'],['LABELS','Labels'],['PPE','PPE'],['OTHER','Other']];
 const catOf=r=>{const c=String(r.cat||'').toUpperCase();return CATS.some(x=>x[0]===c)?c:'OTHER';};
 const inCat=r=>cat==='ALL'||catOf(r)===cat;
-const unitOf=r=>(r.pack&&r.pack.u)||(catOf(r)==='BOXES'?'boxes':/SLEEVES|PATTY PAPER|LINER BAGS/.test(catOf(r))?'cases':'');
+const unitOf=r=>(r.pack&&r.pack.u)||(catOf(r)==='BOXES'?'boxes':'cases');   // Julian counts everything else in cases (Nov 19)
 /* "~1,500 boxes · 3 pallets" */
 function qtyTxt(r,qty,pal){let u=unitOf(r);if(u==='pallets'&&Math.round(qty)===1)u='pallet';let t='~'+n0(qty)+(u?' '+u:'');
   if(pal&&!/^pallet/.test(u))t+=' · '+pal+' pallet'+(pal>1?'s':'');return t;}
@@ -275,7 +275,9 @@ function groupOrders(os){const out=[];(os||[]).forEach(o=>{const l=out.find(x=>x
 function dlTxt(o){if(o.rush&&o.needBy)return 'must be IN by '+dayTxt(o.arrive)+' (we run out '+dayTxt(o.needBy+'T12:00:00')+')';return o.dl.length<2?'arrives ~'+dayTxt(o.dl[0]?o.dl[0].d:o.arrive):'deliveries '+o.dl.map(x=>dayTxt(x.d)+' ~'+n0(x.q)).join(' · ');}
 function mainLine(r){
   const all=groupOrders(r.orders),o=all.find(x=>!x.done&&!x.pending);
-  if(r.st==='none')return 'No recent use';
+  if(r.notNeeded)return '🚫 Not needed in '+PLANT;
+  if(r.noOrder)return "⛔ Don't order";
+  if(r.st==='none')return r.kind==='inv'&&!r.iu?'Not enough morning counts yet':'No recent use';
   if(!o)return all.length?(all.some(x=>x.pending)?'⏳ Pending POs — nothing else to order now':'✓ All POs created — nothing else for 4 weeks'):'OK — nothing to order for the next 4 weeks';
   const q=' · '+qtyTxt(r,o.qty,o.pallets)+(o.rush?' · rush':o.early?' · can\'t wait for Friday':'');
   if(new Date(o.orderBy)<=addDays(0))return 'Order today'+q;
@@ -286,9 +288,12 @@ function stockLine(r){const u=unitOf(r)?' '+esc(unitOf(r)):'';const ow=(r.coming
   const d=r.dbar>0?(r.stock/r.dbar):null;
   return `<div class="c-sub" style="margin:2px 0 4px">📦 On hand <b>${n0(r.stock)}</b>${u}${d!=null&&r.st!=='none'?` <span class="mut">(≈ ${d<10?n1(d):n0(d)} days)</span>`:''}${ow?` · on the way <b>${n0(ow)}</b>`:''}${r.dbar>0&&r.st!=='none'?` · uses ~${r.dbar<10?n1(r.dbar):n0(r.dbar)}/day`:''}</div>`;}
 function subLine(r){
-  if(r.st==='none')return 'Nothing planned and nothing received in 30 days.';
+  if(r.notNeeded)return 'No orders are suggested for this item in '+PLANT+'. Tap “Needed again” if the product is made here again.';
+  if(r.noOrder)return '⛔ '+esc(r.noOrder);
+  if(r.st==='none')return r.kind==='inv'&&!r.iu?'It needs 3+ morning counts without a delivery in between to know the use — count it carefully every morning.':'Nothing planned and nothing received in 30 days.';
   const cov=r.coverDay==null?'Covered for the next 6 weeks':r.coverDay<=0?'Not covered today':'Covered until '+dayTxt(addDays(r.coverDay-1));
-  return cov+' (stock + POs on the way) · the supplier takes up to '+r.L+' days';
+  const src=r.ltSrc==='item'?' (set for this item)':r.ltSrc==='supplier'?' ('+esc(r.vKey)+', set by hand)':r.ltSrc==='default'?' (estimated — set it in ⚙️ Settings → Lead time)':'';
+  return cov+' (stock + POs on the way) · the supplier takes up to '+r.L+' days'+src;
 }
 const whenTxt=o=>o.fri?(new Date(o.orderBy).getDay()===5?'Friday order · ':'Order day (holiday Friday) · '):'Order by ';
 const ordTxt=['1st','2nd','3rd','4th','5th','6th'];
@@ -368,10 +373,17 @@ function saveTooBig(mode){const t=window._tb,c=t.cfg;
 /* ---------- Details: 1) Juan's plan day by day  2) the calculation  3) suggestions ---------- */
 /* where the daily use comes from: boxes = Juan's plan; trays = plan, then the counts; the rest = only the counts */
 function useBlock(r){const u=unitOf(r)||'',iu=r.iu;
+  if(r.pbi){const p=r.pbi;
+    return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From <b>Juan's plan</b>${p.planTo?' until '+dShort(p.planTo):''}, then <b>Power BI</b>.
+      <br><b>~${n0(p.avg)} trays per production day</b> <span class="mut">· ${dShort(p.from)} → ${dShort(p.to)}, ${p.days} production days</span>
+      ${p.old?`<br><span class="late">⚠ ${p.age} days without updating the trays from Power BI.</span>`:''}
+      ${iu?`<br><span class="mut">Morning counts would say ~${n0(iu.rate)}/working day — only a check (T2000 and T2100 get mixed in the count).</span>`:''}
+      <br><span class="mut">${p.up?'Typed '+(p.at?new Date(p.at).toLocaleDateString('en-US'):'')+(p.by?' · '+esc(p.by):''):'Data from Nov 19 (not typed yet)'}</span>
+      <br><button class="c-more" style="margin-top:6px" onclick="event.stopPropagation();pbiForm()">✏️ Update from Power BI</button></div></div>`;}
   const src=r.kind==='box'?"Juan's plan (Boxes Total today), then the usual use"
     :r.kind==='tray'?"Juan's plan, then what goes down in the morning counts"
     :'what goes down in the morning counts (Juan\'s plan and Power BI are not used for this item)';
-  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b> — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: the count went up (delivery or recount)`:''}`
+  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b>${iu.how==='balance'?` — balance ${dShort(iu.from)} → ${dShort(iu.to)}: count went from start to end, plus ${n0(iu.rcvAll)} received in Yooz, over ${iu.wAll} working days`:` — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: a delivery came in (or a recount)`:''}`}${iu.bal!=null&&iu.how!=='balance'?` <span class="mut">(balance of the period: ~${n1(Math.max(0,iu.bal))}/day)</span>`:''}${r.capped?`<br><span class="late">⚠ The counts gave far more than Juan's plan (~${n0(r.capped)}/day) — using the plan × 1.2. Check the morning counts (pallets taken to the line before the count?).</span>`:''}`
     :r.kind==='box'?'':'<span class="late">Not enough morning counts yet</span> — using what was received in Yooz (last 30 days) until there are 3+ mornings.';
   return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From ${src}.${det?'<br>'+det:''}${r.kind==='inv'?'<br><span class="mut">Count it carefully every morning: a wrong count changes this number.</span>':''}</div></div>`;}
 function calcBlock(r){
@@ -412,10 +424,14 @@ function facts(r){const m=r.main||{};
   return `<div class="blk-n" style="margin-top:6px">${esc(m.vendor||'')}${r.Lavg?' · ~'+Math.round(r.Lavg)+' days':''}${m.onTime!=null?' · '+m.onTime+'% on time':''}${r.pack?' · '+n0(r.pack.p)+' per pallet':''}${r.cls?' · priority '+r.cls:''}${r.y12?' · last 12 months '+n0(r.y12):''}</div>`;}
 /* items that do the same job: order either one (Julian, Nov 19: tape M1500 / M1150 — no need to bring both) */
 const SAME_USE=[['M1500','M1150']];
+/* machine tape, meters per case (6 rolls × 1,500 m / 6 × 914 m) — Julian counts cases (Nov 19) */
+const TAPE_M_CASE={M1500:9000,M1150:5484};
 function sameTxt(r){const b=String(r.base).replace(/-\d+$/,''),g=SAME_USE.find(x=>x.includes(b));if(!g)return '';
   const others=(data.rows||[]).filter(x=>x.base!==r.base&&g.includes(String(x.base).replace(/-\d+$/,'')));
   const oth=g.filter(x=>x!==b).join(' / ');
-  return `<div class="c-sub" style="background:rgba(37,99,235,.08);border-radius:10px;padding:6px 10px;margin:4px 0;font-size:13px">🔁 <b>Same use as ${esc(oth)}</b> — either one works, order only one.${others.map(x=>` ${esc(x.base)} in stock: <b>${n0(x.stock)}</b>${unitOf(x)?' '+esc(unitOf(x)):''}.`).join('')} Use what's on hand first.</div>`;}
+  const mB=TAPE_M_CASE[b];   // tape: the other one's stock in cases of THIS one (same meters)
+  return `<div class="c-sub" style="background:rgba(37,99,235,.08);border-radius:10px;padding:6px 10px;margin:4px 0;font-size:13px">🔁 <b>Same use as ${esc(oth)}</b> — either one works, order only one.${others.map(x=>{const mO=TAPE_M_CASE[String(x.base).replace(/-\d+$/,'')];
+    return ` ${esc(x.base)} in stock: <b>${n0(x.stock)}</b> cases${mB&&mO?` = ${n0(x.stock*mO)} m ≈ <b>${n1(x.stock*mO/mB)}</b> cases of ${esc(b)}`:''}.`;}).join('')} Use what's on hand first.</div>`;}
 function card(r){
   const key=r.base;
   const det=open.has(key)?`<div class="c-det c-det2">${dmpLine(r)}${useBlock(r)}${planDays(r)}${calcBlock(r)}${suggestions(r)}${facts(r)}</div>`:'';
@@ -431,6 +447,7 @@ function card(r){
     ${lateTxt(r)}
     <div class="c-sub">${subLine(r)}</div>
     <button class="c-more" style="padding-top:2px" onclick="iOrdered('${esc(r.base)}')">📝 We ordered…</button>
+    <button class="c-more" style="padding-top:2px;color:var(--text3)" onclick="toggleNeed('${esc(r.base)}')">${r.notNeeded?'↩ Needed again':'🚫 Not needed in '+PLANT}</button>
     <button class="c-more" onclick="toggle('${esc(key).replace(/'/g,'')}')">${open.has(key)?'Hide details ▴':'Details: Juan\'s plan by day · calculation · suggestions'+(nSug?' ('+nSug+')':'')+' ▾'}</button>${det}
   </div>`;
 }
@@ -480,6 +497,14 @@ function findPO(base,key){const r=(data.rows||[]).find(x=>x.base===base);if(!r)r
 function markOf(r,o,extra){return Object.assign({base:r.base,ob:ymdL(o.orderBy),qty:o.qty,dl:o.dl.map(x=>({d:ymdL(x.d),q:x.q})),rush:!!o.rush,early:!!o.early,fri:!!o.fri,edited:!!o.edited,done:!!o.done,pending:!!o.pending},o.vendor?{vendor:o.vendor}:{},o.po?{po:o.po}:{},o.manual?{manual:true}:{},extra);}
 /* "📝 We ordered…": write down what was really ordered (any amount, any delivery day). It counts as coming on every
    device; the app then shows only what is STILL missing — e.g. 4,000 ordered in the morning, the plan grew at noon. */
+/* 🚫 Not needed here: stops the suggestions for an item in this plant (labels in NJ, a product no longer made);
+   kept in All items, greyed out, and turned back on with one tap. Saved in Settings → same on every device (PIN). */
+function toggleNeed(base){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return;
+  withPin(()=>{const prev=JSON.parse(JSON.stringify(data.cfg||{})),c=JSON.parse(JSON.stringify(prev));c.noNeed=c.noNeed||{};c.need=c.need||{};const was=!!r.notNeeded;
+    if(was){delete c.noNeed[base];c.need[base]=true;}          // on again (also for items off by default in this plant)
+    else{c.noNeed[base]=true;delete c.need[base];}
+    sendSave({type:'wms-reorder-cfg',cfg:c});
+    undoToast((was?'↩ Needed again · ':'🚫 Not needed in '+PLANT+' · ')+esc((r.codes||[r.base])[0]),()=>sendSave({type:'wms-reorder-cfg',cfg:prev}));});}
 function iOrdered(base){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return;
   const per=r.per||1,u=unitOf(r)||'units',o=groupOrders(r.orders).find(x=>!x.done&&!x.pending);
   const d0=o&&o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(addDays(1));
@@ -541,7 +566,7 @@ function saveQty(){const e=window._edit;let v=+document.getElementById('nq').val
 
 /* ---------- receiving days (shared) ---------- */
 let cfgEdit=null;
-function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:2,B:1,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};drawDays();}
+function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:2,B:1,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};cfgEdit.ltSup=cfgEdit.ltSup||{};cfgEdit.ltItem=cfgEdit.ltItem||{};drawDays();}
 function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
   const hol=(c.holidays||[]).slice().sort((a,b)=>a.d.localeCompare(b.d));
   const ex=Object.entries(c.extra).sort((a,b)=>a[0].localeCompare(b[0]));
@@ -561,8 +586,25 @@ function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
     <div class="hint">Extra stock so a late truck or an extra run doesn't stop the line. A = most used items.</div>
     <div class="row2">${['A','B','C'].map(k=>`<label style="font-size:13px;font-weight:700">${k}<input type="number" inputmode="decimal" min="0" max="30" step="0.5" value="${(c.ss||{})[k]??({A:2,B:1,C:1})[k]}" onchange="cfgEdit.ss=cfgEdit.ss||{};cfgEdit.ss['${k}']=Math.max(0,+this.value||0)"></label>`).join('')}</div>
     ${Object.keys(c.ssItem||{}).length?`<div class="hint">Items with their own cushion: ${Object.entries(c.ssItem).map(([k,v])=>esc(k)+' '+v+' d <a href="#" onclick="delete cfgEdit.ssItem[\''+esc(k)+'\'];drawDays();return false">✕</a>').join(' · ')}</div>`:''}
+    ${ltSection(c)}
     ${data&&data.cfg&&data.cfg.by?`<div class="hint" style="margin-top:12px">Last change: ${esc(data.cfg.by)} · ${timeTxt(data.cfg.at)}</div>`:''}
     <button class="big" onclick="saveDays()">Save for every device</button><button class="big gray" onclick="closeSheet()">Cancel</button>`);}
+/* 🚚 Lead time (days): per supplier where Yooz has no data, and per item (wins over everything) */
+function ltSection(c){const sup={};(data&&data.rows||[]).forEach(r=>{const k=r.vKey;if(!k)return;const s2=sup[k]||(sup[k]={yooz:0,man:0,days:[],name:(r.main||{}).vendor||k});
+    if(r.ltSrc==='yooz'){s2.yooz++;s2.days.push(r.L);}else s2.man++;});
+  const rowsS=Object.entries(sup).sort((a,b)=>(a[1].man?0:1)-(b[1].man?0:1)||a[0].localeCompare(b[0])).map(([k,v])=>{
+    const med=v.days.length?v.days.slice().sort((a,b)=>a-b)[Math.floor(v.days.length/2)]:0;
+    return `<div><span><b>${esc(k)}</b> <span style="color:var(--text3)">${v.yooz?'from Yooz ~'+n0(med)+' d':''}${v.yooz&&v.man?' · ':''}${v.man?v.man+' item(s) set by hand':''}</span></span>${v.man?`<input type="number" inputmode="numeric" min="1" max="90" style="width:70px" value="${(c.ltSup||{})[k]||''}" placeholder="7" onchange="cfgEdit.ltSup['${esc(k)}']=+this.value||undefined">`:''}</div>`;}).join('');
+  const it=Object.entries(c.ltItem||{});
+  return `<div class="sec" style="margin-top:16px">🚚 Lead time (days)</div>
+    <div class="hint">From the PO to our dock. Suppliers with Yooz data use their real days. The others use what you type here (7 until set). An item set below wins over everything.</div>
+    <div class="lst">${rowsS||'<div>—</div>'}</div>
+    <div class="hint" style="margin-top:8px">Items with their own lead time: ${it.length?it.map(([k,v])=>esc(k)+' '+v+' d <a href="#" onclick="delete cfgEdit.ltItem[\''+esc(k)+'\'];drawDays();return false">✕</a>').join(' · '):'none'}</div>
+    <div class="row2"><input type="text" id="lti" placeholder="Code (e.g. BG1000-1)" style="text-transform:uppercase"><input type="number" id="ltd" inputmode="numeric" min="1" max="90" placeholder="Days"></div>
+    <button class="big gray" onclick="addLtItem()">+ Set lead time for this item</button>`;}
+function addLtItem(){const c=document.getElementById('lti').value.trim().toUpperCase(),d=+document.getElementById('ltd').value;
+  const r=(data.rows||[]).find(x=>x.base===c||(x.codes||[]).includes(c));if(!r){toast('Code not found in Next POs');return;}if(!(d>0)){toast('Type the days');return;}
+  cfgEdit.ltItem[r.base]=d;drawDays();}
 function addHol(){const d=document.getElementById('hd').value,n=document.getElementById('hn').value.trim()||'Holiday';if(!d){toast('Pick a date');return;}
   cfgEdit.holidays=(cfgEdit.holidays||[]).filter(x=>x.d!==d).concat([{d,n}]);drawDays();}
 function addEx(on){const d=document.getElementById('xd').value;if(!d){toast('Pick a date');return;}cfgEdit.extra[d]=on;drawDays();}
@@ -596,6 +638,34 @@ function printList(){
   el.innerHTML=h;setTimeout(()=>window.print(),50);
 }
 
+/* ---------- ✏️ Power BI: trays used (Nov 20) ----------
+   Julian filters Power BI by a date range (last 4 weeks to yesterday) and types how many T2000 and T2100 were used.
+   The app divides by the production days of that range (Mon–Fri, no holidays). Saved for every device of this plant (PIN). */
+function pbiProdDays(f,t){const hol=new Set(((data&&data.cfg&&data.cfg.holidays)||[]).map(h=>h.d));let n=0;
+  if(!f||!t||t<f)return 0;for(let d=new Date(f+'T12:00:00');ymdL(d)<=t;d.setDate(d.getDate()+1)){const w=d.getDay();if(w>0&&w<6&&!hol.has(ymdL(d)))n++;}return n;}
+function pbiRange(){const t=new Date();t.setDate(t.getDate()-1);const f=new Date(t);f.setDate(f.getDate()-27);return [ymdL(f),ymdL(t)];}
+function pbiOld(){return (data&&data.rows||[]).map(r=>r.pbi).find(p=>p&&p.old)||null;}
+function pbiBar(){const p=pbiOld();if(!p)return '';const [f,t]=pbiRange();
+  return `<div class="blk" style="border-left:4px solid #e8890c;cursor:pointer" onclick="pbiForm()"><div class="blk-n"><span class="late"><b>⚠ ${p.age} days without updating the trays from Power BI.</b></span><br>Filter Power BI from <b>${dShort(f)}</b> to <b>${dShort(t)}</b> and type how many T2000 and T2100 were used. <b>Tap here.</b></div></div>`;}
+function pbiForm(){const [f,t]=pbiRange();
+  sheet(`<h2>✏️ Trays from Power BI · ${PLANT}</h2>
+    <div class="hint">In Power BI, filter the dates below and type how many trays were used in that time.</div>
+    <div class="row2"><input type="date" id="pbf" value="${f}" onchange="pbiDays()"><input type="date" id="pbt" value="${t}" onchange="pbiDays()"></div>
+    <div class="hint" id="pbn"></div>
+    <div class="row2"><input type="number" id="pb0" inputmode="numeric" min="0" placeholder="T2000 used" oninput="pbiDays()"><input type="number" id="pb1" inputmode="numeric" min="0" placeholder="T2100 used" oninput="pbiDays()"></div>
+    <div class="hint" id="pbr"></div>
+    <button class="big" onclick="pbiSave()">Save</button><button class="big gray" onclick="closeSheet()">Cancel</button>`);pbiDays();}
+function pbiDays(){const f=document.getElementById('pbf').value,t=document.getElementById('pbt').value,n=pbiProdDays(f,t);
+  document.getElementById('pbn').innerHTML=n?`<b>${n}</b> production days (Mon–Fri, no holidays)`:'<span class="late">Pick a valid range</span>';
+  const a=+document.getElementById('pb0').value||0,b=+document.getElementById('pb1').value||0;
+  document.getElementById('pbr').innerHTML=n&&(a||b)?`= T2000 <b>${n0(a/n)}</b> per day · T2100 <b>${n0(b/n)}</b> per day`:'';}
+function pbiSave(){const f=document.getElementById('pbf').value,t=document.getElementById('pbt').value,n=pbiProdDays(f,t);
+  const a=+document.getElementById('pb0').value,b=+document.getElementById('pb1').value;
+  if(!n){toast('Pick a valid date range');return;}if(!(a>0)||!(b>=0)||document.getElementById('pb1').value===''){toast('Type both: T2000 and T2100 (0 if none)');return;}
+  const c=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));
+  c.pbi={from:f,to:t,days:n,T2000:Math.round(a),T2100:Math.round(b),at:new Date().toISOString()};
+  withPin(()=>{closeSheet();sendSave({type:'wms-reorder-cfg',cfg:c});toast('✓ Trays: T2000 '+n0(a/n)+'/day · T2100 '+n0(b/n)+'/day');});}
+
 /* ---------- Excel: the POs to create (to share) ---------- */
 const XLSX_SRC='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',XLSX_SRI='sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==';
 function loadXlsx(){return new Promise((ok,bad)=>{if(window.XLSX)return ok();const sc=document.createElement('script');sc.src=XLSX_SRC;sc.integrity=XLSX_SRI;sc.crossOrigin='anonymous';sc.referrerPolicy='no-referrer';
@@ -604,17 +674,18 @@ async function exportExcel(){
   if(!data||!(data.rows||[]).length){toast('Nothing to export yet');return;}
   try{await loadXlsx();}catch(e){toast('⚠ '+e.message);return;}
   // what to order first and together: code · quantity · unit · pallets; then when, status and the rest
-  const head=['Code','Quantity','Unit','Pallets','Order by','Deliveries','Status','Supplier','Priority','Rush','Description','Category','Covered until','Changed / created by'];
+  const head=['Code','Quantity','Unit','Pallets','Order by','Deliveries','Status','Supplier','Priority','Rush','Description','Category','Covered until','On hand','On the way','Uses per day','Days of stock','Use from','Changed / created by'];
   const out=[];
   (data.rows||[]).filter(inCat).forEach(r=>groupOrders(r.orders).forEach(o=>{
     out.push([(r.codes||[r.base]).join(' + '),Math.round(o.qty),unitOf(r),o.pallets||'',ymdL(o.orderBy),o.dl.map(x=>ymdL(x.d)+' '+n0(x.q)).join(' | '),
       o.done?'Created':o.pending?'Pending':o.edited?'Not ordered (qty changed)':'Not ordered',(r.main||{}).vendor||'',r.cls||'',o.rush?'YES':'',r.name||'',catOf(r),
-      r.coverDay==null?'6+ weeks':ymdL(addDays(Math.max(0,r.coverDay-1))),o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
+      r.coverDay==null?'6+ weeks':ymdL(addDays(Math.max(0,r.coverDay-1))),Math.round(r.stock||0),Math.round((r.coming||[]).reduce((a,x)=>a+(+x.qty||0),0)),
+      r.dbar>0?Math.round(r.dbar*10)/10:'',r.dbar>0?Math.round(r.stock/r.dbar*10)/10:'',r.kind==='box'?"Juan's plan":r.pbi?"Juan's plan + Power BI ("+r.pbi.days+' production days)':r.iu?'Morning counts ('+r.iu.days+' days)':r.kind==='tray'?"Juan's plan":'Yooz received (30 days)',o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
   if(!out.length){toast('No POs to export');return;}
   out.sort((a,b)=>a[4].localeCompare(b[4])||a[0].localeCompare(b[0]));
   const title=['Schweid & Sons · Next POs · '+(PLANT==='NJ'?'New Jersey':'Georgia')+(cat!=='ALL'?' · '+cat:'')+' · '+new Date().toLocaleString('en-US')];
   const ws=XLSX.utils.aoa_to_sheet([title,['Guide only — the official PO is made in Yooz.'],[],head].concat(out));
-  ws['!cols']=[24,10,8,8,11,40,14,16,8,6,30,12,13,26].map(w=>({wch:w}));
+  ws['!cols']=[24,10,8,8,11,40,14,16,8,6,30,12,13,10,10,11,10,20,26].map(w=>({wch:w}));
   ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:3,c:0},e:{r:3+out.length,c:head.length-1}})};
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Next POs');
   XLSX.writeFile(wb,'Next_POs_'+PLANT+'_'+ymdL(new Date())+'.xlsx');toast('⬇ Excel downloaded');
@@ -658,7 +729,7 @@ function render(keepFocus){
   const cc=c2=>(data.rows||[]).filter(r=>c2==='ALL'||catOf(r)===c2).length;
   const cats=`<div class="cats">${CATS.filter(([k])=>k==='ALL'||cc(k)).map(([k,l])=>`<button class="cat${cat===k?' on':''}" onclick="setCat('${k}')">${l}<i>${cc(k)}</i></button>`).join('')}</div>`;
   if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;document.querySelector('.tabs').outerHTML=tabs;return;}
-  body.innerHTML=friBox()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
+  body.innerHTML=friBox()+chgBar()+pbiBar()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
 }
 
 
@@ -667,14 +738,31 @@ function render(keepFocus){
    last week → today) and compares them. Only days still ahead count; days that appear because the plan reaches
    further are "first planned", not changes. So when someone asks "why so many / so few boxes?", it is here. */
 let view='pos';const chg={h:null,busy:false,err:'',at:0,id:0,want:false,wk:'this',q:''};
-function setView(v){view=v;['pos','sup','tdy','chg'].forEach(k=>document.getElementById('v-'+k).classList.toggle('on',v===k));
-  if(v==='chg'&&(!chg.h||Date.now()-chg.at>30*60e3))askChg();render();window.scrollTo({top:0});}
+function setView(v){if(v==='chg'&&view!=='chg'){chg.prevSeen=chgSeen();chgSetSeen();}view=v;['pos','sup','tdy','chg'].forEach(k=>document.getElementById('v-'+k).classList.toggle('on',v===k));
+  if(v==='chg'&&(!chg.h||Date.now()-chg.at>30*60e3))askChg();chgBadge();render();window.scrollTo({top:0});}
 function askChg(){ensureFrame();chg.busy=true;chg.err='';if(!ready){chg.want=true;return;}
   chg.id=Date.now();frame.contentWindow.postMessage({type:'wms-reorder-changes',id:chg.id},location.origin);}
 const dShort=d=>dayTxt(d+'T12:00:00');
 function chgWeek(inv){const h=chg.h;const m=new Date(h.mon+'T12:00:00'),d=new Date(inv+'T12:00:00');const w=Math.floor((d-m)/(7*864e5));return w<0?'last':w===0?'this':'next';}
 function chgUnit(it){const c=String(it.cat||'').toUpperCase();return c==='BOXES'?'boxes':c==='TRAYS'?'trays':c==='FILM'?'m':c==='PATTY PAPER'||c==='SLEEVES'?'cases':'';}
 function chgSign(n){return (n>0?'+':n<0?'−':'')+n0(Math.abs(n));}
+/* 🔔 Plan changes notice (Nov 20, for Eleni): Reorder reads the plan changes in the background (on open and every
+   30 min) and shows how many are new since this device last opened 🔄 Changes: a number on the tab and a bar on By item.
+   Only inside the app — no emails or Teams messages. New = a change saved after the last visit (first time: since today 00:00). */
+const CHG_SEEN_K='reo_chgseen_'+PLANT;
+function chgSeen(){try{const v=localStorage.getItem(CHG_SEEN_K);if(v)return v;}catch(e){}const t=new Date();t.setHours(0,0,0,0);return t.toISOString();}
+function chgSetSeen(){try{localStorage.setItem(CHG_SEEN_K,new Date().toISOString());}catch(e){}}
+function chgIsNew(e,seen){if(!seen||!e||!e.at)return false;const t=new Date(e.at).getTime();return !isNaN(t)&&t>new Date(seen).getTime();}
+function chgNew(){if(!chg.h)return [];const seen=chgSeen(),out=[];
+  chg.h.items.forEach(it=>it.days.forEach(d=>d.ev.forEach(e=>{if(chgIsNew(e,seen))out.push({code:it.code,name:it.name,cat:it.cat,inv:d.inv,from:e.from,to:e.to});})));
+  return out.sort((a,b)=>Math.abs(b.to-b.from)-Math.abs(a.to-a.from));}
+function chgBadge(){const b=document.getElementById('v-chg');if(!b)return;const n=view==='chg'?0:chgNew().length;
+  b.innerHTML='🔄 Changes'+(n?` <span style="background:#d93025;color:#fff;border-radius:10px;padding:0 7px;font-size:12px;margin-left:4px">${n}</span>`:'');}
+function chgBar(){const nw=chgNew();if(!nw.length)return '';
+  const top=nw.slice(0,3).map(x=>`<b>${esc(x.code)}</b> ${dShort(x.inv)}: ${n0(x.from)} → <b>${n0(x.to)}</b> <span class="${x.to>x.from?'up':'dn'}">(${chgSign(x.to-x.from)})</span>`).join('<br>');
+  return `<div class="blk" style="border-left:4px solid #1a56db;cursor:pointer" onclick="setView('chg')"><div class="blk-n">🔔 <b>Juan's plan changed — ${nw.length} new change${nw.length>1?'s':''}</b><br>${top}${nw.length>3?'<br><span class="mut">+ '+(nw.length-3)+' more</span>':''}<br><b>Tap to see them in 🔄 Changes.</b></div></div>`;}
+setInterval(()=>{if(document.visibilityState==='visible'&&!chg.busy&&Date.now()-chg.at>30*60e3)askChg();},60e3);
+
 function renderChg(){
   document.getElementById('status').innerHTML=chg.busy?'⏳ Reading the plans of the last 2 weeks…':chg.err?'<span class="bad">'+esc(chg.err)+'</span>':
     chg.h?'Plans compared: '+chg.h.snaps.map(x=>dShort(x.day).replace(/, \w+ \d+$/,'')+' '+(x.at?timeTxt(x.at):'')).join(' · '):'';
@@ -692,7 +780,7 @@ function renderChg(){
   const WK=[['last','Last week'],['this','This week'],['next','Next week']];
   const card=it=>{const u=chgUnit(it);
     const rows=it.days.map(d=>{
-      const evs=d.ev.map(e=>`${n0(e.from)} → <b>${n0(e.to)}</b> <span class="${e.to>e.from?'up':'dn'}">(${chgSign(e.to-e.from)})</span> <span class="mut">changed ${dShort(e.day)}</span>`).join('<br>');
+      const evs=d.ev.map(e=>`${n0(e.from)} → <b>${n0(e.to)}</b> <span class="${e.to>e.from?'up':'dn'}">(${chgSign(e.to-e.from)})</span> <span class="mut">changed ${dShort(e.day)}</span>${chgIsNew(e,chg.prevSeen)?' <b class="up">🆕</b>':''}`).join('<br>');
       return `<div class="chg-d"><span><b>${dShort(d.inv)}</b></span><span style="text-align:right">${evs||`${n0(d.end)} <span class="mut">${d.first?'first planned '+dShort(d.first.day)+' · ':''}no change</span>`}</span></div>`;}).join('');
     return `<div class="card"><div class="c-top"><b>${esc(it.code)}</b> <span class="mut">${esc(it.name)}</span></div>
       <div class="c-main">${it.changed.length?`<span class="${it.delta>0?'up':it.delta<0?'dn':''}">${chgSign(it.delta)} ${u}</span> vs. the first plan`:'No changes'}</div>
@@ -843,6 +931,7 @@ paintThemeMini();
 try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<12*3600e3){data=last.data;lastAt=last.at;const c=counts();tab=c.red?'now':c.amber?'week':'all';}}catch(e){}
 if(stale())ask(false);
 render();
+askChg();chgBadge();   // plan changes in the background → 🔔 number on the tab
 </script>
 </body>
 </html>
