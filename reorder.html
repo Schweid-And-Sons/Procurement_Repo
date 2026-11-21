@@ -272,7 +272,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21u</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21v</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -1021,11 +1021,14 @@ function render(keepFocus){
   if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;return;}
   const bands=band(tonlyHtml(),'tonly:'+((data.tonly||[]).map(x=>x.po).join(',')))+chgBar()+pbiBar();
   const sec=(id,def)=>{try{const v=localStorage.getItem(id);return v==null?def:v==='1';}catch(e){return def;}};
-  const oI=sec('reo_secI',mode()==='inv')||!!q||tab==='cnt'||tab==='trk',oS=sec('reo_secS',false);
+  // Nov 21: both lists always start closed (only a search opens the item list; "By supplier" from a link opens once)
+  // open/closed is kept while the page is open (a refresh doesn't close what you opened), never across visits
+  const SO=window._secOpen=window._secOpen||{I:false,S:false};try{if(localStorage.getItem('reo_secS')==='1'){SO.S=true;localStorage.removeItem('reo_secS');}}catch(e){}
+  const oI=SO.I||!!q,oS=SO.S;
   body.innerHTML=ordersBox()+bands
-    +`<details class="xs" id="secI"${oI?' open':''} ontoggle="try{localStorage.setItem('reo_secI',this.open?'1':'0')}catch(e){}"><summary><b>📦 Next POs by item</b><span>${c.red} urgent · ${c.amber} this week · on hand, days, plan</span></summary>
+    +`<details class="xs" id="secI"${oI?' open':''} ontoggle="(window._secOpen||{}).I=this.open"><summary><b>📦 Next POs by item</b><span>${c.red} urgent · ${c.amber} this week · on hand, days, plan</span></summary>
       ${tabs}<div class="stick">${cats}<input class="search" type="search" placeholder="🔎 Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"></div><div id="list">${list}</div></details>`
-    +`<details class="xs" id="secS"${oS?' open':''} ontoggle="try{localStorage.setItem('reo_secS',this.open?'1':'0')}catch(e){};if(this.open&&!this.dataset.f){this.dataset.f=1;}"><summary><b>🧾 Next POs by supplier</b><span>today and the next order days · pallets arriving</span></summary>${oS?supHtml():'<div id="supLazy"></div>'}</details>`
+    +`<details class="xs" id="secS"${oS?' open':''} ontoggle="(window._secOpen||{}).S=this.open;if(this.open&&!this.dataset.f){this.dataset.f=1;}"><summary><b>🧾 Next POs by supplier</b><span>today and the next order days · pallets arriving</span></summary>${oS?supHtml():'<div id="supLazy"></div>'}</details>`
     +estSection()
     +`<details class="tmw"><summary>⋯ Tools · settings</summary>${toolsMenu()}</details>`;
   const sd=document.getElementById('secS');if(sd&&!oS)sd.addEventListener('toggle',()=>{if(sd.open){const z=document.getElementById('supLazy');if(z)z.outerHTML=supHtml();}},{once:true});
@@ -1051,7 +1054,7 @@ function estSection(){const rows=((data&&data.rows)||[]).filter(r=>r.est);
   const nC=data.cntN||0,mC=data.cntMin||10;
   const sw=`<div class="es-sw"><span>Today's count: <b>${today?'✓ done':'not done yet'}</b></span>
     <span class="mut">(set by itself: ${n0(nC)} position${nC===1?'':'s'} changed today${today?'':' — it counts as done at '+mC})</span></div>`;
-  return `<details class="xs" id="secE"${rows.length?'':''}><summary><b>📐 No count today? Estimated inventory</b><span>${sub}</span></summary>${sw}
+  return `<details class="xs" id="secE"${(window._secOpen||{}).E?' open':''} ontoggle="(window._secOpen=window._secOpen||{}).E=this.open"><summary><b>📐 No count today? Estimated inventory</b><span>${sub}</span></summary>${sw}
     <div class="hint" style="margin:0 6px 8px">When the morning count can't be done (day off, sick…), the app estimates each item:
       <b>last count + what shipping received in Receiving − what was used</b> (Juan's plan / Line 22-23 for boxes, sleeves and trays; the usual use for the rest).
       It only works well if <b>Eleni marks the POs as created</b> and <b>shipping marks what arrived in Receiving</b>. The real count replaces it as soon as it's in.</div>
