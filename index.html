@@ -4174,7 +4174,9 @@ function reorderRows(summary){
         if(from!=null){const real=useLive?f.stock:(+ch.days[k][f.base]||0);
           let w=0;for(let d=new Date(from+'T12:00:00');ymd(d)<ymd(today);d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
           const pdn=Object.values(pday).filter(v=>v>0).length,rW=kind!=='inv'&&ptot>0&&pdn?ptot/pdn:rate*7/5;
-          const after=useLive?sa.toISOString():new Date(from+'T09:00:00').toISOString();let got=0;   // received after the base (not put away in it yet)
+          let after=useLive?sa.toISOString():new Date(from+'T09:00:00').toISOString();let got=0;
+          // moved on the map today: what was received before that move is already on the screen — don't add it twice
+          const mvT=(window.REO_MOVED||{})[f.base];if(useLive&&mvT&&mvT>after)after=mvT;   // received after the base (not put away in it yet)
           try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||String(x.ts||'')<=after)return;
             (x.lines||[]).forEach(l=>{if(reoBase(l.code)!==f.base)return;const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;if(q>0)got+=toUnits(l.code,q);});});}catch(e){}
           const used=Math.min(real+got,Math.max(0,rW*w));
@@ -6169,7 +6171,10 @@ function liveCntInfo(r){const st=String(r.startedAt||''),t0=ymd(new Date());
   const real=[...Object.values(r.ts||{}),...Object.values(r.del||{})].map(String).filter(v=>v&&v!==st);
   const day=v=>{const d=new Date(v);return isNaN(d)?'':ymd(d);};
   const n=real.filter(v=>day(v)===t0).length,prev=real.filter(v=>{const d=day(v);return d&&d<t0;}).sort().pop()||'';
-  return {n,prev};}
+  // items moved today on the map and the time of the last move: what was received before it is already on the screen
+  const mv={};Object.entries(r.ts||{}).forEach(([id,v])=>{v=String(v||'');if(!v||v===st||day(v)!==t0)return;
+    try{occItems((r.inv||{})[id]).forEach(x=>{const b=reoBase(x.item);if(!mv[b]||v>mv[b])mv[b]=v;});}catch(e){}});
+  return {n,prev,mv};}
 function liveRealAt(r){const st=String(r.startedAt||'');
   const real=[...Object.values(r.ts||{}),...Object.values(r.del||{})].map(String).filter(v=>v&&v!==st).sort().pop();
   if(real)return real;if(r.turno==='pre9'&&st)return new Date(new Date(st).getTime()-8*3600e3).toISOString();return st||r.updatedAt||'';}
@@ -7997,7 +8002,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     // the SAME stock on every device: read the plant's live inventory from SharePoint (read only, never saved here)
     let shared=null,times={};
     // stock: today's live record of the plant (reads yesterday → tomorrow only: the newest shift is always there)
-    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:liveRealAt(r)};window.REO_STOCK_AT=shared.at;{const ci=liveCntInfo(r);window.REO_CNT_N=ci.n;window.REO_STOCK_PREV=ci.prev;}}else throw new Error('no live record');};
+    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:liveRealAt(r)};window.REO_STOCK_AT=shared.at;{const ci=liveCntInfo(r);window.REO_CNT_N=ci.n;window.REO_STOCK_PREV=ci.prev;window.REO_MOVED=ci.mv;}}else throw new Error('no live record');};
     // run one source with a time limit and remember how long it took (shown in Next POs, to find the slow one)
     const timed=(name,fn,ms,errOf)=>{const t=Date.now();let done=false;
       const p=Promise.resolve().then(fn).then(()=>{done=true;const e=errOf&&errOf();times[name]={s:(Date.now()-t)/1000,ok:!e};},
