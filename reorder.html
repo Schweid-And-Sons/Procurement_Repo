@@ -189,6 +189,7 @@
   .es-r{padding:9px 2px;border-bottom:1px solid var(--border);}.es-r:last-child{border-bottom:none;}
   .es-f{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:5px 0 2px;font-size:14px;font-weight:700;}
   .es-f i{display:block;font-style:normal;font-weight:400;font-size:11px;color:var(--text3);}.es-f .eq{color:var(--accent);}
+  .es-sw{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 6px 10px;font-size:13px;font-weight:600;}
   .ins{background:var(--surface2);border-radius:12px;padding:10px 12px;margin:8px 0;}
   .ins summary{cursor:pointer;display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;list-style:none;font-size:14px;}
   .ins-k{font-size:13px;color:var(--text2);}.ins-d{font-size:12.5px;color:var(--text3);margin-top:6px;line-height:1.5;}
@@ -271,7 +272,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21p</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21q</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -643,7 +644,7 @@ function sumOrders(rows,pred){let items=0,pal=0,noPal=0;rows.forEach(r=>{const o
 function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const t0=ymdL(new Date()),all=supAll(),gs=all.filter(g=>g.day===t0);
   const trk=new Set((data.trk||[]).map(x=>String(x).toUpperCase()));
-  const today=data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString();
+  const today=cntDoneToday();
   const rc=[];   // counts are checked in the inventory now (🔎 Check)
   // POs that were due (last 5 days) and nobody marked received: we don't know if they are in the inventory (Nov 20: 3 deliveries)
   const lim=ymdL(addDays(-5)),LP={};rows.forEach(r=>(r.late||[]).forEach(x=>{if(!x.eta||x.eta<lim)return;const k=x.po;
@@ -1031,14 +1032,24 @@ function render(keepFocus){
 }
 /* 📐 No count today? (Nov 21) — when nobody could count (day off, sick…), the orders use an estimate:
    last count + what shipping received in Receiving − the use of the work days since then. This section shows it item by item. */
+function cntDoneToday(){const auto=!!(data&&data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString());
+  const c=data&&data.cfg&&data.cfg.cntDay;return c&&c.day===ymdL(new Date())?!!c.done:auto;}
+/* today's count done / not done — by hand when the app can't tell (a Saturday with a partial count, etc.). Shared, PIN */
+function setCntDay(done){const c=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));
+  c.cntDay={day:ymdL(new Date()),done};withPin(()=>{sendSave({type:'wms-reorder-cfg',cfg:c});toast(done?"✓ Today's count: done — orders use the real count":"📐 Today's count: not done — orders use the estimate");});}
 function estSection(){const rows=((data&&data.rows)||[]).filter(r=>r.est);
-  const today=data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString();
-  const sub=rows.length?`last count ${dShort(rows[0].est.at)} · the orders above already use the estimate`:today?"✓ today's count is in — nothing estimated":'nothing to estimate';
+  const today=cntDoneToday();
+  const sub=rows.length?`📐 in use · last count ${dShort(rows[0].est.at)} — the orders above use the estimate`:"✓ today's count is in — orders use the real count";
   const list=rows.slice().sort((a,b)=>({red:0,amber:1}[a.st]??2)-({red:0,amber:1}[b.st]??2)).map(r=>{const e=r.est,u=esc(unitOf(r)||'');
     return `<div class="es-r"><div><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span></div>
       <div class="es-f"><span>${n0(e.real)}<i>count ${dShort(e.at)}</i></span><span>+ ${n0(e.got||0)}<i>received</i></span><span>− ${n0(e.used)}<i>used · ${e.days} day${e.days>1?'s':''}</i></span><span class="eq">= ${n0(r.stock)}<i>${u} now</i></span></div>
       <div class="mut" style="font-size:12px">use from ${esc(e.src||'')}</div></div>`;}).join('');
-  return `<details class="xs" id="secE"><summary><b>📐 No count today? Estimated inventory</b><span>${sub}</span></summary>
+  const t0=ymdL(new Date()),cd=(data.cfg&&data.cfg.cntDay&&data.cfg.cntDay.day===t0)?data.cfg.cntDay.done:null;
+  const auto=!!(data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString()),isDone=cd==null?auto:cd;
+  const sw=`<div class="es-sw"><span>Today's count:</span>
+    <button class="tool-btn${isDone?' on':''}" onclick="setCntDay(true)">✓ Done</button><button class="tool-btn${!isDone?' on':''}" onclick="setCntDay(false)">✗ Not done</button>
+    <span class="mut">${cd==null?'(set by itself: '+(auto?'the stock changed today':'no change in the stock today')+')':'(set by hand today)'}</span></div>`;
+  return `<details class="xs" id="secE"${rows.length?'':''}><summary><b>📐 No count today? Estimated inventory</b><span>${sub}</span></summary>${sw}
     <div class="hint" style="margin:0 6px 8px">When the morning count can't be done (day off, sick…), the app estimates each item:
       <b>last count + what shipping received in Receiving − what was used</b> (Juan's plan / Line 22-23 for boxes, sleeves and trays; the usual use for the rest).
       It only works well if <b>Eleni marks the POs as created</b> and <b>shipping marks what arrived in Receiving</b>. The real count replaces it as soon as it's in.</div>

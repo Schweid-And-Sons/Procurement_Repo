@@ -4158,7 +4158,8 @@ function reorderRows(summary){
     let Hd=kind==='inv'?0:H;if(pbT){rate=pbT.avg*5/7;capped=false;let last=-1;for(let i=0;i<H;i++)if((pday[ymd(new Date(today.getTime()+i*864e5))]||0)>0)last=i;Hd=last+1;}
     // 📐 no count today yet (e.g. Saturday / Monday before the count): stock = last update − use of the work days since then
     let est=null;{const sa=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT):null;
-      if(sa&&!isNaN(sa)&&ymd(sa)<ymd(today)){let w=0;for(let d=new Date(sa);ymd(d)<ymd(today);d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
+      const ov=(cfg&&cfg.cntDay&&cfg.cntDay.day===ymd(today))?cfg.cntDay.done:null;
+      if(sa&&!isNaN(sa)&&(ov===false||(ov!==true&&ymd(sa)<ymd(today)))){let w=0;for(let d=new Date(sa);ymd(d)<ymd(today);d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
         const pdn=Object.values(pday).filter(v=>v>0).length,rW=kind!=='inv'&&ptot>0&&pdn?ptot/pdn:rate*7/5;
         // + what shipping received in Receiving after that count (not put in the count yet)
         let got=0;try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||String(x.ts||'')<=sa.toISOString())return;
@@ -6144,6 +6145,12 @@ function renderCheckView(){const el=document.getElementById('main-content');
         ${r._loc?`<button class="chk-b" onclick="chkGo('${poEsc(r._loc.id)}')">📍 Go to the spot</button>`:''}</div></div>`;};
   el.innerHTML=`<div class="chk-wrap"><div class="chk-top"><b>🔎 Check counts · ${currentPlant}</b><span>Last count − what should be used + what arrived = what today's count should be. Only the ones that don't add up, in walking order.</span></div>
     ${rows.length?rows.map(card).join(''):'<div class="po-empty">✓ All counts add up.</div>'}</div>`;}
+/* when the stock really changed last (Nov 21): opening the app on a new day starts the shift and stamps every item with
+   its start time — that is not a count. Last real change = newest item time that isn't the shift start; with none in the
+   morning shift, the stock is still yesterday's. */
+function liveRealAt(r){const st=String(r.startedAt||'');
+  const real=[...Object.values(r.ts||{}),...Object.values(r.del||{})].map(String).filter(v=>v&&v!==st).sort().pop();
+  if(real)return real;if(r.turno==='pre9'&&st)return new Date(new Date(st).getTime()-8*3600e3).toISOString();return st||r.updatedAt||'';}
 function reoLocs(){const out={},ak=Object.keys(AREAS||{});
   try{Object.entries(inventory||{}).forEach(([id,occ])=>{const p=String(id).split('|'),ai=ak.indexOf(p[0]);
     occItems(occ).forEach(x=>{const c=reoBase(x.item);const k=[ai<0?99:ai,+(p[1]||0),+(p[2]||0),String(p[3]||p[1]||'')];
@@ -7906,7 +7913,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.21p';
+const APP_VERSION='2026.11.21q';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7968,7 +7975,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     // the SAME stock on every device: read the plant's live inventory from SharePoint (read only, never saved here)
     let shared=null,times={};
     // stock: today's live record of the plant (reads yesterday → tomorrow only: the newest shift is always there)
-    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:r.updatedAt||r.startedAt};window.REO_STOCK_AT=shared.at;}else throw new Error('no live record');};
+    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:liveRealAt(r)};window.REO_STOCK_AT=shared.at;}else throw new Error('no live record');};
     // run one source with a time limit and remember how long it took (shown in Next POs, to find the slow one)
     const timed=(name,fn,ms,errOf)=>{const t=Date.now();let done=false;
       const p=Promise.resolve().then(fn).then(()=>{done=true;const e=errOf&&errOf();times[name]={s:(Date.now()-t)/1000,ok:!e};},
