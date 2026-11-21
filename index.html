@@ -6033,6 +6033,27 @@ function poGiveNumber(gkey){const g=poGroups().find(x=>x.key===gkey);if(!g||!g.m
 let _rcvMarksAt=0;
 function rcvMarksRefresh(){if(!PLAN_READ_URL||Date.now()-_rcvMarksAt<5*60000)return;_rcvMarksAt=Date.now();
   reoReadShared().then(()=>{if(currentView==='po'&&document.getElementById('po-overlay').classList.contains('hidden'))renderPoView(true);}).catch(()=>{});}
+/* ---------- Next POs extras (Nov 21) ----------
+   locs: where each item is (first spot in the walking order of the map) → count route
+   sups: supplier scorecard — POs, on time %, real days (Yooz, 12 months) + short / different deliveries in Receiving (30 days)
+   mk:   what was marked in Next POs in the last 7 days (pilot) */
+function reoLocs(){const out={},ak=Object.keys(AREAS||{});
+  try{Object.entries(inventory||{}).forEach(([id,occ])=>{const p=String(id).split('|'),ai=ak.indexOf(p[0]);
+    occItems(occ).forEach(x=>{const c=reoBase(x.item);const k=[ai<0?99:ai,+(p[1]||0),+(p[2]||0),String(p[3]||p[1]||'')];
+      const lbl=p.length>2?`${p[0]} · S${p[1]} T${p[2]} ${p[3]}`:`${p[0]} ${p[1]||''}`;
+      const cur=out[c];const key=k[0]*1e6+k[1]*1e3+k[2];
+      if(!cur||key<cur.k)out[c]={k:key,l:lbl,n:(cur?cur.n:0)+1};else cur.n++;});});}catch(e){}
+  return out;}
+function reoSupStats(){const out={};
+  try{((loadLeadTime()||{}).rows||[]).filter(r=>r.plant===currentPlant&&!r.manual).forEach(r=>{const v=potVendor(r.vendor);const o=out[v]=out[v]||{v,pos:0,ot:0,otN:0,lt:0,ltN:0,p90:0,items:0,short:0,rcv:0};
+      o.items++;o.pos+=+r.pos||0;if(r.onTime!=null){o.ot+=(+r.onTime)*(+r.pos||1);o.otN+=(+r.pos||1);}if(r.ltAvg){o.lt+=(+r.ltAvg)*(+r.pos||1);o.ltN+=(+r.pos||1);}o.p90=Math.max(o.p90,+r.lt||0);});
+    const since=new Date(Date.now()-30*864e5).toISOString();
+    Object.values(allReceipts()).filter(r=>!r.notArrived&&(r.plant||currentPlant)===currentPlant&&String(r.ts)>=since).forEach(r=>{const v=potVendor(r.vendor);const o=out[v];if(!o)return;
+      o.rcv++;const st=receiptStatus(r);if(st==='diff'||st==='bol')o.short++;});}catch(e){}
+  return Object.values(out).map(o=>({v:o.v,pos:o.pos,items:o.items,onTime:o.otN?Math.round(o.ot/o.otN):null,days:o.ltN?Math.round(o.lt/o.ltN*10)/10:null,p90:o.p90,rcv:o.rcv,short:o.short})).sort((a,b)=>b.pos-a.pos);}
+function reoMarkStats(){const m=loadReoMarks(),since=Date.now()-7*864e5,out={created:0,pending:0,edited:0,by:{}};
+  Object.values(m).forEach(x=>{if(!x||new Date(x.at).getTime()<since)return;if(x.done)out.created++;else if(x.pending)out.pending++;if(x.edited)out.edited++;
+    const b=x.by||'?';out.by[b]=(out.by[b]||0)+1;});return out;}
 function poGroups(noExtra){   // noExtra: only Yooz + planner (Next POs counts the Next-POs marks itself)
   const g={};
   poLines().forEach(l=>{const k=l.po+'|'+l.due;(g[k]=g[k]||{key:k,po:l.po,vendor:l.vendor,due:l.due,lines:[]}).lines.push(l);});
@@ -7778,7 +7799,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.21g';
+const APP_VERSION='2026.11.21i';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7848,7 +7869,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
+        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
         times:Object.assign({},times)};};
     const old=(o,ms)=>!o||Date.now()-new Date(o.loaded).getTime()>ms;
     const collect=async(force,send)=>{

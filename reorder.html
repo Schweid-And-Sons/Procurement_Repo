@@ -162,6 +162,24 @@
   @media(max-width:420px){.wk table{font-size:12px;}.wk th{font-size:11px;padding:4px 2px;}.wk td{padding:5px 2px;}}
   .wk .wv{display:block;font-size:11px;color:var(--warn);font-weight:700;}
   .wk .wn{font-size:11.5px;color:var(--text3);margin-top:3px;}
+  .ob-w{margin:4px 6px 8px;padding:9px 11px;border-radius:12px;font-size:13.5px;background:color-mix(in srgb,var(--warn) 15%,transparent);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);}
+  .ob-g{padding:10px;border-radius:12px;}.ob-g+.ob-g{border-top:1px solid var(--border);border-radius:0;}
+  .ob-h{display:flex;align-items:center;gap:10px;}.ob-n{flex:1;min-width:0;}.ob-n b{font-size:16px;}.ob-n i{display:block;font-style:normal;font-size:12.5px;color:var(--text3);}
+  .ob-g.done .mb-c{background:var(--success);border-color:var(--success);color:#fff;}.ob-g.done .ob-n b{color:var(--text3);}
+  .ob-g.nopo .mb-c,.ob-g.notrk .mb-c{border-color:var(--warn);color:var(--warn);}
+  .ob-b{min-height:42px;padding:8px 14px;border-radius:12px;border:none;background:var(--success);color:#fff;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;}
+  .ob-b2{min-height:40px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--warn);background:transparent;color:var(--warn);font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .ob-s{font-size:12.5px;color:var(--warn);text-align:right;max-width:46%;}.ob-s.ok{color:var(--success);}
+  .ob-a{font-size:12.5px;color:var(--warn);margin:6px 0 0 36px;}
+  .ob-l{margin:6px 0 0 36px;}.ob-l>summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:600;list-style:none;}
+  .ob-it{border-top:1px solid var(--border);padding:7px 0;}.ob-it summary{cursor:pointer;list-style:none;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;}
+  .ob-q{margin-left:auto;font-size:13px;}.ob-x{font-size:12.5px;color:var(--text2);padding-top:4px;}
+  .ob-none{padding:10px 12px;color:var(--success);font-weight:700;}
+  .ob-steps{font-size:12px;color:var(--text3);padding:4px 12px 6px;}
+  .ob-c{display:block;width:100%;text-align:left;border:none;background:transparent;color:var(--accent);font-size:13px;font-weight:600;padding:8px 12px;border-top:1px solid var(--border);cursor:pointer;}
+  .ins{background:var(--surface2);border-radius:12px;padding:10px 12px;margin:8px 0;}
+  .ins summary{cursor:pointer;display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;list-style:none;font-size:14px;}
+  .ins-k{font-size:13px;color:var(--text2);}.ins-d{font-size:12.5px;color:var(--text3);margin-top:6px;line-height:1.5;}
   .pills{display:flex;flex-wrap:wrap;gap:6px;cursor:pointer;}
   .pl{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;}
   .pl.g{background:color-mix(in srgb,var(--success) 14%,transparent);color:var(--success);}
@@ -241,7 +259,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21g</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21i</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -607,6 +625,40 @@ function nextCountDay(){const hol=new Set(((data&&data.cfg&&data.cfg.holidays)||
   if(ok(d)&&n.getHours()<9)return d;do{d.setDate(d.getDate()+1);}while(!ok(d));return d;}
 function sumOrders(rows,pred){let items=0,pal=0,noPal=0;rows.forEach(r=>{const os=(r.orders||[]).filter(o=>!o.done&&!o.pending&&pred(o));if(!os.length)return;items++;
   os.forEach(o=>{if(o.pallets)pal+=o.pallets;else noPal++;});});return {items,pal,noPal};}
+/* 🛒 To order today (Nov 21) — for Eleni: what to order, from whom, one button per supplier.
+   Her 2 steps: ① ✅ Create PO (marks every line, for every device) ② put the Yooz PO in the PO Tracker.
+   Each supplier ticks itself: created → has a PO # → the PO is in the tracker. Tap an item = Juan's week for it. */
+function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
+  const t0=ymdL(new Date()),gs=supGroups().filter(g=>g.day===t0);window._sg=gs;
+  const trk=new Set((data.trk||[]).map(x=>String(x).toUpperCase()));
+  const today=data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString();
+  const rc=rows.filter(r=>r.recount);
+  const warn=!today?`<div class="ob-w">⚠ <b>Today's inventory count isn't in yet</b> — use and quantities may be off. Order after the count (or check the numbers).</div>`:'';
+  const grp=(g,gi)=>{const ls=g.lines,open=ls.filter(x=>!x.o.done&&!x.o.pending),pend=ls.filter(x=>x.o.pending),pal=palSum(g);
+    const pos=[...new Set(ls.map(x=>x.o.po).filter(Boolean))],po=pos[0]||'';
+    const st=open.length||pend.length?'todo':!po?'nopo':!trk.has(po.toUpperCase())?'notrk':'done';
+    const btn=st==='todo'?`<button class="ob-b" onclick="event.stopPropagation();poAll(${gi},'done')">✅ Create PO</button>`
+      :st==='nopo'?`<button class="ob-b2" onclick="event.stopPropagation();addPoNum(${gi})">＃ Add Yooz PO #</button>`
+      :st==='notrk'?`<span class="ob-s">📋 Put <b>${esc(po)}</b> in the PO Tracker</span>`:`<span class="ob-s ok">✓ ${esc(po)} · in the tracker</span>`;
+    const tw=ls.filter(x=>truckWait(x.r)),to=((data.tonly)||[]).filter(x=>vKey(x.sup)===g.k);
+    const items=ls.map(({r,o})=>`<details class="ob-it"><summary><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span><span class="ob-q">${qtyTxt(r,o.qty,o.pallets)}${o.rush?' · <b style="color:var(--danger)">rush</b>':''}${o.done?' ✅':o.pending?' ⏳':''}</span></summary>
+      <div class="ob-x">${dlTxt(o)}${o.rush?' — ask for the earliest delivery':''}${truckTxt(r)}${weekStrip(r)}</div></details>`).join('');
+    return `<div class="ob-g ${st}"><div class="ob-h"><span class="mb-c">${st==='done'?'✓':st==='todo'?'○':'◐'}</span>
+      <div class="ob-n"><b>${esc(vName(g.k,g.raw).split(' ·')[0])}</b><i>${ls.length} item${ls.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallets':''}${ls.some(x=>x.o.rush)?' · rush':''}</i></div>${btn}</div>
+      ${tw.length?`<div class="ob-a">🚚 Verify first: ${tw.map(x=>esc((x.r.codes||[x.r.base])[0])).join(', ')} — a PO was due and isn't marked received</div>`:''}
+      ${to.length?`<div class="ob-a">📋 In the tracker, not in Yooz yet: ${to.map(x=>esc(x.po)).join(', ')} — check what it brings</div>`:''}
+      <details class="ob-l"><summary>See the items ▾</summary>${items}</details></div>`;};
+  const done=gs.length&&gs.every(g=>g.lines.every(x=>x.o.done)&&g.lines.some(x=>x.o.po)&&g.lines.filter(x=>x.o.po).every(x=>trk.has(String(x.o.po).toUpperCase())));
+  return `<div class="mb"><div class="mb-h">🛒 To order today${gs.length?' · '+gs.length+' supplier'+(gs.length>1?'s':''):''}</div>${warn}
+    ${gs.length?gs.map(grp).join(''):'<div class="ob-none">✓ Nothing to order today.</div>'}
+    ${done?'<div class="ob-none">✓ All orders for today are done.</div>':gs.length?'<div class="ob-steps">① ✅ Create PO &nbsp;→&nbsp; ② put the Yooz PO in the PO Tracker</div>':''}
+    ${rc.length?`<button class="ob-c" onclick="setTab('cnt')">📋 ${rc.length} count${rc.length>1?'s':''} to check before 9 AM (inventory) ›</button>`:''}</div>`;}
+/* a created PO without its Yooz number: add it (every line of that supplier, every device) */
+function addPoNum(gi){const g=(window._sg||[])[gi];if(!g)return;
+  withPin(()=>sheet(`<h2>＃ Yooz PO # — ${esc(vName(g.k,g.raw).split(' ·')[0])}</h2><input type="text" id="po-n2" placeholder="e.g. YZ-26-28700">
+    <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="(()=>{const v=document.getElementById('po-n2').value.trim().toUpperCase();if(!v)return;
+      const po=/^\\d+$/.test(v)?'YZ-26-'+v:v;const list=g.lines.filter(x=>x.o.done).map(({r,o})=>({key:o.key,mark:markOf(r,o,{po})}));
+      if(list.length)sendSave({type:'wms-reorder-mark',list});closeSheet();toast('PO # saved — '+po);})()">Save</button></div>`));}
 function morningBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const rc=rows.filter(r=>r.recount),tw=rows.filter(truckWait),td=sumOrders(rows,o=>new Date(o.orderBy)<=addDays(0));
   const today=data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString(),cd=nextCountDay();
@@ -620,7 +672,41 @@ function toolsMenu(){const cfg=(data&&data.cfg)||{days:[]};const t0=addDays(0);
   const rec=(cfg.days||[]).map((on,i)=>on?DAYN[i]:null).filter(Boolean).join(', ')||'none';
   const hol=(cfg.holidays||[]).filter(h=>new Date(h.d+'T00:00:00')>=t0).sort((a,b)=>a.d.localeCompare(b.d))[0];
   return `<div class="tm" id="tm"><div class="s">Safety stock <b>A ${(cfg.ss||{}).A??2} · B ${(cfg.ss||{}).B??1} · C ${(cfg.ss||{}).C??1} days</b> (Sonic ½ · PCA 1) · We receive <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data&&data.racks?' · '+data.racks+' rack positions':''}</div>
-    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div></div>`;}
+    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div>
+    <div class="tools" style="margin-top:6px"><button class="tool-btn" onclick="insSup()">⭐ Supplier scorecard</button><button class="tool-btn" onclick="insWhat()">🔮 What if…</button><button class="tool-btn" onclick="insWeek()">📈 This week (pilot)</button></div></div>`;}
+/* ⭐ supplier scorecard: a glance (on time, days, short deliveries) — tap a supplier for its items */
+function insSup(){const S=(data&&data.sups)||[];
+  const col=x=>x==null?'var(--text3)':x>=85?'var(--success)':x>=65?'var(--warn)':'var(--danger)';
+  sheet(`<h2>⭐ Supplier scorecard · ${PLANT}</h2><div class="hint">Yooz, last 12 months · short / different deliveries from Receiving, last 30 days.</div>
+    ${S.length?S.map(x=>`<details class="ins"><summary><b>${esc(x.v)}</b><span class="ins-k"><b style="color:${col(x.onTime)}">${x.onTime==null?'—':x.onTime+'%'}</b> on time · ${x.days==null?'—':x.days+' days'}${x.short?` · <b style="color:var(--warn)">${x.short} short</b>`:''}</span></summary>
+      <div class="ins-d">${x.pos} PO lines · ${x.items} items · slowest ~${x.p90||'—'} days${x.rcv?' · '+x.rcv+' receiving report'+(x.rcv>1?'s':'')+' (30 days), '+x.short+' with differences':''}<br>
+      ${((data.rows||[]).filter(r=>String((r.main||{}).vendor||'').toUpperCase().includes(x.v.split(' ')[0])).map(r=>esc((r.codes||[r.base])[0])).slice(0,20).join(', '))||''}</div></details>`).join(''):'<div class="hint">No lead-time data yet.</div>'}
+    <button class="big gray" onclick="closeSheet()">Close</button>`);}
+/* 🔮 what if the plan goes up or a supplier is late: which items run short, and when */
+function insWhat(){sheet(`<h2>🔮 What if…</h2>
+    <label class="hint">Production uses <b id="wp">+0%</b> more</label><input type="range" id="wpr" min="0" max="50" step="5" value="0" oninput="insWhatCalc()" style="width:100%">
+    <label class="hint">Suppliers are <b id="wd">0</b> day(s) late</label><input type="range" id="wdr" min="0" max="7" step="1" value="0" oninput="insWhatCalc()" style="width:100%">
+    <div id="wres"></div><button class="big gray" onclick="closeSheet()">Close</button>`);insWhatCalc();}
+function insWhatCalc(){const p=+document.getElementById('wpr').value/100,dl=+document.getElementById('wdr').value;
+  document.getElementById('wp').textContent='+'+Math.round(p*100)+'%';document.getElementById('wd').textContent=dl;
+  const rs=((data&&data.rows)||[]).filter(r=>r.dbar>0&&!r.notNeeded).map(r=>{const L=Math.max(1,Math.round(r.Lavg||r.L||1))+dl;
+      const have=(+r.stock||0)+(r.coming||[]).reduce((a,x)=>a+(+x.qty||0),0)+createdDl(r).reduce((a,x)=>a+x.q,0);
+      const d=have/(r.dbar*(1+p)),d0=have/r.dbar;return {r,d,d0,L};}).filter(x=>x.d<x.L).sort((a,b)=>a.d-b.d);
+  document.getElementById('wres').innerHTML=rs.length?`<div class="hint" style="margin-top:8px"><b>${rs.length} item${rs.length>1?'s':''}</b> would run out before a new PO can arrive:</div><div class="rl">${rs.slice(0,25).map(x=>`<div class="row"><div class="rh" style="cursor:default"><div class="rb" style="background:${x.d<x.L/2?'var(--danger)':'var(--warn)'}"></div><div class="rm"><div class="rt"><b>${esc((x.r.codes||[x.r.base])[0])}</b> <span class="mut">${esc(x.r.name||'')}</span></div><div class="rs">lasts ~${n1(x.d)} days (now ${n1(x.d0)}) · supplier ${x.L} days</div></div></div></div>`).join('')}</div>`
+    :'<div class="hint" style="margin-top:8px">✓ Nothing runs out before a new PO can arrive.</div>';}
+/* 📈 this week (pilot): what was marked in Next POs, what was changed, and how the stock looks */
+function insWeek(){const m=(data&&data.mk)||{},rows=(data&&data.rows)||[];
+  const out=rows.filter(r=>r.dbar>0&&(+r.stock||0)<=0),over=rows.filter(r=>r.dbar>0&&r.stock/r.dbar>56),red=rows.filter(r=>r.st==='red');
+  const by=Object.entries(m.by||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+' '+v).join(' · ');
+  const tile=(n,l,c)=>`<div class="m"><span>${l}</span><b style="color:${c||'var(--text)'}">${n}</b></div>`;
+  sheet(`<h2>📈 This week · ${PLANT}</h2><div class="hint">Last 7 days in Next POs — to see if the suggestions work.</div>
+    <div class="mx">${tile(m.created||0,'✅ POs created','var(--success)')}${tile(m.edited||0,'✏️ Qty changed',(m.edited||0)?'var(--warn)':'')}${tile(m.pending||0,'⏳ Pending')}</div>
+    <div class="mx">${tile(out.length,'⛔ Out of stock',out.length?'var(--danger)':'var(--success)')}${tile(over.length,'📦 8+ weeks',over.length?'var(--warn)':'')}${tile(red.length,'🛒 Order today')}</div>
+    ${by?`<div class="hint">Marked by: ${by}</div>`:''}
+    <details class="ins"><summary>⛔ Out of stock (${out.length})</summary><div class="ins-d">${out.map(r=>esc((r.codes||[r.base])[0])).join(', ')||'none'}</div></details>
+    <details class="ins"><summary>📦 More than 8 weeks of stock (${over.length})</summary><div class="ins-d">${over.map(r=>esc((r.codes||[r.base])[0])+' ('+n0(r.stock/r.dbar/5)+' wk)').join(', ')||'none'}</div></details>
+    <div class="hint">"Qty changed" = the suggestion was edited before ordering: if it happens a lot on an item, its use needs a look.</div>
+    <button class="big gray" onclick="closeSheet()">Close</button>`);}
 /* closable bands: once closed, they stay closed until there is something new (per text) */
 function bandOff(id){try{return (JSON.parse(localStorage.getItem('reo_bands')||'{}'))[id];}catch(e){return false;}}
 function bandClose(id){try{const o=JSON.parse(localStorage.getItem('reo_bands')||'{}');o[id]=1;localStorage.setItem('reo_bands',JSON.stringify(o));}catch(e){}render();}
@@ -892,30 +978,33 @@ function render(keepFocus){
   const c=counts(),all=(data.rows||[]).filter(inCat);
   let rows=all;
   if(tab==='now')rows=rows.filter(r=>r.st==='red');else if(tab==='week')rows=rows.filter(r=>r.st==='amber');
-  else if(tab==='cnt')rows=rows.filter(r=>r.recount);else if(tab==='trk')rows=rows.filter(truckWait);
+  else if(tab==='cnt')rows=rows.filter(r=>r.recount).sort((a,b)=>locK(a)-locK(b));else if(tab==='trk')rows=rows.filter(truckWait);
   if(q)rows=all.filter(r=>((r.codes||[]).join(' ')+' '+r.name+' '+((r.main||{}).vendor||'')).toLowerCase().includes(q));
   const SEC=[['red','Order today','var(--danger)'],['amber','This week','var(--warn)'],['ok','OK','var(--success)']];
   const secOf=r=>r.st==='red'?'red':r.st==='amber'?'amber':'ok';
   let list='';
   if(!rows.length)list=`<div class="empty"><b>✓</b>${q?'Nothing matches “'+esc(q)+'”.':tab==='now'?'Nothing to order today.':tab==='week'?'Nothing else to order this week.':tab==='cnt'?'No counts to check.':tab==='trk'?'No trucks to verify.':'No items with lead times yet.'}</div>`;
-  else if(q||tab!=='all')list=`<div class="rl">${rows.map(row).join('')}</div>`;
+  else if(q||tab!=='all')list=(tab==='cnt'&&!q?`<div class="sec" style="color:var(--accent)">🧭 Count route · ${rows.length} item${rows.length>1?"s":""}, in walking order</div>`:'')+`<div class="rl">${rows.map(row).join('')}</div>`;
   else list=SEC.map(([k,l,col])=>{const rs=rows.filter(r=>secOf(r)===k);if(!rs.length)return '';const closed=k==='ok'&&!okOpen;
     return `<div class="sec" style="color:${col}" onclick="${k==='ok'?'okOpen=!okOpen;render()':''}">${l} · ${rs.length}${k==='ok'?` <span class="mut">${closed?'▾ show':'▴ hide'}</span>`:''}</div>${closed?'':`<div class="rl">${rs.map(row).join('')}</div>`}`;}).join('');
   const nx=(()=>{const rs=data.rows||[],t0=addDays(0);const nd=rs.flatMap(r=>(r.orders||[]).filter(o=>!o.done&&!o.pending&&new Date(o.orderBy)>t0).map(o=>+new Date(o.orderBy))).sort((a,b)=>a-b)[0];
     return nd?{d:new Date(nd),x:sumOrders(rs,o=>+new Date(o.orderBy)===nd)}:null;})();
   const td=sumOrders(data.rows||[],o=>new Date(o.orderBy)<=addDays(0));
   const tabs=`<div class="tabs">
-    <button class="tab now${tab==='now'&&!q?' on':''}" onclick="setTab('now')"><b>${c.red}</b><span>Order today</span><i>${td.items?'~'+n0(td.pal)+' pallets':'—'}</i></button>
+    <button class="tab now${tab==='now'&&!q?' on':''}" onclick="setTab('now')"><b>${c.red}</b><span>Urgent</span><i>red in the list</i></button>
     <button class="tab week${tab==='week'&&!q?' on':''}" onclick="setTab('week')"><b>${c.amber}</b><span>This week</span><i>${nx&&nx.x.items?DAYN[nx.d.getDay()]+' '+nx.d.getDate()+' · ~'+n0(nx.x.pal)+' pal':'—'}</i></button>
     <button class="tab all${tab==='all'&&!q?' on':''}" onclick="setTab('all')"><b>${c.all}</b><span>All items</span><i>${all.filter(r=>secOf(r)==='ok').length} OK</i></button></div>`;
   const cc=c2=>(data.rows||[]).filter(r=>c2==='ALL'||catOf(r)===c2).length;
   const cats=`<div class="cats">${CATS.filter(([k])=>k==='ALL'||cc(k)).map(([k,l])=>`<button class="cat${cat===k?' on':''}" onclick="setCat('${k}')">${l}<i>${cc(k)}</i></button>`).join('')}</div>`;
   if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;return;}
   const bands=band(tonlyHtml(),'tonly:'+((data.tonly||[]).map(x=>x.po).join(',')))+chgBar()+pbiBar();
-  body.innerHTML=morningBox()+tabs+bands+`<div class="stick">${cats}<input class="search" type="search" placeholder="🔎 Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"></div>`
+  body.innerHTML=ordersBox()+tabs+bands+`<div class="stick">${cats}<input class="search" type="search" placeholder="🔎 Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"></div>`
     +`<details class="tmw"><summary>⋯ Tools · settings</summary>${toolsMenu()}</details><div id="list">${list}</div>`;
 }
 let okOpen=false;
+/* 🧭 count route: items in the order you walk the map (first spot of each item) */
+const locOf=r=>((data&&data.locs)||{})[r.base];
+const locK=r=>{const l=locOf(r);return l?l.k:9e9;};
 /* loading: grey placeholder rows instead of a spinner */
 function skeleton(){return '<div class="rl">'+Array.from({length:6}).map(()=>'<div class="row sk"><div class="rb" style="background:var(--border)"></div><div class="rm"><div class="skl" style="width:40%"></div><div class="skl" style="width:85%;height:6px"></div><div class="skl" style="width:60%"></div></div></div>').join('')+'</div>';}
 /* how sure the use per day is: 🟢 plan or Power BI or 6+ clean count stretches · 🟡 3–5 · 🔴 few counts (Yooz received only) */
@@ -935,6 +1024,7 @@ function row(r){const key=r.base,k=esc(key).replace(/'/g,''),u=esc(unitOf(r)||''
     <div class="rb" style="background:${col}"></div>
     <div class="rm"><div class="rt"><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span>${truckWait(r)||(r.late||[]).length?' <span class="rw">⚠ verify</span>':''}${r.recount?' <span class="rw">📋 count</span>':''}</div>
       ${d!=null?`<div class="gg" title="days of stock vs days the supplier takes"><div style="width:${w}%;background:${col}"></div><span style="left:${mk}%"></span></div>`:''}
+      ${tab==='cnt'?`<div class="rs" style="color:var(--accent)">📍 ${locOf(r)?esc(locOf(r).l)+(locOf(r).n>1?' (+'+(locOf(r).n-1)+' more spot'+(locOf(r).n>2?'s':'')+')':''):'no spot on the map'}</div>`:''}
       <div class="rs">${n0(r.stock)} ${u}${d!=null?' · '+(d<10?n1(d):n0(d))+' days':''} · supplier ${L} day${L>1?'s':''} · <span class="cf ${cf[0]}" title="how sure the daily use is">●</span> ${cf[1]}</div></div>
     <div class="ra">${act}<span class="chev">${isOpen?'▴':'›'}</span></div></div>
     ${isOpen?`<div class="rx">${card(r)}</div>`:''}</div>`;}
