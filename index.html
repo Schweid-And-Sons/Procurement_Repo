@@ -1134,6 +1134,8 @@
   .po-pending{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:color-mix(in srgb,#ff9500 14%,var(--surface));color:#9a5200;border-radius:14px;padding:10px 12px;margin-bottom:12px;font-size:13px;}
   .po-pending .po-btn{margin-left:auto;}
   .po-tag{display:inline-block;font-size:10px;font-weight:700;border-radius:8px;padding:2px 7px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);margin-right:4px;}
+  .po-x{font-size:12px;margin-top:3px;color:var(--text2);}
+  .po-assign{margin:-6px 0 12px;padding:10px 12px;border-radius:0 0 12px 12px;background:color-mix(in srgb,#ff9500 12%,transparent);font-size:13px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
   .po-tag.warn{background:color-mix(in srgb,#ff9500 18%,transparent);color:#c76a00;}
   .po-st.late{background:color-mix(in srgb,#ff9500 14%,transparent);color:#c76a00;}
   .po-bef{display:block;font-size:10px;color:var(--text3);font-weight:500;}
@@ -4018,6 +4020,9 @@ function reorderRows(summary){
     // was already counted, but marked received after the count → it was added twice.) Only listed, as a reminder.
     const recs=Object.values(allReceipts()).filter(x=>!x.notArrived&&(x.plant||currentPlant)===currentPlant);
     const done=new Set(recs.map(x=>baseKeyOf(x.key)));
+    // what Receiving says arrived, per PO and code (all the parts of a PO that came in several trucks)
+    const rcvBy={};recs.forEach(x=>{const k=baseKeyOf(x.key);(x.lines||[]).forEach(l=>{const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;
+      if(!(q>0))return;const c=reoBase(l.code);rcvBy[k]=rcvBy[k]||{};rcvBy[k][c]=(rcvBy[k][c]||0)+q;});});
     const since=Date.now()-2*864e5;
     recs.forEach(x=>{if(!(new Date(x.ts).getTime()>since))return;
       (x.lines||[]).forEach(l=>{const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:+l.ordered||0;if(!(q>0))return;
@@ -4025,7 +4030,16 @@ function reorderRows(summary){
     // Eleni's PO Tracker: a PO with a received date is closed; an open one uses her estimated delivery (unless it's planner-only)
     const poNum=x=>{const m=String(x||'').match(/(\d{4,})\s*$/);return m?m[1]:String(x||'').toUpperCase();};
     const pt={};((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).forEach(x=>{pt[x.po]=x;pt[poNum(x.po)]=x;});
-    poGroups().forEach(g=>{if(done.has(g.key))return;
+    poGroups(true).forEach(g=>{
+      // received in Receiving: a line that came short (or never came) is NOT counted (not in the count = doesn't exist),
+      // but it stays on its item as "X of Y missing — verify" (Nov 20: PO 28450 came in 3 parts, BX1200 never came)
+      if(done.has(g.key)){const due0=String(g.due||'').slice(0,10);if(!due0||due0<ymd(new Date(today.getTime()-14*864e5)))return;
+        const rb=rcvBy[g.key]||{};
+        g.lines.forEach(l=>{const c=reoBase(l.code),ord=+l.ordered||0,got=Math.max(+l.received||0,rb[c]||0),miss=ord-got;
+          if(!(ord>0)||miss<=0)return;
+          (inc[c]=inc[c]||[]).push({date:ymd(new Date(today.getTime()+864e5)),qty:yzUnits(l.code,miss),po:g.po,planner:!!g.planner,late:due0||ymd(today),wl:0,stale:true,
+            partial:true,ord:yzUnits(l.code,ord),rec:yzUnits(l.code,got),sup:potVendor(g.vendor),tracked:false});});
+        return;}
       const t=pt[String(g.po||'').toUpperCase()]||pt[poNum(g.po)];
       if(t&&t.rcv)return;                                                     // already received (PO Tracker)
       const due=t&&t.eta&&!g.planner?t.eta:g.due;
@@ -4036,7 +4050,7 @@ function reorderRows(summary){
       if(dueD&&dueD<ymd(today)){const d=new Date(dueD+'T00:00:00');while(d<today){d.setDate(d.getDate()+1);const w=d.getDay();if(w>0&&w<6&&!hol.has(ymd(d)))wl++;}}
       const late=dueD&&dueD<ymd(today)?dueD:'',stale=!!late;   // due before today → assumed in this morning's count (not counted)
       g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
-        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:yzUnits(l.code,q),po:g.po,planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
+        (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:yzUnits(l.code,q),po:g.po,ord:yzUnits(l.code,+l.ordered||0),rec:yzUnits(l.code,+l.received||0),planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
   }catch(e){console.error(e);}
   const card=potCard(currentPlant);
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
@@ -4111,7 +4125,7 @@ function reorderRows(summary){
     // count-based items are not in Juan's plan: their use starts today, not after the plan's last day (Nov 20: before,
     // the plan days counted as 0 use for gloves, bags, tape, patty paper, film, sleeves)
     let Hd=kind==='inv'?0:H;if(pbT){rate=pbT.avg*5/7;capped=false;let last=-1;for(let i=0;i<H;i++)if((pday[ymd(new Date(today.getTime()+i*864e5))]||0)>0)last=i;Hd=last+1;}
-    const r={kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale})),
+    const r={kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale,partial:!!x.partial,ord:x.ord||0,rec:x.rec||0})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
@@ -4135,7 +4149,7 @@ function reorderRows(summary){
     Object.entries(marks).forEach(([k,m])=>{if(m.base!==f.base)return;
       const inYooz=m.done&&yzAt>new Date(m.at).getTime()+2*3600e3;
       const lastD=m.dl&&m.dl.length?m.dl[m.dl.length-1].d:m.ob;if(m.done&&new Date(lastD+'T00:00:00')<today)return;   // created and already delivered: done
-      fixed.push(Object.assign({key:k,orderBy:new Date(m.ob<ymd(today)?ymd(today)+'T00:00:00':m.ob+'T00:00:00'),arrive:new Date((m.dl&&m.dl[0]?m.dl[0].d:m.ob)+'T00:00:00'),fixed:true},m));
+      fixed.push(Object.assign({key:k,orderBy:new Date(m.ob<ymd(today)?ymd(today)+'T00:00:00':m.ob+'T00:00:00'),arrive:new Date((m.dl&&m.dl[0]?m.dl[0].d:m.ob)+'T00:00:00'),fixed:true,inYooz},m));
       // counted like the suggestion it replaces: from the day it could first arrive (order day + lead time),
       // even if receiving moved the truck to the next receiving day
       const obI=dayIdx(m.ob<ymd(today)?ymd(today):m.ob)+Math.round(Lavg);
@@ -4705,7 +4719,7 @@ function planFileDay(name){                      // "… 2026 NJ Nov 9th.xlsx" �
 let planAuto={busy:false,tried:{},checked:{}};
 /* Opening the WMS brings EVERYTHING up to date in the background, one source after the other (Nov 20): Yooz, John's
    planner, Eleni's PO Tracker, the receiving reports and the morning counts — no need to open each screen first.
-   Each source keeps its own limit (Yooz after 8:30 AM / PM, planner and tracker once an hour, counts once a day after
+   Each source keeps its own limit (Yooz after 8:00 AM / PM, planner and tracker once an hour, counts once a day after
    10 AM), so opening the app many times does not repeat the calls. Then every 10 min while the app is on screen. */
 async function bgRefreshAll(first){
   if(RCV_ONLY)return;
@@ -5871,11 +5885,11 @@ async function loadYoozFromFlow(manual){
   }catch(e){yoozFetch.err=e.message;if(manual)showToast('Could not refresh POs: '+e.message,'error');}
   finally{yoozFetch.busy=false;if(currentView==='po')renderPoView(true);if(currentView==='stats'&&statsSubTab==='reorder')renderStatsView();}
 }
-/* Yooz (Databricks) only gets new data twice a day: ~7–8 AM and ~7–8 PM. So it is read again only after 8:30 AM /
-   8:30 PM if this device's copy is older than that — asking at noon brings nothing new and is the slowest source
+/* Yooz (Databricks) only gets new data twice a day: ~7–8 AM and ~7–8 PM. So it is read again only after 8:00 AM /
+   8:00 PM if this device's copy is older than that — asking at noon brings nothing new and is the slowest source
    (Databricks may be asleep). What is ordered during the day shows with "Created" / "We ordered…" in Next POs. */
-function yoozSlot(){const n=new Date(),s=new Date(n);s.setHours(20,30,0,0);
-  if(n<s){s.setHours(8,30,0,0);if(n<s){s.setDate(s.getDate()-1);s.setHours(20,30,0,0);}}return s;}
+function yoozSlot(){const n=new Date(),s=new Date(n);s.setHours(20,0,0,0);   // 8:00 AM / PM (Nov 21: Yooz is updated 7–7:30, the email comes ~7:30)
+  if(n<s){s.setHours(8,0,0,0);if(n<s){s.setDate(s.getDate()-1);s.setHours(20,0,0,0);}}return s;}
 function yoozFresh(d){return !!(d&&d.loaded&&new Date(d.loaded)>=yoozSlot());}
 function yoozAutoRefresh(){
   if(!YOOZ_FLOW_URL)return;
@@ -5960,7 +5974,66 @@ function plannerRows(){
   });
   return out;
 }
-function poGroups(){
+/* Receiving also shows (Nov 21):
+   · 📋 POs that are in Eleni's PO Tracker but not in Yooz yet (Yooz reaches Databricks a day later): no lines yet —
+     the dock writes what came; the report stays on the same PO number when Yooz brings it (nothing to mark again).
+   · 🚚 POs marked "created" in Next POs: a truck with these quantities is coming; "PO to assign" until it has a number.
+     Hidden once Yooz / the planner shows a PO of that supplier, near that day, with the same boxes. */
+const RCV_NOPO=/^(NO PO|PO TO ASSIGN)$/i;
+function poVendorOfBase(base){const ls=((loadYooz()||{}).lines||[]).filter(l=>reoBase(l.code)===base).sort((a,b)=>String(b.due).localeCompare(String(a.due)));
+  return ls[0]?ls[0].vendor:'';}
+function poExtraGroups(g){
+  const today=ymd(new Date()),d0=ymd(new Date(Date.now()-21*864e5)),d1=ymd(new Date(Date.now()+35*864e5));
+  const base=Object.values(g),have=new Set(base.map(x=>String(x.po).toUpperCase()));
+  ((loadPoTrack()||{}).rows||[]).filter(t=>t.plant===currentPlant&&!t.rcv&&t.eta&&t.eta>=d0&&t.eta<=d1).forEach(t=>{
+    if(have.has(String(t.po).toUpperCase()))return;have.add(String(t.po).toUpperCase());
+    const k=t.po+'|'+t.eta;g[k]={key:k,po:t.po,vendor:t.sup,due:t.eta,tracker:true,total:t.total,lines:[]};});
+  const near=(a,b)=>Math.abs(new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))<=2*864e5;
+  const mk={};
+  Object.entries(loadReoMarks()).forEach(([mkey,m])=>{if(!m||!m.done||!m.base)return;
+    const po=String(m.po||'').trim().toUpperCase();if(po&&have.has(po))return;
+    const ven=potVendor(m.vendor||poVendorOfBase(m.base)||'')||'?';
+    (m.dl||[]).forEach(x=>{if(!x||!x.d||!(+x.q>0)||x.d<d0)return;
+      const k=(po||'NEXTPO-'+ven.replace(/\W+/g,''))+'|'+x.d;
+      const gg=mk[k]=mk[k]||{key:k,po:po||'PO to assign',vendor:ven,due:x.d,mark:true,mkeys:[],lines:[]};
+      gg.mkeys.push(mkey);const ln=gg.lines.find(l=>l.code===m.base);
+      if(ln)ln.ordered+=+x.q;else gg.lines.push({po:gg.po,code:m.base,desc:'',ordered:+x.q,due:x.d,vendor:ven,plant:currentPlant});});});
+  Object.values(mk).forEach(x=>{
+    // already in Yooz / the planner: same supplier, near the day, most of the same boxes → don't show it twice
+    const codes=x.lines.map(l=>l.code);
+    const dup=base.some(b=>potVendor(b.vendor)===x.vendor&&near(b.due,x.due)&&codes.filter(c=>b.lines.some(l=>reoBase(l.code)===c)).length>=Math.ceil(codes.length*0.8));
+    if(!dup)g[x.key]=x;});
+}
+/* which PO is this truck? open POs of the same supplier within ±3 days, ranked by how many boxes match */
+function poAssignCands(r){const ven=potVendor(r.vendor||'');
+  const codes=[...new Set((r.lines||[]).filter(l=>(+l.counted||+l.bol||0)>0||l.extra).map(l=>reoBase(l.code)))];
+  return poGroups().filter(g=>!RCV_NOPO.test(g.po)&&!g.mark&&(!ven||potVendor(g.vendor)===ven)&&Math.abs(new Date(g.due+'T12:00:00')-new Date((r.due||ymd(new Date()))+'T12:00:00'))<=3*864e5)
+    .map(g=>{const gc=new Set(g.lines.map(l=>reoBase(l.code)));const m=codes.filter(c=>gc.has(c)).length;return {g,m,n:codes.length,lines:g.lines.length};})
+    .sort((a,b)=>b.m-a.m||Math.abs(new Date(a.g.due)-new Date(r.due))-Math.abs(new Date(b.g.due)-new Date(r.due)));}
+function poAssignHtml(r){if(!RCV_NOPO.test(String(r.po||'')))return '';
+  const c=poAssignCands(r).slice(0,4);
+  const best=c[0]&&c[0].m>0&&(!c[1]||c[1].m<c[0].m)?c[0]:null;
+  return `<div class="po-assign" onclick="event.stopPropagation()"><b>⚠ PO to assign</b> — which PO is this truck?
+    ${c.length?c.map(x=>`<button class="po-btn${x===best?' pri':''}" onclick="poAssign('${poEsc(r.key)}','${poEsc(x.g.po)}')">${poEsc(x.g.po)} · ${x.m} of ${x.n} boxes match${x.g.tracker?' · in the tracker':''}${x===best?' · likely':''}</button>`).join(' ')
+      :'<span class="po-sub">No open PO of this supplier near this day yet — it will show up here when Yooz or the tracker has it.</span>'}
+    <button class="po-btn" onclick="poAssignType('${poEsc(r.key)}')">✏️ Type the PO #</button></div>`;}
+function poAssignType(key){const v=prompt('PO # for this truck (e.g. 28461 or YZ-26-28461):','');if(!v)return;
+  const q=v.trim().toUpperCase();poAssign(key,(poCandidatePOs(q)[0]||q));}
+function poAssign(key,po){const r=allReceipts()[key];if(!r)return;
+  const r2=Object.assign({},r,{po,ts:new Date().toISOString(),assignedFrom:r.po});delete r2.spAt;delete r2.remote;
+  const L=loadReceipts();L[key]=r2;saveReceipts(L);showToast('Truck assigned to '+po,'success');
+  if(RECEIVING_FLOW_URL)poUpload(r2).then(()=>{if(currentView==='po')renderPoView(true);}).catch(()=>{});
+  if(currentView==='po')renderPoView(true);}
+/* a Next-POs PO without a number: give it the Yooz PO # from Receiving (saved on the Next POs marks, every device) */
+function poGiveNumber(gkey){const g=poGroups().find(x=>x.key===gkey);if(!g||!g.mkeys)return;
+  const v=prompt('Yooz PO # for this truck from '+g.vendor+' (e.g. 28461):','');if(!v)return;
+  const q=v.trim().toUpperCase(),po=poCandidatePOs(q)[0]||q,m=loadReoMarks();
+  const list=g.mkeys.filter(k=>m[k]).map(k=>({key:k,mark:Object.assign({},m[k],{po})}));if(!list.length)return;
+  reoSaveMark(null,null,list).then(()=>{showToast('PO # saved — '+po,'success');if(currentView==='po')renderPoView(true);}).catch(e=>showToast('Could not save: '+e.message,'error'));}
+let _rcvMarksAt=0;
+function rcvMarksRefresh(){if(!PLAN_READ_URL||Date.now()-_rcvMarksAt<5*60000)return;_rcvMarksAt=Date.now();
+  reoReadShared().then(()=>{if(currentView==='po'&&document.getElementById('po-overlay').classList.contains('hidden'))renderPoView(true);}).catch(()=>{});}
+function poGroups(noExtra){   // noExtra: only Yooz + planner (Next POs counts the Next-POs marks itself)
   const g={};
   poLines().forEach(l=>{const k=l.po+'|'+l.due;(g[k]=g[k]||{key:k,po:l.po,vendor:l.vendor,due:l.due,lines:[]}).lines.push(l);});
   const pr=plannerRows();
@@ -5985,6 +6058,7 @@ function poGroups(){
         (g[k]=g[k]||{key:k,po,vendor:r.vendor||'(planner)',due:r.date,planner:true,pnote:note,lines:[]}).lines.push({po,code:r.code,desc:r.desc,ordered:r.qty,due:r.date,vendor:r.vendor,plant:currentPlant});});
     });
   }
+  if(!noExtra)poExtraGroups(g);
   // a receiving report saved while the PO was "planner only" (key PO|planner day) stays attached to the same PO
   // when Yooz brings it the next day with its own date (key PO|Yooz day)
   const gs=Object.values(g),gk=new Set(gs.map(x=>x.key));
@@ -6087,10 +6161,11 @@ async function syncReceiptsFromSP(force){
   if(currentView==='po'&&document.getElementById('po-overlay').classList.contains('hidden'))renderPoView(true);else renderPoSyncLine();
 }
 /* one button: latest POs from Yooz (Databricks) + latest receiving reports from SharePoint */
-function poRefreshAll(){   // Yooz only if a new Yooz update came out since the last read (8:30 AM / 8:30 PM)
+function poRefreshAll(){   // Yooz only if a new Yooz update came out since the last read (8:00 AM / 8:00 PM)
   if(YOOZ_FLOW_URL&&!yoozFresh(loadYooz()))loadYoozFromFlow(true);
   if(PLANNER_FLOW_URL)loadPlannerFromFlow(true);
   if(POTRACK_FLOW_URL)loadPoTrackFromFlow(false).then(()=>{if(currentView==='po')renderPoView(true);});
+  _rcvMarksAt=0;rcvMarksRefresh();
   syncReceiptsFromSP(true);}
 function poSyncLineHtml(){
   if(!RECEIVING_SEARCH_URL)return '';
@@ -6102,7 +6177,7 @@ function poSyncLineHtml(){
 function renderPoSyncLine(){const el=document.getElementById('po-sync');if(el)el.innerHTML=poSyncLineHtml();}
 
 function renderPoView(noSync){
-  if(!noSync){yoozAutoRefresh();plannerAutoRefresh();potAutoRefresh();}
+  if(!noSync){yoozAutoRefresh();plannerAutoRefresh();potAutoRefresh();rcvMarksRefresh();}
   const data=loadYooz();
   const el=document.getElementById('main-content');
   if(!poDate)poDate=ymd(new Date());
@@ -6114,7 +6189,7 @@ function renderPoView(noSync){
     ${YOOZ_FLOW_URL?`<button class="po-btn pri" onclick="poRefreshAll()" ${yoozFetch.busy?'disabled':''} title="Gets the latest POs from Yooz and the latest receiving reports from SharePoint">${yoozFetch.busy?'⏳ Updating…':'⟳ Refresh'}</button>
     <button class="po-btn" onclick="document.getElementById('po-file-input').click()" title="Use a Yooz export instead">⬆ Yooz file</button>`
     :`<button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>`}
-    <span class="po-src">${PLANNER_FLOW_URL?(()=>{const pd=loadPlanner();return plannerFetch.err?`<span class="src-pill bad" title="${poEsc(plannerFetch.err)}">⚠ Planner not updated</span>`:pd?`<span class="src-pill" title="Jonathan's planning sheet — expected deliveries">✓ Planner · <b>${new Date(pd.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${POTRACK_FLOW_URL?(()=>{const t=loadPoTrack();return t?`<span class="src-pill" title="Eleni's PO Tracker — her ETA and received dates">✓ PO Tracker · <b>${new Date(t.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${yoozFetch.err?`<span class="src-pill bad" title="${poEsc(yoozFetch.err)}">⚠ Yooz not updated</span>`:''}${data?`<span class="src-pill" title="${poEsc(data.file)} — purchase orders. Yooz updates ~8 AM and ~8 PM; read again after 8:30">✓ Yooz · <b>${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</b> · ${poLines(data).length} lines</span>`:'<span class="src-pill none">No Yooz data on this device yet — tap ⟳ Refresh or load the Yooz file.</span>'}</span>
+    <span class="po-src">${PLANNER_FLOW_URL?(()=>{const pd=loadPlanner();return plannerFetch.err?`<span class="src-pill bad" title="${poEsc(plannerFetch.err)}">⚠ Planner not updated</span>`:pd?`<span class="src-pill" title="Jonathan's planning sheet — expected deliveries">✓ Planner · <b>${new Date(pd.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${POTRACK_FLOW_URL?(()=>{const t=loadPoTrack();return t?`<span class="src-pill" title="Eleni's PO Tracker — her ETA and received dates">✓ PO Tracker · <b>${new Date(t.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${yoozFetch.err?`<span class="src-pill bad" title="${poEsc(yoozFetch.err)}">⚠ Yooz not updated</span>`:''}${data?`<span class="src-pill" title="${poEsc(data.file)} — purchase orders. Yooz updates ~7–7:30 AM and PM; read again after 8:00">✓ Yooz · <b>${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</b> · ${poLines(data).length} lines</span>`:'<span class="src-pill none">No Yooz data on this device yet — tap ⟳ Refresh or load the Yooz file.</span>'}</span>
   </div>
   <div class="po-sync" id="po-sync">${poSyncLineHtml()}</div>
   <div class="po-qbox"><input id="po-q" type="search" placeholder="🔎 Find a PO — type part of the number (28175), the vendor or the item" value="${poEsc(poQ)}" oninput="poQ=this.value;poQRender()" autocomplete="off">${poQ?`<button class="po-btn" onclick="poQ='';renderPoView(true)">✕</button>`:''}</div>
@@ -6139,6 +6214,8 @@ function renderPoView(noSync){
     const card=g=>{const s=groupStatus(g.key);const ds=deliveriesFor(g.key).filter(r=>!r.notArrived);
       return `<div class="po-card" onclick="openPoGroup('${poEsc(g.key)}')"><div class="po-main">
         <div class="po-t">${poEsc(g.po)} <span style="font-weight:500;color:var(--text3);font-size:11px">· due ${fmtDay(g.due)}${g.ydue?` <span class="po-tag" title="The planner moved this delivery">Yooz date ${fmtDay(g.ydue)}</span>`:''}${g.planner?` <span class="po-tag warn" title="${g.pnote?poEsc(g.pnote):'In the DM Planning sheet, not in Yooz/Databricks yet'}">${g.pnote?'⚠ check PO #':'planner'}</span>`:''}${ds.length>1?' · '+ds.length+' deliveries':''}</span></div>
+        ${g.tracker?`<div class="po-x">📋 In Eleni's PO Tracker${g.total?' · $'+Math.round(g.total).toLocaleString():''} — <b>lines not in Yooz yet</b>. When it comes, write what arrived; it stays on this PO.</div>`:''}
+        ${g.mark?`<div class="po-x">🚚 <b>Truck coming</b> — created in Next POs${RCV_NOPO.test(g.po)?' · <b>PO to assign</b> <button class="po-btn" onclick="event.stopPropagation();poGiveNumber(\''+poEsc(g.key)+'\')">＃ Add PO #</button>':''}</div>`:''}
         <div class="po-v">${poEsc(g.vendor)} · ${g.lines.length} line(s)${g.lines.length&&g.lines.every(l=>l.recv)?' · <span style="color:var(--success);font-weight:600">received in Yooz '+fmtDay(g.lines.map(l=>l.recv).sort().pop())+'</span>':g.pt&&g.pt.rcv?' · <span style="color:var(--success);font-weight:600">received '+fmtDay(g.pt.rcv)+" (Eleni's tracker)</span>":''}${g.pt&&!g.pt.rcv&&g.pt.eta&&g.pt.eta!==g.due?' · <span class="po-tag" title="Estimated delivery in Eleni\'s PO Tracker">Eleni: ETA '+fmtDay(g.pt.eta)+'</span>':''}${g.pt&&g.pt.short?' · <span class="po-tag" title="'+poEsc(g.pt.notes)+'">Eleni: short</span>':''}</div>${g.pnote?`<div class="po-v" style="color:#c76a00">⚠ ${poEsc(g.pnote)} — check the PO # with Procurement</div>`:''}
         <div class="po-l">${g.lines.map(l=>l.code+' '+(l.ordered!=null?l.ordered.toLocaleString():'')).join(' · ')}</div>
       </div><span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;};
@@ -6149,7 +6226,7 @@ function renderPoView(noSync){
   }
   {const gk=new Set(poGroups().map(g=>g.key));
    const manual=Object.values(allReceipts()).filter(r=>r.due===poDate&&!gk.has(baseKeyOf(r.key))).sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
-   if(manual.length)h+=`<div class="po-sec">Received ${fmtDay(poDate)} — not on the list</div>`+manual.map(r=>poReportCard(r,isPending(r)||isGhost(r))).join('');}
+   if(manual.length)h+=`<div class="po-sec">Received ${fmtDay(poDate)} — not on the list</div>`+manual.map(r=>poReportCard(r,isPending(r)||isGhost(r))+poAssignHtml(r)).join('');}
   h+=`<button class="po-manual-btn" onclick="openPoManual()">＋ A truck arrived that is <u>not</u> on this list</button>`;
   h+=`<button class="po-earlier-btn po-past-btn${poPastOpen?' open':''}" onclick="poPastOpen=!poPastOpen;renderPoView(true)"><span>📁 Past receiving reports</span><span class="po-sub">search by PO, vendor or day</span><span class="chev">${poPastOpen?'▴':'▾'}</span></button>`;
   if(poPastOpen)h+=`<div class="po-past">${poFindAndHistoryHtml()}</div>`;
@@ -7701,7 +7778,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.20p';
+const APP_VERSION='2026.11.21e';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7771,7 +7848,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
+        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
         times:Object.assign({},times)};};
     const old=(o,ms)=>!o||Date.now()-new Date(o.loaded).getTime()>ms;
     const collect=async(force,send)=>{

@@ -88,7 +88,7 @@
   .lst div{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
   .lst button{border:none;background:none;color:var(--danger);font-size:18px;cursor:pointer;}
   .sec{font-size:13px;font-weight:700;color:var(--text2);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
-  .views{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.vw{flex:1 1 45%;border:1px solid var(--line,#ddd);background:var(--card,#fff);color:inherit;border-radius:10px;padding:8px;font-weight:600;font-size:14px}.vw.on{background:var(--plant);color:#fff;border-color:var(--plant)}
+  .views{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.vw{flex:1 1 45%;border:1px solid var(--border);background:var(--surface);color:inherit;border-radius:10px;padding:8px;font-weight:600;font-size:14px}.vw.on{background:var(--plant);color:#fff;border-color:var(--plant)}
   .chg-d{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid rgba(128,128,128,.15);font-size:13px}.up{color:#c2410c;font-weight:700}.dn{color:#15803d;font-weight:700}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:200;max-width:90vw;}
   .pd{width:100%;border-collapse:collapse;margin:6px 0;font-size:13px;}
@@ -144,6 +144,41 @@
   .c-orders .late{color:var(--danger);font-weight:700;}
   .c-alert{font-size:13px;font-weight:700;color:var(--danger);margin-top:6px;}
   .c-more{border:none;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:8px 0 0;cursor:pointer;}
+  /* card layout (Nov 21): what to order and the POs first; alerts as small chips on the phone (tap = open),
+     in a right column on a wide screen. Real buttons with space between them. */
+  .truck{margin:8px 0 2px;padding:9px 11px;border-radius:10px;font-size:13.5px;line-height:1.45;background:color-mix(in srgb,var(--warn) 15%,transparent);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);color:var(--text);}
+  .mx{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 6px;}
+  .mx .m{background:var(--surface2);border-radius:10px;padding:7px 9px;min-width:0;}
+  .mx .m span{display:block;font-size:12px;color:var(--text3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mx .m b{display:block;font-size:18px;font-weight:800;color:var(--text);}
+  .mx .m i{display:block;font-style:normal;font-size:11.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mx .m.w{background:color-mix(in srgb,var(--warn) 14%,transparent);}.mx .m.w i{color:var(--warn);font-weight:700;}
+  .wk{margin-top:10px;overflow-x:auto;}
+  .wk table{width:100%;border-collapse:collapse;font-size:13px;}
+  .wk th{font-size:11.5px;font-weight:700;color:var(--text3);padding:4px 3px;text-align:right;white-space:nowrap;}
+  .wk th.td{color:var(--accent);}
+  .wk td{padding:6px 3px;text-align:right;border-top:1px solid var(--border);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .wk td:first-child{text-align:left;color:var(--text2);font-weight:600;white-space:normal;}.wk td:first-child small{display:block;font-weight:400;font-size:10.5px;color:var(--text3);}
+  @media(max-width:420px){.wk table{font-size:12px;}.wk th{font-size:11px;padding:4px 2px;}.wk td{padding:5px 2px;}}
+  .wk .wv{display:block;font-size:11px;color:var(--warn);font-weight:700;}
+  .wk .wn{font-size:11.5px;color:var(--text3);margin-top:3px;}
+  @media(max-width:759px){.c-l .al.wkal{display:none;}.c-l .al.wkal.on{display:block;}}
+  .c-acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+  .c-btn{min-height:40px;padding:8px 14px;border-radius:10px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-weight:700;font-size:14px;cursor:pointer;}
+  .c-btn:active,.chip:active{transform:scale(.97);}
+  .c-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center;}
+  .chip{min-height:34px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;}
+  .chip.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);border-color:color-mix(in srgb,var(--warn) 40%,transparent);color:var(--warn);}
+  .chip.info{background:color-mix(in srgb,var(--accent) 12%,transparent);border-color:color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);}
+  .chip.on{box-shadow:0 0 0 2px var(--accent);}
+  .chip.more{margin-left:auto;background:transparent;}
+  .c-menu{display:none;margin-top:8px;padding:8px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);}
+  .c-menu.on{display:flex;flex-wrap:wrap;gap:8px;}
+  .c-menu button{min-height:38px;padding:7px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-weight:600;font-size:13px;cursor:pointer;}
+  .c-r .al{margin-top:8px;}
+  @media(max-width:759px){.c-r .al{display:none;}.c-r .al.on{display:block;}}
+  @media(min-width:760px){.c-body{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:18px;align-items:start;}
+    .chip.m-only{display:none;}.c-r .al:first-child{margin-top:6px;}.c-r:empty{display:none;}}
   .c-det{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:14px;font-weight:600;}
   .c-det span{display:block;font-size:11px;font-weight:500;color:var(--text3);}
   .c-vend{grid-column:1/-1;font-size:12px;font-weight:500;color:var(--text3);}
@@ -162,7 +197,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.20p</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21e</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -317,8 +352,22 @@ function nextOrders(r){
 /* overdue POs (Eleni's PO Tracker: estimated day passed, no received date) */
 function lateTxt(r){const L=r.late||[];if(!L.length)return '';const u=esc(unitOf(r));   // on its own item, so no PO gets lost
   return `<div class="c-sub" style="color:var(--text2);font-size:12.5px;margin:2px 0">${L.map(x=>
-    `⏳ PO ${esc(x.po)}${x.sup?' ('+esc(x.sup)+')':''} · ${n0(x.qty)} ${u} · was due ${dayTxt(x.eta+'T12:00:00')} → <b>assumed in this morning's count</b>, not counted again`).join('<br>')}
-    <br><span style="color:var(--text3)">Not in the count? Mark it in Receiving if it came, or ask the supplier.</span></div>`;}
+    `⏳ PO ${esc(x.po)}${x.sup?' ('+esc(x.sup)+')':''} · ${x.partial?lateWhat(x,u)+' — not counted':n0(x.qty)+' '+u+' · was due '+dayTxt(x.eta+'T12:00:00')+' → <b>not counted</b> (only what is in the count)'}`).join('<br>')}
+    <br><span style="color:var(--text3)">Verify it arrived complete: if it came, it must be in the count (and marked in Receiving); if not, ask the supplier.</span></div>`;}
+/* 🚚 Check the truck before ordering (Nov 21): a PO that was due and is NOT marked received is not counted (if it is not
+   in the count, it does not exist), but if the item is to be ordered today the card says so first — the truck may be on
+   its way or may have come in parts (Nov 20: ordered at 9 AM while 2 of 3 parts had not been entered yet).
+   The stock is the LIVE count of the day: whatever is entered later shows on ⟳ Refresh. */
+function lateWhat(x,u){
+  if(x.partial)return x.rec>0?`<b>${n0(x.qty)} of ${n0(x.ord)} ${u} missing</b> (${n0(x.rec)} arrived)`:`<b>${n0(x.ord)} ${u} never arrived</b>`;
+  return `${n0(x.qty)} ${u} was due ${dayTxt(x.eta+'T12:00:00')} and is <b>not marked received</b>`;}
+/* 📋 POs in Eleni's PO Tracker that Yooz doesn't show yet (Yooz reaches us a day later): the app doesn't know their
+   boxes, so they are NOT counted — check them before ordering from that supplier (Nov 21). */
+function tonlyHtml(sup){const t=((data&&data.tonly)||[]).filter(x=>!sup||String(x.sup).toUpperCase()===String(sup).toUpperCase());if(!t.length)return '';
+  return `<div class="truck">📋 <b>In Eleni's PO Tracker but not in Yooz yet:</b> ${t.map(x=>`${esc(x.sup)} ${esc(x.po)}${x.total?' ($'+n0(x.total)+')':''} · due ${dayTxt(x.due+'T12:00:00')}`).join('; ')} — its boxes are <b>not counted</b>. Check what it brings before ordering.</div>`;}
+function truckWait(r){return (r.late||[]).length&&(r.orders||[]).some(o=>!o.done&&!o.pending&&new Date(o.orderBy)<=addDays(0));}
+function truckTxt(r){if(!truckWait(r))return '';const u=esc(unitOf(r)||'');
+  return `<div class="truck">🚚 <b>Check before ordering:</b> ${(r.late||[]).map(x=>`PO ${esc(x.po)}${x.sup?' ('+esc(x.sup)+')':''} · ${lateWhat(x,u)}`).join('; ')}. Verify it arrived (or ask the supplier); if it came, enter it in the count and tap ⟳ Refresh before ordering.</div>`;}
 function cardTxt(r){const c=r.cards||{};const ks=Object.keys(c);if(!ks.length)return '';
   return `<div class="c-vend"><b>This month (Eleni's PO Tracker):</b> ${ks.map(k=>{const v=c[k];return `${esc(k)} · ${v.days!=null?'~'+v.days+' days order→received':''}${v.onTime!=null?' · '+v.onTime+'% on the estimated day':''}${v.shortPct!=null?' · '+v.shortPct+'% of POs came short':''} · ${v.pos} POs`;}).join(' &nbsp;|&nbsp; ')}</div>`;}
 /* supplier report card for the plant */
@@ -432,25 +481,67 @@ function sameTxt(r){const b=String(r.base).replace(/-\d+$/,''),g=SAME_USE.find(x
   const mB=TAPE_M_CASE[b];   // tape: the other one's stock in cases of THIS one (same meters)
   return `<div class="c-sub" style="background:rgba(37,99,235,.08);border-radius:10px;padding:6px 10px;margin:4px 0;font-size:13px">🔁 <b>Same use as ${esc(oth)}</b> — either one works, order only one.${others.map(x=>{const mO=TAPE_M_CASE[String(x.base).replace(/-\d+$/,'')];
     return ` ${esc(x.base)} in stock: <b>${n0(x.stock)}</b> cases${mB&&mO?` = ${n0(x.stock*mO)} m ≈ <b>${n1(x.stock*mO/mB)}</b> cases of ${esc(b)}`:''}.`;}).join('')} Use what's on hand first.</div>`;}
+/* 📦 Have · 🚚 Coming · 📅 Need this week (Nov 21) + the week, side by side, with the planning's own dates (Inv Date)
+   so it reads like Juan's sheet. Display only — the calculation does not change. */
+function weekDays(){const out=[],hol=new Set(((data&&data.cfg&&data.cfg.holidays)||[]).map(h=>h.d));const d=addDays(0);
+  while(out.length<5){const w=d.getDay(),k=ymdL(d);if(w>0&&w<6&&!hol.has(k))out.push(k);d.setDate(d.getDate()+1);}return out;}
+function weekData(r){const days=weekDays(),plan={},arr={},wk=new Set(days);let planRow=false;
+  if(r.kind!=='inv'&&r.plan&&r.ptot){planRow=true;
+    r.plan.forEach(x=>{const s=x.src||{};let used=false;Object.entries(s).forEach(([k,v])=>{if(/^\d{4}-/.test(k)){plan[k]=(plan[k]||0)+(+v||0);used=true;}});
+      if(!used&&x.need>0)plan[x.d]=(plan[x.d]||0)+x.need;});}
+  (r.coming||[]).forEach(x=>{const k=String(x.date).slice(0,10);if(wk.has(k))arr[k]=(arr[k]||0)+(+x.qty||0);});
+  createdDl(r).forEach(x=>{if(wk.has(x.d))arr[x.d]=(arr[x.d]||0)+x.q;});
+  const need=planRow?days.reduce((a,k)=>a+(plan[k]||0),0):(r.dbar>0?r.dbar*5:0);
+  return {days,plan,arr,planRow,need};}
+/* what is on the way: open POs (Yooz / planner) + POs marked "created" here that Yooz doesn't show yet */
+function createdDl(r){const t=ymdL(addDays(0));return (r.orders||[]).filter(o=>o.done&&!o.inYooz).flatMap(o=>(o.dl||[]).map(x=>({d:ymdL(x.d),q:+x.q||0}))).filter(x=>x.d>=t&&x.q>0);}
+function metrics(r){const u=esc(unitOf(r)||''),w=weekData(r),ow=(r.coming||[]).reduce((a,x)=>a+(+x.qty||0),0)+createdDl(r).reduce((a,x)=>a+x.q,0),nl=(r.late||[]).length;
+  const d=r.dbar>0?(r.stock/r.dbar):null;
+  return `<div class="mx">
+    <div class="m"><span>📦 Have</span><b>${n0(r.stock)}</b><i>${d!=null&&r.st!=='none'?'≈ '+(d<10?n1(d):n0(d))+' days':u}</i></div>
+    <div class="m${nl?' w':''}"><span>🚚 Coming</span><b>${n0(ow)}</b><i>${nl?'⚠ '+nl+' to verify':(r.coming||[]).length?'next '+dayTxt(String(r.coming[0].date).slice(0,10)+'T12:00:00'):createdDl(r).length?'created · '+dayTxt(createdDl(r)[0].d+'T12:00:00'):'none'}</i></div>
+    <div class="m"><span>📅 This week</span><b>${w.need?n0(w.need):'—'}</b><i>${w.planRow?"Juan's plan":r.dbar>0?'~'+(r.dbar<10?n1(r.dbar):n0(r.dbar))+'/day':''}</i></div>
+  </div>`;}
+function weekStrip(r){const w=weekData(r),u=esc(unitOf(r)||'');if(!w.planRow&&!Object.keys(w.arr).length&&!(r.late||[]).length)return '';
+  const t=ymdL(addDays(0)),hd=k=>{const d=new Date(k+'T12:00:00');return DAYN[d.getDay()]+' '+d.getDate();};
+  const nl=(r.late||[]).length;
+  return `<div class="wk"><table><tr><th></th>${w.days.map(k=>`<th${k===t?' class="td"':''}>${hd(k)}</th>`).join('')}</tr>
+    ${w.planRow?`<tr><td>📅 Plan <small>Inv Date</small></td>${w.days.map(k=>`<td>${w.plan[k]?n0(w.plan[k]):'—'}</td>`).join('')}</tr>`:''}
+    <tr><td>🚚 Arrives</td>${w.days.map(k=>`<td>${w.arr[k]?n0(w.arr[k]):''}${k===t&&nl?'<span class="wv">⚠ verify</span>':''}${!w.arr[k]&&!(k===t&&nl)?'—':''}</td>`).join('')}</tr>
+  </table><div class="wn">${u} · same dates as the planning sheet${w.planRow?'':' · no plan for this item (use from the counts)'}</div></div>`;}
 function card(r){
-  const key=r.base;
+  const key=r.base,k=esc(key).replace(/'/g,'');
   const det=open.has(key)?`<div class="c-det c-det2">${dmpLine(r)}${useBlock(r)}${planDays(r)}${calcBlock(r)}${suggestions(r)}${facts(r)}</div>`:'';
   const nSug=((r.orders||[]).some(o=>o.rush&&!o.done)?1:0)+((r.rcvNew||[]).length);
-  return `<div class="card ${r.st}">
+  const nLate=(r.late||[]).length;
+  const wks=weekStrip(r);
+  const al=[{a:'rec',c:'warn',t:'🔎 Recount',h:recountTxt(r)},{a:'late',c:'warn',t:'⏳ '+(nLate>1?nLate+' POs':'PO')+' late or due',h:lateTxt(r)},
+    {a:'same',c:'info',t:'🔁 Same use',h:sameTxt(r)},{a:'info',c:'',t:'ℹ️ Covered until · lead time',h:`<div class="c-sub">${subLine(r)}</div>`}].filter(x=>x.h&&x.h.replace(/<[^>]*>/g,'').trim());
+  return `<div class="card ${r.st}" data-k="${k}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
-    ${stockLine(r)}
-    <div class="c-main">${mainLine(r)}</div>
-    ${nextOrders(r)}
-    ${orderedToday(r)}
-    ${recountTxt(r)}
-    ${sameTxt(r)}
-    ${lateTxt(r)}
-    <div class="c-sub">${subLine(r)}</div>
-    <button class="c-more" style="padding-top:2px" onclick="iOrdered('${esc(r.base)}')">📝 We ordered…</button>
-    <button class="c-more" style="padding-top:2px;color:var(--text3)" onclick="toggleNeed('${esc(r.base)}')">${r.notNeeded?'↩ Needed again':'🚫 Not needed in '+PLANT}</button>
-    <button class="c-more" onclick="toggle('${esc(key).replace(/'/g,'')}')">${open.has(key)?'Hide details ▴':'Details: Juan\'s plan by day · calculation · suggestions'+(nSug?' ('+nSug+')':'')+' ▾'}</button>${det}
+    <div class="c-body"><div class="c-l">
+      ${metrics(r)}
+      ${truckTxt(r)}
+      <div class="c-main">${mainLine(r)}</div>
+      ${nextOrders(r)}
+      ${orderedToday(r)}
+      ${wks?`<div class="al wkal" data-a="week">${wks}</div>`:''}
+      <div class="c-acts"><button class="c-btn" onclick="iOrdered('${esc(r.base)}')">📝 We ordered…</button></div>
+    </div><div class="c-r">${al.map(x=>`<div class="al" data-a="${x.a}">${x.h}</div>`).join('')}</div></div>
+    <div class="c-chips">
+      ${wks?`<button class="chip m-only" onclick="chipT(this,'week')">📅 Week</button>`:''}
+      ${al.map(x=>`<button class="chip m-only ${x.c}" onclick="chipT(this,'${x.a}')">${x.t}</button>`).join('')}
+      ${nSug?`<button class="chip info" onclick="toggle('${k}')">💡 ${nSug} suggestion${nSug>1?'s':''}</button>`:''}
+      <button class="chip${open.has(key)?' on':''}" onclick="toggle('${k}')">${open.has(key)?'▴ Hide details':'📋 Details'}</button>
+      <button class="chip more" onclick="this.closest('.card').querySelector('.c-menu').classList.toggle('on')" aria-label="More options">⋯ More</button>
+    </div>
+    <div class="c-menu"><button onclick="toggleNeed('${esc(r.base)}')">${r.notNeeded?'↩ Needed again in '+PLANT:'🚫 Not needed in '+PLANT}</button></div>
+    ${det}
   </div>`;
 }
+/* phone: tap a chip to open / close that alert inside the card (no reload, so the screen does not jump) */
+function chipT(btn,a){const c=btn.closest('.card'),el=c.querySelector('.al[data-a="'+a+'"]');if(!el)return;
+  const on=!el.classList.contains('on');el.classList.toggle('on',on);btn.classList.toggle('on',on);}
 /* what to order today and on the next order day (Friday, or the workday before if Friday is a holiday), in pallets */
 const DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function friBox(){
@@ -469,7 +560,8 @@ function friBox(){
   const rec=cfg.days.map((on,i)=>on?DAYN[i]:null).filter(Boolean).join(', ')||'none';
   const hol=(cfg.holidays||[]).filter(h=>new Date(h.d+'T00:00:00')>=t0).sort((a,b)=>a.d.localeCompare(b.d))[0];
   const rc=rows.filter(r=>r.recount);
-  return `<div class="fri">${body||'<div><b>Nothing to order today or on the next order day.</b></div>'}${rc.length?`<div class="s" style="margin-top:6px;color:var(--warn)">🔎 <b>Recount before 9 AM (${rc.length}):</b> ${rc.map(r=>esc((r.codes||[r.base])[0])).join(', ')}</div>`:''}
+  const tw=rows.filter(truckWait);
+  return `<div class="fri">${body||'<div><b>Nothing to order today or on the next order day.</b></div>'}${tw.length?`<div class="s" style="margin-top:6px;color:var(--warn)">🚚 <b>Check before ordering (${tw.length}):</b> ${tw.map(r=>esc((r.codes||[r.base])[0])).join(', ')} — a PO was due and is not marked received. Enter what arrived and ⟳ Refresh.</div>`:''}${rc.length?`<div class="s" style="margin-top:6px;color:var(--warn)">🔎 <b>Recount before 9 AM (${rc.length}):</b> ${rc.map(r=>esc((r.codes||[r.base])[0])).join(', ')}</div>`:''}
     <div class="s">Safety stock: <b>A ${(cfg.ss||{}).A??2} · B ${(cfg.ss||{}).B??1} · C ${(cfg.ss||{}).C??1} days · Sonic/PCA max 1</b> · We receive: <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data.racks?' · Direct Materials has '+data.racks+' rack positions':''}</div>
     <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div></div>`;
 }
@@ -729,7 +821,7 @@ function render(keepFocus){
   const cc=c2=>(data.rows||[]).filter(r=>c2==='ALL'||catOf(r)===c2).length;
   const cats=`<div class="cats">${CATS.filter(([k])=>k==='ALL'||cc(k)).map(([k,l])=>`<button class="cat${cat===k?' on':''}" onclick="setCat('${k}')">${l}<i>${cc(k)}</i></button>`).join('')}</div>`;
   if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;document.querySelector('.tabs').outerHTML=tabs;return;}
-  body.innerHTML=friBox()+chgBar()+pbiBar()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
+  body.innerHTML=friBox()+tonlyHtml()+chgBar()+pbiBar()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
 }
 
 
@@ -858,14 +950,14 @@ function renderSup(){
       return `<div class="o-row${o.done?' done':''}"><b>${esc((r.codes||[r.base]).join(' + '))}</b> <span class="mut">${esc(r.name||'')}</span><br>
         ${qtyTxt(r,o.qty,palOf(r,o,g.k))}${o.rush?' <span class="late">rush</span>':''} · ${dlTxt(o)} ${st}${hint}
         ${now&&!o.done?`<div class="o-acts"><button class="st" onclick="editQty('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">✏️ Qty</button>${alt?`<button class="st" onclick="switchSup('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}','${alt}')">⇄ Send to ${alt==='PCA'?'PCA':'Sonic'}</button>`:''}</div>`:''}</div>`;}).join('');
-    return `<div class="card ${now?(nN?'red':'ok'):''}" style="border-left-color:${now?'':'var(--line,#ccc)'}"><div class="c-top"><span class="c-code">${esc(vName(g.k,g.raw))}</span></div>
+    return `<div class="card ${now?(nN?'red':'ok'):''}" style="border-left-color:${now?'':'var(--border)'}"><div class="c-top"><span class="c-code">${esc(vName(g.k,g.raw))}</span></div>
       <div class="c-main">${now?'Order today':'Preview · order '+dShort(g.day)} · ${g.lines.length} item${g.lines.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallets':''}</div>
       <div class="c-sub">${nD?'<b style="color:var(--success)">'+nD+' created</b> · ':''}${nP?'<b style="color:var(--warn)">'+nP+' pending</b> · ':''}${nN?nN+' not ordered':''}${pos.length?' · PO '+pos.map(esc).join(', '):''}${now?'':' · recalculated every morning'}</div>
       <div class="c-orders">${lines}</div>
       <div class="o-acts" style="margin-top:8px">${now&&nN+nP?`<button class="st" onclick="poAll(${gi},'pend')">⏳ All pending</button><button class="st on done" onclick="poAll(${gi},'done')">✅ PO created…</button>`:''}${now&&(nD||nP)?`<button class="st" onclick="poAll(${gi},'none')">↩ Undo PO</button>`:''}<button class="st" onclick="poExcel(${gi})">⬇ Excel</button></div></div>`;};
   window._sg=gs;
   const td=gs.filter(g=>g.day===t0),nx=gs.filter(g=>g.day>t0);
-  body.innerHTML=supSpace()+
+  body.innerHTML=tonlyHtml()+supSpace()+
     `<div class="fri"><b>🧾 POs by supplier</b> — one PO per supplier, like in Yooz. Mark the whole PO at once with its PO #. Boxes that Sonic and PCA both make can be sent to the other (⇄); Sonic is the faster one.</div>`+
     (td.length?td.map(g=>card(g,gs.indexOf(g))).join(''):'<div class="empty"><b>✓</b>Nothing to order today.</div>')+
     (nx.length?`<div class="blk-h" style="margin:14px 4px 6px">Next order days — preview</div>`+nx.map(g=>card(g,gs.indexOf(g))).join(''):'');
