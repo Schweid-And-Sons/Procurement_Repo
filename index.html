@@ -4159,9 +4159,11 @@ function reorderRows(summary){
     // 📐 no count today (Nov 21): start from the LAST MORNING COUNT saved (Before 9am copy, not the live screen — opening
     // the app or a few moves don't make a count) + what shipping received in Receiving after it − the use of the work
     // days since. Used when today's count isn't done: by itself (no real change in the stock today) or set by hand.
-    let est=null;{const ov=(cfg&&cfg.cntDay&&cfg.cntDay.day===ymd(today))?cfg.cntDay.done:null;
-      const sa=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT):null,autoDone=!!(sa&&!isNaN(sa)&&ymd(sa)===ymd(today));
-      const done=ov!=null?ov:autoDone;
+    let est=null;{const ov=null;   // no switch any more: done = 10+ positions changed today
+      let sa=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT):null;const autoDone=(window.REO_CNT_N||0)>=CNT_MIN;
+      const done=autoDone;
+      // a few moves today are not a count: start from the stock as it was left before today
+      if(!done&&sa&&!isNaN(sa)&&ymd(sa)===ymd(today))sa=window.REO_STOCK_PREV?new Date(window.REO_STOCK_PREV):null;
       if(!done&&window.REO_STOCK_AT!==undefined){
         // base = the newest of: the last morning copy, or the screen as it was left (last real change, e.g. Friday afternoon).
         // An item missing from the copy is NOT zero — then the screen is used (Nov 21: a missing item made a huge order).
@@ -6160,6 +6162,14 @@ function renderCheckView(){const el=document.getElementById('main-content');
 /* when the stock really changed last (Nov 21): opening the app on a new day starts the shift and stamps every item with
    its start time — that is not a count. Last real change = newest item time that isn't the shift start; with none in the
    morning shift, the stock is still yesterday's. */
+/* today's count = at least CNT_MIN positions really changed today (Nov 21: no switch — the app decides by itself).
+   Also keeps the last real change BEFORE today: a few moves today don't hide yesterday's use in the estimate. */
+const CNT_MIN=10;
+function liveCntInfo(r){const st=String(r.startedAt||''),t0=ymd(new Date());
+  const real=[...Object.values(r.ts||{}),...Object.values(r.del||{})].map(String).filter(v=>v&&v!==st);
+  const day=v=>{const d=new Date(v);return isNaN(d)?'':ymd(d);};
+  const n=real.filter(v=>day(v)===t0).length,prev=real.filter(v=>{const d=day(v);return d&&d<t0;}).sort().pop()||'';
+  return {n,prev};}
 function liveRealAt(r){const st=String(r.startedAt||'');
   const real=[...Object.values(r.ts||{}),...Object.values(r.del||{})].map(String).filter(v=>v&&v!==st).sort().pop();
   if(real)return real;if(r.turno==='pre9'&&st)return new Date(new Date(st).getTime()-8*3600e3).toISOString();return st||r.updatedAt||'';}
@@ -7925,7 +7935,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.21t';
+const APP_VERSION='2026.11.21u';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -7987,7 +7997,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
     // the SAME stock on every device: read the plant's live inventory from SharePoint (read only, never saved here)
     let shared=null,times={};
     // stock: today's live record of the plant (reads yesterday → tomorrow only: the newest shift is always there)
-    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:liveRealAt(r)};window.REO_STOCK_AT=shared.at;}else throw new Error('no live record');};
+    const readLive=async()=>{const r=await liveFetch(1);if(r&&r.inv){inventory=JSON.parse(JSON.stringify(r.inv));shared={at:liveRealAt(r)};window.REO_STOCK_AT=shared.at;{const ci=liveCntInfo(r);window.REO_CNT_N=ci.n;window.REO_STOCK_PREV=ci.prev;}}else throw new Error('no live record');};
     // run one source with a time limit and remember how long it took (shown in Next POs, to find the slow one)
     const timed=(name,fn,ms,errOf)=>{const t=Date.now();let done=false;
       const p=Promise.resolve().then(fn).then(()=>{done=true;const e=errOf&&errOf();times[name]={s:(Date.now()-t)/1000,ok:!e};},
@@ -7995,7 +8005,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:shared?shared.at:0,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
+        stockAt:shared?shared.at:0,cntN:window.REO_CNT_N||0,cntMin:CNT_MIN,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
         times:Object.assign({},times)};};
     const old=(o,ms)=>!o||Date.now()-new Date(o.loaded).getTime()>ms;
     const collect=async(force,send)=>{
