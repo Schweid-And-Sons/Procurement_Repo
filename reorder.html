@@ -162,7 +162,51 @@
   @media(max-width:420px){.wk table{font-size:12px;}.wk th{font-size:11px;padding:4px 2px;}.wk td{padding:5px 2px;}}
   .wk .wv{display:block;font-size:11px;color:var(--warn);font-weight:700;}
   .wk .wn{font-size:11.5px;color:var(--text3);margin-top:3px;}
-  @media(max-width:759px){.c-l .al.wkal{display:none;}.c-l .al.wkal.on{display:block;}}
+  .pills{display:flex;flex-wrap:wrap;gap:6px;cursor:pointer;}
+  .pl{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .pl.g{background:color-mix(in srgb,var(--success) 14%,transparent);color:var(--success);}
+  .pl.o{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn);}
+  .pl.r{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger);}
+  .pl.x{background:transparent;color:var(--text3);}
+  .st-det{font-size:12px;color:var(--text3);margin-top:6px;line-height:1.5;}
+  .mb{background:var(--surface);border-radius:16px;padding:6px 6px 4px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .mb-h{font-size:13px;font-weight:700;color:var(--text3);padding:6px 10px 2px;}
+  .mb-i{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:transparent;padding:10px;border-radius:12px;cursor:pointer;color:var(--text);font-size:15px;}
+  .mb-i+.mb-i{border-top:1px solid var(--border);border-radius:0;}
+  .mb-i.on{background:color-mix(in srgb,var(--accent) 10%,transparent);}
+  .mb-c{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--text3);flex:none;}
+  .mb-i.ok .mb-c{background:var(--success);border-color:var(--success);color:#fff;}
+  .mb-i.ok .mb-t{color:var(--text3);}
+  .mb-t{flex:1;min-width:0;line-height:1.35;}.mb-t i{display:block;font-style:normal;font-size:12px;color:var(--text3);}
+  .mb-g{color:var(--text3);font-size:18px;}
+  .tab i{display:block;font-style:normal;font-size:12px;color:var(--text3);margin-top:2px;}
+  .band{position:relative;margin-bottom:10px;}.band .truck{margin:0;padding-right:34px;}
+  .band-x{position:absolute;top:6px;right:6px;border:none;background:transparent;color:var(--text3);font-size:16px;cursor:pointer;width:30px;height:30px;}
+  .stick{position:sticky;top:60px;z-index:5;background:var(--bg);padding-top:6px;}
+  .tmw{margin:0 0 10px;}.tmw summary{cursor:pointer;color:var(--text3);font-size:13px;font-weight:600;padding:4px 2px;list-style:none;}
+  .tm{background:var(--surface);border-radius:14px;padding:10px 12px;margin-top:6px;font-size:13px;}
+  .sec{font-size:13px;font-weight:800;margin:14px 4px 6px;cursor:pointer;}
+  .rl{background:var(--surface);border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .row+.row{border-top:1px solid var(--border);}
+  .rh{display:flex;align-items:stretch;gap:10px;padding:10px 12px 10px 0;cursor:pointer;}
+  .row.open .rh{background:color-mix(in srgb,var(--accent) 6%,transparent);}
+  .rb{width:5px;flex:none;border-radius:0 4px 4px 0;}
+  .rm{flex:1;min-width:0;}.rt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;}
+  .rw{font-size:11.5px;font-weight:700;color:var(--warn);}
+  .gg{position:relative;height:6px;border-radius:3px;background:var(--surface2);margin:6px 0 4px;}
+  .gg div{height:6px;border-radius:3px;}.gg span{position:absolute;top:-3px;width:2px;height:12px;background:var(--text3);border-radius:1px;}
+  .rs{font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cf.g{color:var(--success);}.cf.o{color:var(--warn);}.cf.r{color:var(--danger);}
+  .ra{text-align:right;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;font-size:14px;white-space:nowrap;position:relative;padding-right:16px;}
+  .ra i{font-style:normal;font-size:12px;color:var(--text3);}
+  .chev{position:absolute;right:0;top:50%;transform:translateY(-50%);color:var(--text3);font-size:16px;}
+  .rx{padding:0 8px 8px;animation:rxin .18s ease-out;}@keyframes rxin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .rx .c-top{display:none;}
+  .rx .card{box-shadow:none;margin:0;border-left-width:0;background:transparent;padding:6px 6px 8px;}
+  .row.sk .rh{cursor:default;}.skl{height:10px;border-radius:5px;background:var(--surface2);margin:6px 0;}
+  .o-acts .st.main{background:var(--success);color:#fff;border-color:var(--success);font-weight:700;}
+  .o-acts .st.dots{min-width:40px;}
+  .o-more{display:none;gap:8px;}.o-acts.mo .o-more{display:inline-flex;flex-wrap:wrap;}
   .c-acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
   .c-btn{min-height:40px;padding:8px 14px;border-radius:10px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-weight:700;font-size:14px;cursor:pointer;}
   .c-btn:active,.chip:active{transform:scale(.97);}
@@ -197,7 +241,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21e</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21g</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 By item</button><button id="v-sup" class="vw" onclick="setView('sup')">🧾 By supplier</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -270,8 +314,21 @@ function setTab(t){tab=t;render();window.scrollTo({top:0});}
 function toggle(code){open.has(code)?open.delete(code):open.add(code);render();}
 function onSearch(v){q=v.trim().toLowerCase();render(true);}
 
+/* sources as small pills: green = loaded, orange = missing or old, red = failed. Tap → the full detail (Nov 21) */
+let stDet=false;
+function srcPills(){const d=data,P=[],pill=(c,t,tip)=>P.push(`<span class="pl ${c}"${tip?` title="${esc(tip)}"`:''}>${t}</span>`);
+  const today=x=>x&&new Date(x).toDateString()===new Date().toDateString();
+  pill(d.liveOn?(today(d.stockAt)?'g':'o'):'o',(d.liveOn&&today(d.stockAt)?'✓':'⚠')+' Stock'+(d.stockAt?' '+timeTxt(d.stockAt):''));
+  pill(d.plan?'g':'o',d.plan?'✓ Plan':'⚠ Plan: none today');
+  pill(d.yzErr?'r':d.yzAt?'g':'r',(d.yzErr||!d.yzAt?'✕':'✓')+' Yooz'+(d.yzAt?' '+timeTxt(d.yzAt):''));
+  if(d.plannerAt)pill('g','✓ Planner');
+  if(d.potAt)pill('g','✓ Tracker');
+  pill(d.ltErr?'r':'g',(d.ltErr?'✕':'✓')+' Lead times');
+  if(d.err)pill('r','✕ '+esc(String(d.err).slice(0,40)));
+  return `<div class="pills" onclick="stDet=!stDet;document.getElementById('status').innerHTML=statusLine()">${P.join('')}<span class="pl x">${busy?'⟳ updating…':lastAt?'updated '+(Date.now()-lastAt<60e3?'now':Math.round((Date.now()-lastAt)/60e3)+' min ago'):''} ${stDet?'▴':'ⓘ'}</span></div>`;}
 function statusLine(){
   if(!data)return busy?'Checking stock, plan and Yooz…':'';
+  if(!stDet)return srcPills();
   const p=[];
   p.push(data.liveOn?'Stock '+(data.stockAt?timeTxt(data.stockAt):'—'):'<span class="warn">Stock from this device only</span>');
   p.push(data.plan?'Plan until '+dayTxt(data.plan.end+'T12:00:00').replace(/^\w+, /,''):'<span class="warn">No production plan for today — using usual use only</span>');
@@ -288,7 +345,7 @@ function statusLine(){
     if(bootS!=null)parts.unshift('app '+f(bootS));
     p.push('<br><span style="font-size:11px">⏱ '+(data.secs!=null?'Ready in '+f(data.secs+(bootS||0))+': ':'')+parts.join(' · ')+'</span>');}
   const ago=lastAt?Math.round((Date.now()-lastAt)/60000):null;
-  return (busy?'⏳ Updating… · ':ago!=null?'Updated '+(ago<1?'just now':ago+' min ago')+' · ':'')+p.join(' · ');
+  return srcPills()+'<div class="st-det">'+(busy?'⏳ Updating… · ':ago!=null?'Updated '+(ago<1?'just now':ago+' min ago')+' · ':'')+p.join(' · ')+'</div>';
 }
 const CATS=[['ALL','All'],['BOXES','Boxes'],['TRAYS','Trays'],['FILM','Film'],['SLEEVES','Sleeves'],['PATTY PAPER','Patty paper'],['LABELS','Labels'],['PPE','PPE'],['OTHER','Other']];
 const catOf=r=>{const c=String(r.cat||'').toUpperCase();return CATS.some(x=>x[0]===c)?c:'OTHER';};
@@ -334,9 +391,10 @@ const whenTxt=o=>o.fri?(new Date(o.orderBy).getDay()===5?'Friday order · ':'Ord
 const ordTxt=['1st','2nd','3rd','4th','5th','6th'];
 const moreOpen=new Set();
 function stateChips(r,o){const k=esc(o.key||'').replace(/'/g,''),b=esc(r.base);
-  const st=o.done?'done':o.pending?'pend':'none';
-  const c=(v,l)=>`<button class="st${st===v?' on '+v:''}" onclick="setState('${b}','${k}','${v}')">${l}</button>`;
-  return `<div class="o-acts">${c('none',st==='none'?'Not ordered':'↩ Undo')}${c('pend','⏳ Pending')}${c('done','✅ Created')}<button class="o-btn" onclick="editQty('${b}','${k}')">✏️ Qty</button></div>`;}
+  const st=o.done?'done':o.pending?'pend':'none',x=`<span class="o-more">${st!=='pend'?`<button class="st" onclick="setState('${b}','${k}','pend')">⏳ Pending</button>`:''}<button class="o-btn" onclick="editQty('${b}','${k}')">✏️ Change qty</button></span>`;
+  const main=st==='done'?`<button class="st" onclick="setState('${b}','${k}','none')">↩ Undo</button>`
+    :`<button class="st main" onclick="setState('${b}','${k}','done')">✅ Mark created</button>${st==='pend'?`<button class="st" onclick="setState('${b}','${k}','none')">↩ Not ordered</button>`:''}`;
+  return `<div class="o-acts">${main}<button class="st dots" onclick="this.parentNode.classList.toggle('mo')" aria-label="More">⋯</button>${x}</div>`;}
 function nextOrders(r){
   const os=groupOrders(r.orders);if(!os.length)return '';
   const showN=moreOpen.has(r.base)?6:2;
@@ -502,21 +560,22 @@ function metrics(r){const u=esc(unitOf(r)||''),w=weekData(r),ow=(r.coming||[]).r
     <div class="m${nl?' w':''}"><span>🚚 Coming</span><b>${n0(ow)}</b><i>${nl?'⚠ '+nl+' to verify':(r.coming||[]).length?'next '+dayTxt(String(r.coming[0].date).slice(0,10)+'T12:00:00'):createdDl(r).length?'created · '+dayTxt(createdDl(r)[0].d+'T12:00:00'):'none'}</i></div>
     <div class="m"><span>📅 This week</span><b>${w.need?n0(w.need):'—'}</b><i>${w.planRow?"Juan's plan":r.dbar>0?'~'+(r.dbar<10?n1(r.dbar):n0(r.dbar))+'/day':''}</i></div>
   </div>`;}
-function weekStrip(r){const w=weekData(r),u=esc(unitOf(r)||'');if(!w.planRow&&!Object.keys(w.arr).length&&!(r.late||[]).length)return '';
+function weekStrip(r){const w=weekData(r),u=esc(unitOf(r)||'');if(!w.planRow&&!(r.dbar>0)&&!Object.keys(w.arr).length&&!(r.late||[]).length)return '';
   const t=ymdL(addDays(0)),hd=k=>{const d=new Date(k+'T12:00:00');return DAYN[d.getDay()]+' '+d.getDate();};
   const nl=(r.late||[]).length;
   return `<div class="wk"><table><tr><th></th>${w.days.map(k=>`<th${k===t?' class="td"':''}>${hd(k)}</th>`).join('')}</tr>
-    ${w.planRow?`<tr><td>📅 Plan <small>Inv Date</small></td>${w.days.map(k=>`<td>${w.plan[k]?n0(w.plan[k]):'—'}</td>`).join('')}</tr>`:''}
+    ${w.planRow?`<tr><td>📅 Plan <small>Inv Date</small></td>${w.days.map(k=>`<td>${w.plan[k]?n0(w.plan[k]):'—'}</td>`).join('')}</tr>`
+      :r.dbar>0?`<tr><td>📉 Use <small>estimated</small></td>${w.days.map(()=>`<td>~${r.dbar<10?n1(r.dbar):n0(r.dbar)}</td>`).join('')}</tr>`:''}
     <tr><td>🚚 Arrives</td>${w.days.map(k=>`<td>${w.arr[k]?n0(w.arr[k]):''}${k===t&&nl?'<span class="wv">⚠ verify</span>':''}${!w.arr[k]&&!(k===t&&nl)?'—':''}</td>`).join('')}</tr>
-  </table><div class="wn">${u} · same dates as the planning sheet${w.planRow?'':' · no plan for this item (use from the counts)'}</div></div>`;}
+  </table><div class="wn">${u} · ${w.planRow?'same dates as the planning sheet':'not in Juan\'s plan — use from the morning counts'}</div></div>`;}
 function card(r){
   const key=r.base,k=esc(key).replace(/'/g,'');
-  const det=open.has(key)?`<div class="c-det c-det2">${dmpLine(r)}${useBlock(r)}${planDays(r)}${calcBlock(r)}${suggestions(r)}${facts(r)}</div>`:'';
+  const det=open.has(key)?`<div class="c-det c-det2">${dmpLine(r)}${useBlock(r)}${planDays(r)}${calcBlock(r)}${facts(r)}</div>`:'';
   const nSug=((r.orders||[]).some(o=>o.rush&&!o.done)?1:0)+((r.rcvNew||[]).length);
   const nLate=(r.late||[]).length;
   const wks=weekStrip(r);
   const al=[{a:'rec',c:'warn',t:'🔎 Recount',h:recountTxt(r)},{a:'late',c:'warn',t:'⏳ '+(nLate>1?nLate+' POs':'PO')+' late or due',h:lateTxt(r)},
-    {a:'same',c:'info',t:'🔁 Same use',h:sameTxt(r)},{a:'info',c:'',t:'ℹ️ Covered until · lead time',h:`<div class="c-sub">${subLine(r)}</div>`}].filter(x=>x.h&&x.h.replace(/<[^>]*>/g,'').trim());
+    {a:'same',c:'info',t:'🔁 Same use',h:sameTxt(r)},{a:'sug',c:'info',t:'💡 '+nSug+' suggestion'+(nSug>1?'s':''),h:nSug?suggestions(r):''},{a:'info',c:'',t:'ℹ️ Covered until · lead time',h:`<div class="c-sub">${subLine(r)}</div>`}].filter(x=>x.h&&x.h.replace(/<[^>]*>/g,'').trim());
   return `<div class="card ${r.st}" data-k="${k}">
     <div class="c-top">${r.cls?`<span class="cls ${r.cls}">${r.cls}</span>`:''}<span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
     <div class="c-body"><div class="c-l">
@@ -525,13 +584,11 @@ function card(r){
       <div class="c-main">${mainLine(r)}</div>
       ${nextOrders(r)}
       ${orderedToday(r)}
-      ${wks?`<div class="al wkal" data-a="week">${wks}</div>`:''}
       <div class="c-acts"><button class="c-btn" onclick="iOrdered('${esc(r.base)}')">📝 We ordered…</button></div>
-    </div><div class="c-r">${al.map(x=>`<div class="al" data-a="${x.a}">${x.h}</div>`).join('')}</div></div>
+    </div><div class="c-r">${wks?`<div class="al wkal" data-a="week">${wks}</div>`:''}${al.map(x=>`<div class="al" data-a="${x.a}">${x.h}</div>`).join('')}</div></div>
     <div class="c-chips">
       ${wks?`<button class="chip m-only" onclick="chipT(this,'week')">📅 Week</button>`:''}
       ${al.map(x=>`<button class="chip m-only ${x.c}" onclick="chipT(this,'${x.a}')">${x.t}</button>`).join('')}
-      ${nSug?`<button class="chip info" onclick="toggle('${k}')">💡 ${nSug} suggestion${nSug>1?'s':''}</button>`:''}
       <button class="chip${open.has(key)?' on':''}" onclick="toggle('${k}')">${open.has(key)?'▴ Hide details':'📋 Details'}</button>
       <button class="chip more" onclick="this.closest('.card').querySelector('.c-menu').classList.toggle('on')" aria-label="More options">⋯ More</button>
     </div>
@@ -544,6 +601,30 @@ function chipT(btn,a){const c=btn.closest('.card'),el=c.querySelector('.al[data-
   const on=!el.classList.contains('on');el.classList.toggle('on',on);btn.classList.toggle('on',on);}
 /* what to order today and on the next order day (Friday, or the workday before if Friday is a holiday), in pallets */
 const DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+/* ☀️ Your morning (Nov 21): 3 things, each ticks itself — count, trucks to verify, POs to make. Tap = filter the list */
+function nextCountDay(){const hol=new Set(((data&&data.cfg&&data.cfg.holidays)||[]).map(h=>h.d)),n=new Date(),d=new Date(n);d.setHours(0,0,0,0);
+  const ok=x=>x.getDay()>0&&x.getDay()<6&&!hol.has(ymdL(x));
+  if(ok(d)&&n.getHours()<9)return d;do{d.setDate(d.getDate()+1);}while(!ok(d));return d;}
+function sumOrders(rows,pred){let items=0,pal=0,noPal=0;rows.forEach(r=>{const os=(r.orders||[]).filter(o=>!o.done&&!o.pending&&pred(o));if(!os.length)return;items++;
+  os.forEach(o=>{if(o.pallets)pal+=o.pallets;else noPal++;});});return {items,pal,noPal};}
+function morningBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
+  const rc=rows.filter(r=>r.recount),tw=rows.filter(truckWait),td=sumOrders(rows,o=>new Date(o.orderBy)<=addDays(0));
+  const today=data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString(),cd=nextCountDay();
+  const it=(done,txt,sub,f)=>`<button class="mb-i${done?' ok':''}${tab===f?' on':''}" onclick="setTab('${f}')"><span class="mb-c">${done?'✓':'○'}</span><span class="mb-t">${txt}${sub?`<i>${sub}</i>`:''}</span><span class="mb-g">›</span></button>`;
+  return `<div class="mb"><div class="mb-h">☀️ Your morning</div>
+    ${it(!rc.length,rc.length?`📋 Make a count before 9 AM for ${dayTxt(cd)} · <b>${rc.length} item${rc.length>1?'s':''}</b>`:'📋 Counts look right',today?'Stock updated today '+timeTxt(data.stockAt)+' — today\'s count is used to calculate use and orders':'Today\'s count is used to calculate use and orders','cnt')}
+    ${it(!tw.length,tw.length?`🚚 Verify ${tw.length} truck${tw.length>1?'s':''} before ordering`:'🚚 No trucks to verify',tw.length?tw.map(r=>esc((r.codes||[r.base])[0])).slice(0,5).join(', ')+(tw.length>5?'…':''):'','trk')}
+    ${it(!td.items,td.items?`🛒 Order ${td.items} item${td.items>1?'s':''} today · ~${n0(td.pal)} pallets`:'🛒 Nothing left to order today',td.noPal?'+'+td.noPal+' without pallet size':'','now')}
+  </div>`;}
+function toolsMenu(){const cfg=(data&&data.cfg)||{days:[]};const t0=addDays(0);
+  const rec=(cfg.days||[]).map((on,i)=>on?DAYN[i]:null).filter(Boolean).join(', ')||'none';
+  const hol=(cfg.holidays||[]).filter(h=>new Date(h.d+'T00:00:00')>=t0).sort((a,b)=>a.d.localeCompare(b.d))[0];
+  return `<div class="tm" id="tm"><div class="s">Safety stock <b>A ${(cfg.ss||{}).A??2} · B ${(cfg.ss||{}).B??1} · C ${(cfg.ss||{}).C??1} days</b> (Sonic ½ · PCA 1) · We receive <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data&&data.racks?' · '+data.racks+' rack positions':''}</div>
+    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div></div>`;}
+/* closable bands: once closed, they stay closed until there is something new (per text) */
+function bandOff(id){try{return (JSON.parse(localStorage.getItem('reo_bands')||'{}'))[id];}catch(e){return false;}}
+function bandClose(id){try{const o=JSON.parse(localStorage.getItem('reo_bands')||'{}');o[id]=1;localStorage.setItem('reo_bands',JSON.stringify(o));}catch(e){}render();}
+function band(html,id){if(!html||bandOff(id))return '';return `<div class="band">${html}<button class="band-x" onclick="bandClose('${id}')" aria-label="Close">✕</button></div>`;}
 function friBox(){
   const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const t0=addDays(0);
@@ -807,24 +888,56 @@ function render(keepFocus){
   try{howExample();}catch(e){}
   document.getElementById('btn-refresh').disabled=busy;
   const body=document.getElementById('body');
-  if(!data){if(!busy)body.innerHTML='<div class="empty"><b>⚠</b>Could not load the data. Tap ⟳ Refresh.</div>';return;}
-  const c=counts();
-  let rows=(data.rows||[]).filter(inCat);
+  if(!data){if(!busy)body.innerHTML='<div class="empty"><b>⚠</b>Could not load the data. Tap ⟳ Refresh.</div>';else body.innerHTML=skeleton();return;}
+  const c=counts(),all=(data.rows||[]).filter(inCat);
+  let rows=all;
   if(tab==='now')rows=rows.filter(r=>r.st==='red');else if(tab==='week')rows=rows.filter(r=>r.st==='amber');
-  if(q)rows=(data.rows||[]).filter(inCat).filter(r=>((r.codes||[]).join(' ')+' '+r.name+' '+((r.main||{}).vendor||'')).toLowerCase().includes(q));
-  const list=rows.length?rows.map(card).join(''):
-    `<div class="empty"><b>✓</b>${q?'Nothing matches “'+esc(q)+'”.':tab==='now'?'Nothing to order today.':tab==='week'?'Nothing else to order this week.':'No items with lead times yet.'}</div>`;
+  else if(tab==='cnt')rows=rows.filter(r=>r.recount);else if(tab==='trk')rows=rows.filter(truckWait);
+  if(q)rows=all.filter(r=>((r.codes||[]).join(' ')+' '+r.name+' '+((r.main||{}).vendor||'')).toLowerCase().includes(q));
+  const SEC=[['red','Order today','var(--danger)'],['amber','This week','var(--warn)'],['ok','OK','var(--success)']];
+  const secOf=r=>r.st==='red'?'red':r.st==='amber'?'amber':'ok';
+  let list='';
+  if(!rows.length)list=`<div class="empty"><b>✓</b>${q?'Nothing matches “'+esc(q)+'”.':tab==='now'?'Nothing to order today.':tab==='week'?'Nothing else to order this week.':tab==='cnt'?'No counts to check.':tab==='trk'?'No trucks to verify.':'No items with lead times yet.'}</div>`;
+  else if(q||tab!=='all')list=`<div class="rl">${rows.map(row).join('')}</div>`;
+  else list=SEC.map(([k,l,col])=>{const rs=rows.filter(r=>secOf(r)===k);if(!rs.length)return '';const closed=k==='ok'&&!okOpen;
+    return `<div class="sec" style="color:${col}" onclick="${k==='ok'?'okOpen=!okOpen;render()':''}">${l} · ${rs.length}${k==='ok'?` <span class="mut">${closed?'▾ show':'▴ hide'}</span>`:''}</div>${closed?'':`<div class="rl">${rs.map(row).join('')}</div>`}`;}).join('');
+  const nx=(()=>{const rs=data.rows||[],t0=addDays(0);const nd=rs.flatMap(r=>(r.orders||[]).filter(o=>!o.done&&!o.pending&&new Date(o.orderBy)>t0).map(o=>+new Date(o.orderBy))).sort((a,b)=>a-b)[0];
+    return nd?{d:new Date(nd),x:sumOrders(rs,o=>+new Date(o.orderBy)===nd)}:null;})();
+  const td=sumOrders(data.rows||[],o=>new Date(o.orderBy)<=addDays(0));
   const tabs=`<div class="tabs">
-    <button class="tab now${tab==='now'&&!q?' on':''}" onclick="setTab('now')"><b>${c.red}</b><span>Order today</span></button>
-    <button class="tab week${tab==='week'&&!q?' on':''}" onclick="setTab('week')"><b>${c.amber}</b><span>This week</span></button>
-    <button class="tab all${tab==='all'&&!q?' on':''}" onclick="setTab('all')"><b>${c.all}</b><span>All items</span></button></div>`;
+    <button class="tab now${tab==='now'&&!q?' on':''}" onclick="setTab('now')"><b>${c.red}</b><span>Order today</span><i>${td.items?'~'+n0(td.pal)+' pallets':'—'}</i></button>
+    <button class="tab week${tab==='week'&&!q?' on':''}" onclick="setTab('week')"><b>${c.amber}</b><span>This week</span><i>${nx&&nx.x.items?DAYN[nx.d.getDay()]+' '+nx.d.getDate()+' · ~'+n0(nx.x.pal)+' pal':'—'}</i></button>
+    <button class="tab all${tab==='all'&&!q?' on':''}" onclick="setTab('all')"><b>${c.all}</b><span>All items</span><i>${all.filter(r=>secOf(r)==='ok').length} OK</i></button></div>`;
   const cc=c2=>(data.rows||[]).filter(r=>c2==='ALL'||catOf(r)===c2).length;
   const cats=`<div class="cats">${CATS.filter(([k])=>k==='ALL'||cc(k)).map(([k,l])=>`<button class="cat${cat===k?' on':''}" onclick="setCat('${k}')">${l}<i>${cc(k)}</i></button>`).join('')}</div>`;
-  if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;document.querySelector('.tabs').outerHTML=tabs;return;}
-  body.innerHTML=friBox()+tonlyHtml()+chgBar()+pbiBar()+cats+tabs+`<input class="search" type="search" placeholder="Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"><div id="list">${list}</div>`;
+  if(keepFocus&&document.getElementById('list')){document.getElementById('list').innerHTML=list;return;}
+  const bands=band(tonlyHtml(),'tonly:'+((data.tonly||[]).map(x=>x.po).join(',')))+chgBar()+pbiBar();
+  body.innerHTML=morningBox()+tabs+bands+`<div class="stick">${cats}<input class="search" type="search" placeholder="🔎 Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"></div>`
+    +`<details class="tmw"><summary>⋯ Tools · settings</summary>${toolsMenu()}</details><div id="list">${list}</div>`;
 }
-
-
+let okOpen=false;
+/* loading: grey placeholder rows instead of a spinner */
+function skeleton(){return '<div class="rl">'+Array.from({length:6}).map(()=>'<div class="row sk"><div class="rb" style="background:var(--border)"></div><div class="rm"><div class="skl" style="width:40%"></div><div class="skl" style="width:85%;height:6px"></div><div class="skl" style="width:60%"></div></div></div>').join('')+'</div>';}
+/* how sure the use per day is: 🟢 plan or Power BI or 6+ clean count stretches · 🟡 3–5 · 🔴 few counts (Yooz received only) */
+function conf(r){if(r.pbi||(r.kind==='box'&&r.ptot))return ['g','sure'];const iu=r.iu;
+  if(iu&&iu.pairs>=6)return ['g','sure'];if(iu&&iu.pairs>=3)return ['o','fair'];return ['r','rough'];}
+/* one row per item: days of stock vs supplier days (the gauge), what to do. Tap = the full card, one at a time */
+let openRow='';
+function row(r){const key=r.base,k=esc(key).replace(/'/g,''),u=esc(unitOf(r)||'');
+  const d=r.dbar>0?r.stock/r.dbar:null,L=Math.max(1,Math.round(r.Lavg||r.L||1));
+  const max=Math.max(14,L*2.2),w=d==null?100:Math.min(100,Math.round(d/max*100)),mk=Math.min(97,Math.round(L/max*100));
+  const col=r.st==='red'?'var(--danger)':r.st==='amber'?'var(--warn)':'var(--success)';
+  const o=groupOrders(r.orders).find(x=>!x.done&&!x.pending);const nd=groupOrders(r.orders).find(x=>x.done);
+  const act=r.notNeeded?'<span class="mut">Not needed</span>':o?`<b style="color:${col}">${n0(o.qty)}${o.rush?' · rush':''}</b><i>${new Date(o.orderBy)<=addDays(0)?'today':DAYN[new Date(o.orderBy).getDay()]+' '+new Date(o.orderBy).getDate()}${(r.main||{}).vendor?' · '+esc(String(r.main.vendor).split(/[ ,]/)[0]):''}</i>`
+    :nd?`<b style="color:var(--success)">✓ ordered</b><i>${n0(nd.qty)}</i>`:'<b style="color:var(--success)">OK</b>';
+  const cf=conf(r),isOpen=openRow===key;
+  return `<div class="row${isOpen?' open':''}"><div class="rh" onclick="openRow=openRow==='${k}'?'':'${k}';render();if(openRow)setTimeout(()=>{const e=document.querySelector('.row.open');if(e)e.scrollIntoView({block:'nearest',behavior:'smooth'})},30)">
+    <div class="rb" style="background:${col}"></div>
+    <div class="rm"><div class="rt"><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span>${truckWait(r)||(r.late||[]).length?' <span class="rw">⚠ verify</span>':''}${r.recount?' <span class="rw">📋 count</span>':''}</div>
+      ${d!=null?`<div class="gg" title="days of stock vs days the supplier takes"><div style="width:${w}%;background:${col}"></div><span style="left:${mk}%"></span></div>`:''}
+      <div class="rs">${n0(r.stock)} ${u}${d!=null?' · '+(d<10?n1(d):n0(d))+' days':''} · supplier ${L} day${L>1?'s':''} · <span class="cf ${cf[0]}" title="how sure the daily use is">●</span> ${cf[1]}</div></div>
+    <div class="ra">${act}<span class="chev">${isOpen?'▴':'›'}</span></div></div>
+    ${isOpen?`<div class="rx">${card(r)}</div>`:''}</div>`;}
 /* ===================== 🔄 PLAN CHANGES =====================
    What production planning changed in Juan's plan, by Inv Date. index.html reads each day's last plan (SharePoint,
    last week → today) and compares them. Only days still ahead count; days that appear because the plan reaches
@@ -1020,7 +1133,7 @@ function toggleThemeMini(ev){if(ev)ev.stopPropagation();const d=!themeIsDark();d
 paintThemeMini();
 // start (at the end, once every function above exists): show the last result right away;
 // only load again if it is older than 10 minutes
-try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<12*3600e3){data=last.data;lastAt=last.at;const c=counts();tab=c.red?'now':c.amber?'week':'all';}}catch(e){}
+try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<72*3600e3){data=last.data;lastAt=last.at;const c=counts();tab=c.red?'now':c.amber?'week':'all';}}catch(e){}
 if(stale())ask(false);
 render();
 askChg();chgBadge();   // plan changes in the background → 🔔 number on the tab
