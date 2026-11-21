@@ -3993,7 +3993,10 @@ function reorderRows(summary){
   // use from the morning counts (see loadCntHist): received in Yooz by day, so a delivery isn't read as "no use"
   const ch=loadCntHist(),rcvD={};
   lines.forEach(l=>{if(l.recv&&l.received>0){const b=reoBase(l.code);(rcvD[b]=rcvD[b]||{})[l.recv]=((rcvD[b]||{})[l.recv]||0)+yzUnits(l.code,l.received);}});
-  const isWork=k=>{const d=new Date(k+'T12:00:00'),w=d.getDay();return w>0&&w<6&&!hol.has(k);};
+  // Nov 21: a day Juan's plan has production counts as a work day, even a Saturday (Thanksgiving week, high season)
+  const planWork=new Set();if(dm)Object.values(dm.codes||{}).forEach(v=>Object.entries(v.d||{}).forEach(([k,q])=>{if(+q>0)planWork.add(k);}));
+  if(planData&&planData.day&&planData.day===isoToday()&&dm)planWork.add(isoToday());
+  const isWork=k=>{if(planWork.has(k))return true;const d=new Date(k+'T12:00:00'),w=d.getDay();return w>0&&w<6&&!hol.has(k);};
   const invUse=b=>{if(!ch||!ch.days)return null;const ds=Object.keys(ch.days).sort();if(ds.length<2)return null;
     let used=0,wd=0,n=0,skip=0;
     for(let i=1;i<ds.length;i++){const a=ds[i-1],c=ds[i];
@@ -4115,7 +4118,7 @@ function reorderRows(summary){
     const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
     const hist=f.recv/REO_USE_DAYS;
     const it=ITEMS.find(i=>i.code===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base);   // the name of the item in use, not a discontinued one (BX7700 → PCA)
-    const kind=f.cat==='BOXES'?'box':(f.cat==='TRAYS'||/^T2\d/.test(f.base)||/^L1\d{4}(FRONT|BACK)-\d$/.test(f.base))?'tray':'inv';   // how its use is measured (brick labels: Juan's plan, then the counts, like trays)
+    const kind=f.cat==='BOXES'?'box':(f.cat==='TRAYS'||f.cat==='SLEEVES'||/^T2\d/.test(f.base)||/^L1\d{4}(FRONT|BACK)-\d$/.test(f.base))?'tray':'inv';   // Nov 21: sleeves follow Juan's plan too   // how its use is measured (brick labels: Juan's plan, then the counts, like trays)
     const pk=packFor(f.base,main.vendor),div=pk&&pk.pal?pk.pal:1;                  // trays: plan in trays → pallets
     const pday={},psrc={};let ptot=0,pdone=0;
     if(dm&&kind!=='inv')Object.entries(dm.codes).forEach(([c,o])=>{if(reoBase(c)!==f.base)return;ptot+=o.t/div;pdone+=(o.past||0)/div;
@@ -4127,8 +4130,10 @@ function reorderRows(summary){
     if(dm&&kind!=='inv'&&planData&&planData.day===ymd(today)){
       let S=null;(planData.items||[]).forEach(it=>{if(reoBase(it.code)===f.base)S=(S||0)+(+it.needed||0);});
       (planData.sleeves||[]).forEach(it=>{if(reoBase(it.code)===f.base)S=(S||0)+(+it.boxesNeeded||0);});
+      // Nov 21: trays of today = the sleeves of Line 22 / 23 (GA: Lxx_Prod) — 1 tray per sleeve, 2.5 oz → T2100, 5.3 oz → T2000
+      if(/^T2[01]00-\d$/.test(f.base))(planData.sleeves||[]).forEach(it=>{if(reoBase(trayOfSleeve(it.code))===f.base)S=(S||0)+(+it.total||0)/div;});
       if(S!=null&&S>0){const k0=ymd(today),D=pday[k0]||0,rest=Math.max(0,D-S);pday[k0]=S;let to='';
-        if(rest>0){for(let i=1;i<=7;i++){const d=new Date(today.getTime()+i*864e5),w=d.getDay();if(w>0&&w<6&&!hol.has(ymd(d))){to=ymd(d);break;}}
+        if(rest>0){for(let i=1;i<=7;i++){const d=new Date(today.getTime()+i*864e5);if(isWork(ymd(d))){to=ymd(d);break;}}
           if(to){pday[to]=(pday[to]||0)+rest;(psrc[to]=psrc[to]||{})['carry']=rest;}}
         ptot=ptot-D+S+(to?rest:0);sched={S,D,rest,to};psrc[k0]=Object.assign({},psrc[k0]||{},{sched:S});}
     }
@@ -4151,7 +4156,17 @@ function reorderRows(summary){
     // count-based items are not in Juan's plan: their use starts today, not after the plan's last day (Nov 20: before,
     // the plan days counted as 0 use for gloves, bags, tape, patty paper, film, sleeves)
     let Hd=kind==='inv'?0:H;if(pbT){rate=pbT.avg*5/7;capped=false;let last=-1;for(let i=0;i<H;i++)if((pday[ymd(new Date(today.getTime()+i*864e5))]||0)>0)last=i;Hd=last+1;}
-    const r={kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale,partial:!!x.partial,ord:x.ord||0,rec:x.rec||0})),
+    // 📐 no count today yet (e.g. Saturday / Monday before the count): stock = last update − use of the work days since then
+    let est=null;{const sa=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT):null;
+      if(sa&&!isNaN(sa)&&ymd(sa)<ymd(today)){let w=0;for(let d=new Date(sa);ymd(d)<ymd(today);d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
+        const pdn=Object.values(pday).filter(v=>v>0).length,rW=kind!=='inv'&&ptot>0&&pdn?ptot/pdn:rate*7/5;
+        // + what shipping received in Receiving after that count (not put in the count yet)
+        let got=0;try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||String(x.ts||'')<=sa.toISOString())return;
+          (x.lines||[]).forEach(l=>{if(reoBase(l.code)!==f.base)return;const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;if(q>0)got+=toUnits(l.code,q);});});}catch(e){}
+        if((w>0&&rW>0)||got>0){const used=Math.min(f.stock+got,rW*w);
+          est={real:f.stock,at:ymd(sa),days:w,used:Math.round(used),got:Math.round(got),src:kind==='box'?"Juan's plan":kind==='tray'?(pbT?"Line 22/23 + Power BI":"Juan's plan / Line 22-23"):'usual use'};
+          f.stock=Math.max(0,Math.round(f.stock-used+got));}}}
+    const r={est,kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale,partial:!!x.partial,ord:x.ord||0,rec:x.rec||0})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
@@ -4163,7 +4178,7 @@ function reorderRows(summary){
     if(!(rate>0||ptot>0)){r.st='none';return r;}
     // after the plan: the usual use, only on production days (Mon–Fri, no holidays) — the same total per week,
     // so a weekend doesn't look like a shortage
-    const dem=i=>{const d=new Date(today.getTime()+i*864e5);if(i<Hd)return pday[ymd(d)]||0;const w=d.getDay();return w===0||w===6||hol.has(ymd(d))?0:rate*7/5;};
+    const dem=i=>{const d=new Date(today.getTime()+i*864e5);if(i<Hd)return pday[ymd(d)]||0;return isWork(ymd(d))?rate*7/5:0;};
     // daily use and how much it moves (from the plan days; after the plan, the usual use)
     const dd=[];for(let i=0;i<Math.max(Hd,1);i++)dd.push(dem(i));
     const dbar=kind==='inv'?rate*7/5:Math.max(rate,dd.reduce((a,x)=>a+x,0)/dd.length);   // inv: use per working day
@@ -5585,7 +5600,7 @@ function renderPlanView(){
       <thead><tr><th>✓</th><th>Code</th><th>Description</th><th>Needed</th><th>Delivered</th><th>Remaining</th><th>Stock</th><th>Stock After</th><th>Location</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table></div>`:`<div class="log-empty">No box codes in this plan.</div>`}
-    ${renderSleevesNeeded(summary)}`;
+    ${renderSleevesNeeded(summary)}${renderTraysNeeded(summary)}`;
 }
 
 let planViewMode=(function(){try{return localStorage.getItem('wms_plan_view')||'code';}catch(e){return 'code';}})();
@@ -5620,6 +5635,25 @@ function renderPlanByLine(summary){
       <div style="overflow-x:auto"><table class="log-table plan-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join('');
 }
+/* 🍽 Trays needed (Nov 21): every retail pack = 1 tray + 1 sleeve, so the sleeves of Line 22 / 23 (GA: the Lxx_Prod
+   sheets) tell the trays: 2.5 oz sleeves → T2100, 5.3 oz → T2000. Pallet of Cryovac trays = 2,640. */
+function trayOfSleeve(code){const it=ITEMS.find(i=>i.code===code);const sfx=(String(code).match(/-(\d)$/)||[])[1]||(currentPlant==='GA'?'4':'1');
+  return (/2\.5\s*oz/i.test(it?it.name:'')?'T2100-':'T2000-')+sfx;}
+function renderTraysNeeded(summary){
+  if(!planData.sleeves||!planData.sleeves.length)return'';
+  const lines=(planData.meta&&planData.meta.sleeveLines&&planData.meta.sleeveLines.length)?planData.meta.sleeveLines:['Line 22','Line 23'];
+  const T={};planData.sleeves.forEach(s=>{const t=trayOfSleeve(s.code);const o=T[t]=T[t]||{code:t,by:{},total:0,sl:[]};
+    const byLine=s.lines||{'Line 22':s.line22,'Line 23':s.line23};lines.forEach(l=>{o.by[l]=(o.by[l]||0)+(+byLine[l]||0);});o.total+=s.total;o.sl.push(s.code.replace(/-\d$/,''));});
+  const rows=Object.values(T).sort((a,b)=>a.code.localeCompare(b.code)).map(t=>{const st=summary[t.code],q=st?st.qty:0,it=ITEMS.find(i=>i.code===t.code);
+    const left=q-t.total;
+    return `<tr><td style="font-weight:700;color:var(--accent2)">${poEsc(t.code)}</td><td style="color:var(--text2);font-size:11px">${poEsc(it?it.name:(t.code.startsWith('T2100')?'Tray 2.5 oz':'Tray 5.3 oz'))}<div class="ic-phys">from ${t.sl.join(', ')}</div></td>
+      ${lines.map(l=>`<td>${t.by[l]?t.by[l].toLocaleString():'—'}</td>`).join('')}
+      <td style="font-weight:700">${t.total.toLocaleString()}</td><td style="font-weight:700;color:var(--warn)">${(Math.round(t.total/2640*10)/10).toLocaleString()}</td>
+      <td>${q.toLocaleString()}</td><td style="font-weight:700;color:${left<0?'var(--danger)':'var(--success)'}">${left.toLocaleString()}</td></tr>`;}).join('');
+  return `<div class="plan-meta" style="margin-top:20px;font-weight:700;color:var(--text2);font-size:12px">🍽 Trays needed (1 tray per sleeve · 2.5 oz → T2100 · 5.3 oz → T2000 · 2,640 per pallet)</div>
+    <div style="overflow-x:auto"><table class="log-table plan-table">
+      <thead><tr><th>Tray</th><th>Description</th>${lines.map(l=>`<th>${l}</th>`).join('')}<th>Total trays</th><th>Pallets</th><th>Stock</th><th>Left after</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;}
 function renderSleevesNeeded(summary){
   if(!planData.sleeves||!planData.sleeves.length)return'';
   const lines=(planData.meta&&planData.meta.sleeveLines&&planData.meta.sleeveLines.length)?planData.meta.sleeveLines:['Line 22','Line 23'];
@@ -7872,7 +7906,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.21m';
+const APP_VERSION='2026.11.21p';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
