@@ -1134,6 +1134,22 @@
   .po-pending{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:color-mix(in srgb,#ff9500 14%,var(--surface));color:#9a5200;border-radius:14px;padding:10px 12px;margin-bottom:12px;font-size:13px;}
   .po-pending .po-btn{margin-left:auto;}
   .po-tag{display:inline-block;font-size:10px;font-weight:700;border-radius:8px;padding:2px 7px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);margin-right:4px;}
+  .chk-n{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#d93025;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;}
+  .chk-wrap{max-width:860px;margin:0 auto;padding:12px;}
+  .chk-top{display:flex;flex-direction:column;gap:3px;margin-bottom:12px;}.chk-top b{font-size:18px;}.chk-top span{font-size:13px;color:var(--text2);}
+  .chk-c{background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:5px solid #e8890c;}
+  .chk-h b{font-size:16px;}.chk-nm{color:var(--text3);font-size:13px;}
+  .chk-why{font-weight:700;color:#c76a00;margin:4px 0 8px;font-size:14px;}
+  .chk-g{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;}
+  .chk-g div{background:var(--surface2);border-radius:10px;padding:6px 8px;min-width:0;}
+  .chk-g span{display:block;font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .chk-g b{font-size:16px;}.chk-g i{display:block;font-style:normal;font-size:11.5px;color:#c76a00;font-weight:700;}
+  .chk-g .w{background:color-mix(in srgb,#ff9500 15%,transparent);}
+  @media(max-width:520px){.chk-g{grid-template-columns:repeat(3,minmax(0,1fr));}}
+  .chk-loc{font-size:13px;color:var(--accent);margin:8px 0;}
+  .chk-a{display:flex;flex-wrap:wrap;gap:8px;}
+  .chk-b{min-height:40px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-weight:700;font-size:13.5px;cursor:pointer;}
+  .chk-b.ok{border-color:var(--success);color:var(--success);}
   .po-x{font-size:12px;margin-top:3px;color:var(--text2);}
   .po-assign{margin:-6px 0 12px;padding:10px 12px;border-radius:0 0 12px 12px;background:color-mix(in srgb,#ff9500 12%,transparent);font-size:13px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
   .po-tag.warn{background:color-mix(in srgb,#ff9500 18%,transparent);color:#c76a00;}
@@ -1234,6 +1250,7 @@ try{
       <button class="nav-btn" onclick="setView('plan')">Daily Plan</button>
       <button class="nav-btn" onclick="setView('po')">Receiving</button>
       <button class="nav-btn" onclick="setView('log')">Log</button>
+      <button class="nav-btn" id="nav-check" onclick="setView('check')">🔎 Check</button>
     </div>
     <div class="sidebar-body">
       <div class="stat-grid">
@@ -1341,6 +1358,7 @@ try{
     <button class="bnav-btn" id="bnav-plan" onclick="setView('plan')"><span class="bnav-icon">📅</span>Plan</button>
     <button class="bnav-btn" id="bnav-po" onclick="setView('po')"><span class="bnav-icon">🚚</span>Receive</button>
     <button class="bnav-btn" id="bnav-log" onclick="setView('log')"><span class="bnav-icon">📋</span>Log</button>
+    <button class="bnav-btn" id="bnav-check" onclick="setView('check')"><span class="bnav-icon">🔎</span>Check</button>
   </div>
 </nav>
 
@@ -2771,11 +2789,11 @@ function setView(v){
   snapView(currentView);
   currentView=v;
   closeSidebar();
-  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['map','items','stats','plan','po','log'][i]===v));
-  document.getElementById('view-title').textContent={map:'Warehouse Map',items:'Item Inventory',locations:'Location Detail',stats:'Statistics',plan:'Daily Plan',po:'Receiving · Yooz POs',log:'Activity Log'}[v];
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['map','items','stats','plan','po','log','check'][i]===v));
+  document.getElementById('view-title').textContent={check:'Check counts',map:'Warehouse Map',items:'Item Inventory',locations:'Location Detail',stats:'Statistics',plan:'Daily Plan',po:'Receiving · Yooz POs',log:'Activity Log'}[v];
   document.getElementById('mode-tabs').classList.toggle('mode-tabs-off',v!=='map');
   
-  ['map','items','stats','plan','po','log'].forEach(tab=>{
+  ['map','items','stats','plan','po','log','check'].forEach(tab=>{
     const b=document.getElementById('bnav-'+tab);
     if(b)b.classList.toggle('active',tab===v);
   });
@@ -2862,6 +2880,7 @@ function _render(){
   else if(currentView==='plan')renderPlanView();
   else if(currentView==='po')renderPoView();
   else if(currentView==='log')renderLogView();
+  else if(currentView==='check')renderCheckView();
 }
 function refresh(){migrateGaLayout();calcStats();renderSidebar();render();}
 
@@ -3997,16 +4016,23 @@ function reorderRows(summary){
     // the balance wins when it makes sense (> 0); if it is ≤ 0, deliveries are missing in Yooz → the stretches
     const rate=bal!=null&&bal>0?Math.min(st,bal):st;
     return {rate,used,days:wd,pairs:n,skip,from:f0,to:fl,st,bal,rcvAll,wAll,how:bal!=null&&bal>0&&bal<st?'balance':'stretches'};};
-  // 🔎 recount: the last morning count looks wrong → listed so the counter checks it before 9 AM
-  const recount=(b,kind,rate)=>{if(!ch||!ch.days)return null;const ds=Object.keys(ch.days).sort();if(ds.length<2)return null;
+  // 🔎 check these counts (Nov 21): yesterday's count − what should be used + what arrived (Yooz received, Receiving) should
+  // be ≈ today's count. If not: 🔺 went up more than explained (a PO that was due may have come — mark it in Receiving),
+  // 🔻 dropped far more than the plan / usual use, ⏸ didn't move while it should have (was it counted?).
+  // Use expected: boxes/trays = Juan's plan average (rate), the rest = the usual use. The counter checks it; Eleni never sees it.
+  const recount=(b,kind,rate,pk,dueIn)=>{if(!ch||!ch.days)return null;const ds=Object.keys(ch.days).sort();if(ds.length<2)return null;
     const c=ds[ds.length-1],a=ds[ds.length-2];if((today-new Date(c+'T00:00:00'))/864e5>4)return null;   // only if the last copy is recent
     const qa=ch.days[a][b]||0,qc=ch.days[c][b]||0;
-    const got=Object.entries(rcvD[b]||{}).reduce((s2,[k,q])=>k>a&&k<=c?s2+q:s2,0);
+    const got=Object.entries(rcvD[b]||{}).reduce((s2,[k,q])=>k>a&&k<=c?s2+q:s2,0)+((fam[b]&&fam[b].rcv)||[]).filter(x=>{const k=String(x.ts).slice(0,10);return k>a&&k<=c;}).reduce((s2,x)=>s2+(+x.qty||0),0);
     let w=0;for(let d=new Date(a+'T12:00:00');ymd(d)<c;d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
-    const u=qa-qc+got;
-    if(u<0&&qc-qa>=1)return {why:'up',a,c,qa,qc,got};                                       // went up, nothing received in Yooz
-    if(kind!=='box'&&rate>0&&w>0&&u>Math.max(3*rate*w,rate*w+5))return {why:'big',a,c,qa,qc,got,u,exp:rate*w};
-    if(kind!=='box'&&rate>=0.5&&ds.length>=4){const l4=ds.slice(-4).map(k=>ch.days[k][b]||0);if(l4[0]>0&&l4.every(x=>x===l4[0]))return {why:'same',a:ds[ds.length-4],c,qa:l4[0],qc:l4[0]};}
+    const exp=rate>0?rate*Math.max(w,1):0,u=qa-qc+got,tol=Math.max(exp*0.5,pk||0,qa*0.03,2);
+    const pos=(dueIn||[]).filter(x=>x.late&&x.late>a&&x.late<=c);   // POs that were due in between and aren't marked received
+    const base={a,c,qa,qc,got,exp:Math.round(exp),u};
+    if(qc-(qa-exp+got)>tol&&qc>qa){const extra=qc-(qa-exp+got);
+      const po=pos.find(x=>Math.abs(x.qty-extra)<=Math.max(extra*0.35,pk||0));
+      return Object.assign(base,{why:'up',po:po?{po:po.po,qty:po.qty}:null});}
+    if(rate>0&&w>0&&u>Math.max(kind==='box'?2.5*exp:3*exp,exp+tol))return Object.assign(base,{why:'big'});
+    if(rate>0&&w>0&&qa>0&&qa===qc&&!got&&exp>=Math.max(1,qa*0.08)&&exp<=qa)return Object.assign(base,{why:'same'});
     return null;};
   // POs marked "created" or with a changed quantity (shared): they count as coming, so they are not suggested again
   const marks=loadReoMarks(),yzAt=yz&&yz.loaded?new Date(yz.loaded).getTime():0;
@@ -4131,7 +4157,7 @@ function reorderRows(summary){
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
       use:hist,rate,have:f.stock+open,L:P90,Lavg,ptot,dmp,pack:pk?{p:pk.p,d:pk.d||0,pal:pk.pal||0,u:pk.u||'boxes'}:null,
       planEnd:dm&&ptot?dm.end:'',name:it?it.name:main.descr};
-    r.recount=recount(f.base,kind,pbT?pbT.avg:(iu?iu.rate:rate));
+    r.recount=recount(f.base,kind,pbT?pbT.avg:(iu?iu.rate:(kind==='box'?rate*7/5:rate)),(packFor(f.base,main.vendor)||{}).p||0,(inc[f.base]||[]).filter(x=>x.stale&&!x.partial));
     const no=REO_NO_ORDER.find(x=>x[0].test(f.base));if(no){r.st='none';r.noOrder=no[1];return r;}
     if(reoNotNeeded(f.base,cfg)){r.st='none';r.notNeeded=true;return r;}   // 🚫 "Not needed here" (set by hand, or off by default in this plant)   // e.g. blue gloves L / S: we only order XL
     if(!(rate>0||ptot>0)){r.st='none';return r;}
@@ -4728,6 +4754,7 @@ async function bgRefreshAll(first){
   if(first)await step(()=>syncReceiptsFromSP(false));
   if(cntHistOld()&&!cntFetch.busy&&Date.now()-(cntFetch.tried||0)>20*60000)await step(()=>loadCntHistFromFlow());
   try{renderLiveBar();}catch(e){}
+  try{chkCompute();}catch(e){}
 }
 setInterval(()=>{if(document.visibilityState==='visible')bgRefreshAll(false);},10*60000);
 // the planning file: look again once an hour on ANY screen (Reorder too), so plan changes show up during the day
@@ -6037,12 +6064,58 @@ function rcvMarksRefresh(){if(!PLAN_READ_URL||Date.now()-_rcvMarksAt<5*60000)ret
    locs: where each item is (first spot in the walking order of the map) → count route
    sups: supplier scorecard — POs, on time %, real days (Yooz, 12 months) + short / different deliveries in Receiving (30 days)
    mk:   what was marked in Next POs in the last 7 days (pilot) */
+/* ---------- 🔎 Check counts (Nov 21) — in the inventory, where the counters work (NJ and GA) ----------
+   For each item: last morning count − what should have been used (Juan's plan / Power BI / usual use) + what arrived
+   (Yooz received, Receiving) = what today's count should be. Listed only when it doesn't add up: went up more than
+   explained (a PO that was due may have come), dropped far more, or didn't move. In walking order (map). */
+let _chk={rows:null,at:0,n:0};
+function chkOkKey(){return 'reo_cntok_'+currentPlant;}
+function chkOk(r){try{const o=JSON.parse(localStorage.getItem(chkOkKey())||'{}');return !!(r.recount&&o[r.base]===r.recount.c);}catch(e){return false;}}
+function chkCompute(){try{if(!loadLeadTime())return null;const rows=reorderRows(getItemSummary()).filter(r=>r.recount&&!chkOk(r));
+    const L=reoLocs();rows.forEach(r=>r._loc=L[r.base]||null);rows.sort((a,b)=>(a._loc?a._loc.k:9e9)-(b._loc?b._loc.k:9e9));
+    _chk={rows,at:Date.now(),n:rows.length};}catch(e){console.error(e);_chk={rows:[],at:Date.now(),n:0};}
+  chkBadge();return _chk.rows;}
+function chkBadge(){const n=_chk.n||0;['nav-check','bnav-check'].forEach(id=>{const b=document.getElementById(id);if(!b)return;
+  const t=id==='nav-check'?'🔎 Check':'<span class="bnav-icon">🔎</span>Check';b.innerHTML=t+(n?` <span class="chk-n">${n}</span>`:'');});}
+function chkSetOk(base){const r=(_chk.rows||[]).find(x=>x.base===base);if(!r)return;
+  try{const o=JSON.parse(localStorage.getItem(chkOkKey())||'{}');o[base]=r.recount.c;localStorage.setItem(chkOkKey(),JSON.stringify(o));}catch(e){}
+  showToast('✓ '+base+': count is right','success');chkCompute();renderCheckView();}
+function chkGo(id){if(!id)return;setView('map');setTimeout(()=>{try{openModal(id);}catch(e){}},120);}
+function renderCheckView(){const el=document.getElementById('main-content');
+  const h=loadCntHist();if(!h||!h.days||Object.keys(h.days).length<2){
+    el.innerHTML=`<div class="chk-wrap"><div class="po-empty">🔎 Loading the morning counts… (they are saved after 10 AM)</div></div>`;
+    if(!cntFetch.busy)loadCntHistFromFlow().then(()=>{if(currentView==='check'){chkCompute();renderCheckView();}}).catch(()=>{});return;}
+  const rows=(_chk.rows&&Date.now()-_chk.at<5*60e3)?_chk.rows:chkCompute();
+  if(rows==null){el.innerHTML=`<div class="chk-wrap"><div class="po-empty">🔎 Needs the lead-time data first — open Next POs once and come back.</div></div>`;return;}
+  const U=b=>{const it=ITEMS.find(i=>i.code===b);return it&&it.unit?' '+it.unit:'';};
+  const dd=k=>{const d=new Date(k+'T12:00:00');return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate();};
+  const card=r=>{const c=r.recount,sh=Math.max(0,Math.round(c.qa-c.exp+c.got)),df=c.qc-sh,u=U(r.base);
+    const N=x=>Math.round(Math.abs(x)).toLocaleString();
+    const why=c.why==='up'?`🔺 ${N(df)} more than expected${c.po?` — PO ${poEsc(c.po.po)} (${N(c.po.qty)}) was due and may have come`:c.got?'':' — no delivery recorded'}`
+      :c.why==='big'?(c.got>0&&c.qc<=c.qa?`📦 ${N(c.got)} arrived (Receiving / Yooz) but the count didn't go up — was it counted?`:`🔻 ${N(df)} less than expected — dropped ${N(c.qa+c.got-c.qc)}, ~${N(c.exp)} expected`)
+      :`⏸ Didn't move — ~${N(c.exp)} expected to be used. Was it counted?`;
+    const src=r.kind==='box'?"Juan's plan":r.pbi?'Power BI':'usual use';
+    return `<div class="chk-c"><div class="chk-h"><b>${poEsc(r.base)}</b> <span class="chk-nm">${poEsc(r.name||'')}</span></div>
+      <div class="chk-why">${why}</div>
+      <div class="chk-g">
+        <div><span>${dd(c.a)} count</span><b>${c.qa.toLocaleString()}</b></div>
+        <div><span>− used (${src})</span><b>${c.exp.toLocaleString()}</b></div>
+        <div><span>+ arrived</span><b>${Math.round(c.got).toLocaleString()}</b></div>
+        <div><span>= should be</span><b>${sh.toLocaleString()}</b></div>
+        <div class="w"><span>${dd(c.c)} count</span><b>${c.qc.toLocaleString()}</b><i>${df>0?'+':''}${df.toLocaleString()}${u}</i></div>
+      </div>
+      <div class="chk-loc">📍 ${r._loc?poEsc(r._loc.l)+(r._loc.n>1?` (+${r._loc.n-1} more spot${r._loc.n>2?'s':''})`:''):'not on the map'}</div>
+      <div class="chk-a"><button class="chk-b ok" onclick="chkSetOk('${poEsc(r.base)}')">✓ The count is right</button>
+        ${c.why==='up'?`<button class="chk-b" onclick="openReceiving('${currentPlant}')">🚚 A truck came → Receiving</button>`:''}
+        ${r._loc?`<button class="chk-b" onclick="chkGo('${poEsc(r._loc.id)}')">📍 Go to the spot</button>`:''}</div></div>`;};
+  el.innerHTML=`<div class="chk-wrap"><div class="chk-top"><b>🔎 Check counts · ${currentPlant}</b><span>Last count − what should be used + what arrived = what today's count should be. Only the ones that don't add up, in walking order.</span></div>
+    ${rows.length?rows.map(card).join(''):'<div class="po-empty">✓ All counts add up.</div>'}</div>`;}
 function reoLocs(){const out={},ak=Object.keys(AREAS||{});
   try{Object.entries(inventory||{}).forEach(([id,occ])=>{const p=String(id).split('|'),ai=ak.indexOf(p[0]);
     occItems(occ).forEach(x=>{const c=reoBase(x.item);const k=[ai<0?99:ai,+(p[1]||0),+(p[2]||0),String(p[3]||p[1]||'')];
       const lbl=p.length>2?`${p[0]} · S${p[1]} T${p[2]} ${p[3]}`:`${p[0]} ${p[1]||''}`;
       const cur=out[c];const key=k[0]*1e6+k[1]*1e3+k[2];
-      if(!cur||key<cur.k)out[c]={k:key,l:lbl,n:(cur?cur.n:0)+1};else cur.n++;});});}catch(e){}
+      if(!cur||key<cur.k)out[c]={k:key,l:lbl,id,n:(cur?cur.n:0)+1};else cur.n++;});});}catch(e){}
   return out;}
 function reoSupStats(){const out={};
   try{((loadLeadTime()||{}).rows||[]).filter(r=>r.plant===currentPlant&&!r.manual).forEach(r=>{const v=potVendor(r.vendor);const o=out[v]=out[v]||{v,pos:0,ot:0,otN:0,lt:0,ltN:0,p90:0,items:0,short:0,rcv:0};
@@ -7799,7 +7872,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.21i';
+const APP_VERSION='2026.11.21m';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
