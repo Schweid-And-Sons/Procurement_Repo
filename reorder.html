@@ -272,7 +272,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21s</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21t</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -1046,7 +1046,7 @@ function estSection(){const rows=((data&&data.rows)||[]).filter(r=>r.est);
   const sub=rows.length?`${estAge(rows)?(estAge(rows).c==='r'?'🔴':'🟡'):'📐'} in use · last count ${dShort(rows[0].est.at)} — the orders above use the estimate`:"✓ today's count is in — orders use the real count";
   const list=rows.slice().sort((a,b)=>({red:0,amber:1}[a.st]??2)-({red:0,amber:1}[b.st]??2)).map(r=>{const e=r.est,u=esc(unitOf(r)||'');
     return `<div class="es-r"><div><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span></div>
-      <div class="es-f"><span>${n0(e.real)}<i>count ${dShort(e.at)}</i></span><span>+ ${n0(e.got||0)}<i>received</i></span><span>− ${n0(e.used)}<i>used · ${e.days} day${e.days>1?'s':''}</i></span><span class="eq">= ${n0(r.stock)}<i>${u} now</i></span></div>
+      <div class="es-f"><span>${n0(e.real)}<i>${e.base==='screen'?'stock left':'count'} ${dShort(e.at)}</i></span><span>+ ${n0(e.got||0)}<i>received</i></span><span>− ${n0(e.used)}<i>used · ${e.days} day${e.days>1?'s':''}</i></span><span class="eq">= ${n0(r.stock)}<i>${u} now</i></span></div>
       <div class="mut" style="font-size:12px">use from ${esc(e.src||'')}${e.live!=null&&Math.round(e.live)!==Math.round(e.real)?' · on the screen now: '+n0(e.live):''}</div></div>`;}).join('');
   const t0=ymdL(new Date()),cd=(data.cfg&&data.cfg.cntDay&&data.cfg.cntDay.day===t0)?data.cfg.cntDay.done:null;
   const auto=!!(data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString()),isDone=cd==null?auto:cd;

@@ -4163,16 +4163,20 @@ function reorderRows(summary){
       const sa=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT):null,autoDone=!!(sa&&!isNaN(sa)&&ymd(sa)===ymd(today));
       const done=ov!=null?ov:autoDone;
       if(!done&&window.REO_STOCK_AT!==undefined){
+        // base = the newest of: the last morning copy, or the screen as it was left (last real change, e.g. Friday afternoon).
+        // An item missing from the copy is NOT zero — then the screen is used (Nov 21: a missing item made a huge order).
         const ks=ch&&ch.days?Object.keys(ch.days).filter(k=>k<ymd(today)).sort():[];const k=ks[ks.length-1];
-        const base0=k?(+ch.days[k][f.base]||0):null,from=k||(sa&&!isNaN(sa)?ymd(sa):null);
-        if(from!=null){const real=base0!=null?base0:f.stock;
+        const liveDay=sa&&!isNaN(sa)?ymd(sa):null,inCopy=k&&ch.days[k]&&Object.prototype.hasOwnProperty.call(ch.days[k],f.base);
+        const useLive=liveDay&&(!k||liveDay>=k||!inCopy);
+        const from=useLive?liveDay:k;
+        if(from!=null){const real=useLive?f.stock:(+ch.days[k][f.base]||0);
           let w=0;for(let d=new Date(from+'T12:00:00');ymd(d)<ymd(today);d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
           const pdn=Object.values(pday).filter(v=>v>0).length,rW=kind!=='inv'&&ptot>0&&pdn?ptot/pdn:rate*7/5;
-          const after=new Date(from+'T09:00:00').toISOString();let got=0;
+          const after=useLive?sa.toISOString():new Date(from+'T09:00:00').toISOString();let got=0;   // received after the base (not put away in it yet)
           try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||String(x.ts||'')<=after)return;
             (x.lines||[]).forEach(l=>{if(reoBase(l.code)!==f.base)return;const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;if(q>0)got+=toUnits(l.code,q);});});}catch(e){}
           const used=Math.min(real+got,Math.max(0,rW*w));
-          est={real,at:from,days:w,used:Math.round(used),got:Math.round(got),live:f.stock,hand:ov!=null,
+          est={real,at:from,days:w,used:Math.round(used),got:Math.round(got),live:f.stock,hand:ov!=null,base:useLive?'screen':'copy',
             src:kind==='box'?"Juan's plan":kind==='tray'?(pbT?"Line 22/23 + Power BI":"Juan's plan / Line 22-23"):'usual use'};
           f.stock=Math.max(0,Math.round(real-used+got));}}}
     const r={est,kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale,partial:!!x.partial,ord:x.ord||0,rec:x.rec||0})),
@@ -7921,7 +7925,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.21s';
+const APP_VERSION='2026.11.21t';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
