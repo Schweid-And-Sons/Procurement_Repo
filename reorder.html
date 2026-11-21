@@ -272,7 +272,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21q</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.21s</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -652,7 +652,7 @@ function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const lp=Object.values(LP).sort((a,b)=>a.eta.localeCompare(b.eta));
   const lpw=lp.length?`<div class="ob-w">🚚 <b>${lp.length} PO${lp.length>1?'s were':' was'} due and ${lp.length>1?'are':'is'} not verified</b> — we don't know if ${lp.length>1?'they are':'it is'} in the inventory. Verify before ordering.
     <details class="ob-l" style="margin:6px 0 0"><summary>See which ▾</summary>${lp.map(x=>`<div class="ob-it" style="font-size:13px"><b>${esc(x.po)}</b>${x.sup?' · '+esc(x.sup):''} · due ${dShort(x.eta)}<br><span class="mut">${x.ls.join(' · ')}</span></div>`).join('')}</details></div>`:'';
-  const warn=lpw+(!today?`<div class="ob-w">⚠ <b>Today's inventory count isn't in yet</b> — on hand is <b>📐 estimated</b> (last count + what was received − the use of the work days since then). See “No count today?” below. Order after the count, or check the numbers.</div>`:'');
+  const warn=lpw+(!today?`<div class="ob-w">⚠ <b>Today's inventory count isn't in yet</b> — on hand is <b>📐 estimated</b> (last count + what was received − the use of the work days since then). See “No count today?” below. Order after the count, or check the numbers.${(()=>{const er=rows.filter(r=>r.est);const a=er.length?estAge(er):null;return a?'<br><b>'+a.t+'</b>':'';})()}</div>`:'');
   const grp=(g)=>{const gi=all.indexOf(g),ls=g.lines,open=ls.filter(x=>!x.o.done&&!x.o.pending),pend=ls.filter(x=>x.o.pending),pal=palSum(g);
     const pos=[...new Set(ls.map(x=>x.o.po).filter(Boolean))],po=pos[0]||'';
     const st=open.length||pend.length?'todo':!po?'nopo':!trk.has(po.toUpperCase())?'notrk':'done';
@@ -1037,13 +1037,17 @@ function cntDoneToday(){const auto=!!(data&&data.stockAt&&new Date(data.stockAt)
 /* today's count done / not done — by hand when the app can't tell (a Saturday with a partial count, etc.). Shared, PIN */
 function setCntDay(done){const c=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));
   c.cntDay={day:ymdL(new Date()),done};withPin(()=>{sendSave({type:'wms-reorder-cfg',cfg:c});toast(done?"✓ Today's count: done — orders use the real count":"📐 Today's count: not done — orders use the estimate");});}
+/* how old the base count is (work days): 1–2 fine · 3–5 check the big items · 6+ rough */
+function estAge(rows){const d=Math.max(0,...rows.map(r=>r.est.days||0));
+  return d>=6?{c:'r',t:`🔴 The last count was ${d} work days ago — the estimate is rough. Count the items you're about to order.`}
+    :d>=3?{c:'o',t:`🟡 The last count was ${d} work days ago — check the big items before ordering.`}:null;}
 function estSection(){const rows=((data&&data.rows)||[]).filter(r=>r.est);
   const today=cntDoneToday();
-  const sub=rows.length?`📐 in use · last count ${dShort(rows[0].est.at)} — the orders above use the estimate`:"✓ today's count is in — orders use the real count";
+  const sub=rows.length?`${estAge(rows)?(estAge(rows).c==='r'?'🔴':'🟡'):'📐'} in use · last count ${dShort(rows[0].est.at)} — the orders above use the estimate`:"✓ today's count is in — orders use the real count";
   const list=rows.slice().sort((a,b)=>({red:0,amber:1}[a.st]??2)-({red:0,amber:1}[b.st]??2)).map(r=>{const e=r.est,u=esc(unitOf(r)||'');
     return `<div class="es-r"><div><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span></div>
       <div class="es-f"><span>${n0(e.real)}<i>count ${dShort(e.at)}</i></span><span>+ ${n0(e.got||0)}<i>received</i></span><span>− ${n0(e.used)}<i>used · ${e.days} day${e.days>1?'s':''}</i></span><span class="eq">= ${n0(r.stock)}<i>${u} now</i></span></div>
-      <div class="mut" style="font-size:12px">use from ${esc(e.src||'')}</div></div>`;}).join('');
+      <div class="mut" style="font-size:12px">use from ${esc(e.src||'')}${e.live!=null&&Math.round(e.live)!==Math.round(e.real)?' · on the screen now: '+n0(e.live):''}</div></div>`;}).join('');
   const t0=ymdL(new Date()),cd=(data.cfg&&data.cfg.cntDay&&data.cfg.cntDay.day===t0)?data.cfg.cntDay.done:null;
   const auto=!!(data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString()),isDone=cd==null?auto:cd;
   const sw=`<div class="es-sw"><span>Today's count:</span>
@@ -1053,6 +1057,7 @@ function estSection(){const rows=((data&&data.rows)||[]).filter(r=>r.est);
     <div class="hint" style="margin:0 6px 8px">When the morning count can't be done (day off, sick…), the app estimates each item:
       <b>last count + what shipping received in Receiving − what was used</b> (Juan's plan / Line 22-23 for boxes, sleeves and trays; the usual use for the rest).
       It only works well if <b>Eleni marks the POs as created</b> and <b>shipping marks what arrived in Receiving</b>. The real count replaces it as soon as it's in.</div>
+    ${rows.length&&estAge(rows)?`<div class="ob-w" style="margin:0 6px 10px${estAge(rows).c==='r'?';border-color:var(--danger);color:var(--danger)':''}">${estAge(rows).t}</div>`:''}
     ${rows.length?`<div class="rl" style="padding:4px 10px">${list}</div>`:''}</details>`;}
 let okOpen=false;
 /* 🧭 count route: items in the order you walk the map (first spot of each item) */

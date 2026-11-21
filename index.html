@@ -4156,17 +4156,25 @@ function reorderRows(summary){
     // count-based items are not in Juan's plan: their use starts today, not after the plan's last day (Nov 20: before,
     // the plan days counted as 0 use for gloves, bags, tape, patty paper, film, sleeves)
     let Hd=kind==='inv'?0:H;if(pbT){rate=pbT.avg*5/7;capped=false;let last=-1;for(let i=0;i<H;i++)if((pday[ymd(new Date(today.getTime()+i*864e5))]||0)>0)last=i;Hd=last+1;}
-    // 📐 no count today yet (e.g. Saturday / Monday before the count): stock = last update − use of the work days since then
-    let est=null;{const sa=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT):null;
-      const ov=(cfg&&cfg.cntDay&&cfg.cntDay.day===ymd(today))?cfg.cntDay.done:null;
-      if(sa&&!isNaN(sa)&&(ov===false||(ov!==true&&ymd(sa)<ymd(today)))){let w=0;for(let d=new Date(sa);ymd(d)<ymd(today);d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
-        const pdn=Object.values(pday).filter(v=>v>0).length,rW=kind!=='inv'&&ptot>0&&pdn?ptot/pdn:rate*7/5;
-        // + what shipping received in Receiving after that count (not put in the count yet)
-        let got=0;try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||String(x.ts||'')<=sa.toISOString())return;
-          (x.lines||[]).forEach(l=>{if(reoBase(l.code)!==f.base)return;const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;if(q>0)got+=toUnits(l.code,q);});});}catch(e){}
-        if((w>0&&rW>0)||got>0){const used=Math.min(f.stock+got,rW*w);
-          est={real:f.stock,at:ymd(sa),days:w,used:Math.round(used),got:Math.round(got),src:kind==='box'?"Juan's plan":kind==='tray'?(pbT?"Line 22/23 + Power BI":"Juan's plan / Line 22-23"):'usual use'};
-          f.stock=Math.max(0,Math.round(f.stock-used+got));}}}
+    // 📐 no count today (Nov 21): start from the LAST MORNING COUNT saved (Before 9am copy, not the live screen — opening
+    // the app or a few moves don't make a count) + what shipping received in Receiving after it − the use of the work
+    // days since. Used when today's count isn't done: by itself (no real change in the stock today) or set by hand.
+    let est=null;{const ov=(cfg&&cfg.cntDay&&cfg.cntDay.day===ymd(today))?cfg.cntDay.done:null;
+      const sa=window.REO_STOCK_AT?new Date(window.REO_STOCK_AT):null,autoDone=!!(sa&&!isNaN(sa)&&ymd(sa)===ymd(today));
+      const done=ov!=null?ov:autoDone;
+      if(!done&&window.REO_STOCK_AT!==undefined){
+        const ks=ch&&ch.days?Object.keys(ch.days).filter(k=>k<ymd(today)).sort():[];const k=ks[ks.length-1];
+        const base0=k?(+ch.days[k][f.base]||0):null,from=k||(sa&&!isNaN(sa)?ymd(sa):null);
+        if(from!=null){const real=base0!=null?base0:f.stock;
+          let w=0;for(let d=new Date(from+'T12:00:00');ymd(d)<ymd(today);d.setDate(d.getDate()+1))if(isWork(ymd(d)))w++;
+          const pdn=Object.values(pday).filter(v=>v>0).length,rW=kind!=='inv'&&ptot>0&&pdn?ptot/pdn:rate*7/5;
+          const after=new Date(from+'T09:00:00').toISOString();let got=0;
+          try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||String(x.ts||'')<=after)return;
+            (x.lines||[]).forEach(l=>{if(reoBase(l.code)!==f.base)return;const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;if(q>0)got+=toUnits(l.code,q);});});}catch(e){}
+          const used=Math.min(real+got,Math.max(0,rW*w));
+          est={real,at:from,days:w,used:Math.round(used),got:Math.round(got),live:f.stock,hand:ov!=null,
+            src:kind==='box'?"Juan's plan":kind==='tray'?(pbT?"Line 22/23 + Power BI":"Juan's plan / Line 22-23"):'usual use'};
+          f.stock=Math.max(0,Math.round(real-used+got));}}}
     const r={est,kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale,partial:!!x.partial,ord:x.ord||0,rec:x.rec||0})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
@@ -7913,7 +7921,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.21q';
+const APP_VERSION='2026.11.21s';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
