@@ -5555,36 +5555,41 @@ function renderPlanView(){
     return;
   }
   const summary=getItemSummary();
-  const items=planData.items;
-  let totalNeeded=0,totalDelivered=0,noStockCount=0,shortCount=0,doneCount=0;
-  const rowsHtml=items.map(it=>{
-    totalNeeded+=it.needed;totalDelivered+=it.delivered;
-    const remaining=it.needed-it.delivered;
-    const ps=planStock(it.code,summary);
-    const stockQty=ps.qty;
-    const stockAfter=stockQty-it.needed;
+  // Nov 23 (Julian): no more "Delivered". Each box: what production asks · what we have · what is left after giving it all.
+  // Negative = we are short. Short boxes always go first (no substitute on top); a substitute shows what it can really
+  // spare = its stock − what today's plan needs of it.
+  const needOf={};planData.items.forEach(x=>needOf[x.code]=(needOf[x.code]||0)+(+x.needed||0));
+  const subFor=code=>{const b0=String(code).replace(/PCA/,'').replace(/-\d+$/,''),sf=(String(code).match(/-\d+$/)||['-1'])[0];
+    const e=(typeof SUBSTITUTIONS!=='undefined'?SUBSTITUTIONS:[]).find(x=>x.code===b0);if(!e||!e.sub)return [];
+    return (String(e.sub).match(/\(BX\w+\)/g)||[]).map(m=>m.slice(1,-1)).filter(c=>c!==b0).map(c=>{const sc=c+sf,have=planStock(sc,summary).qty;
+      return {c:sc,have,free:Math.max(0,have-(needOf[sc]||0))};});};
+  const items=planData.items.map(it=>{const ps=planStock(it.code,summary);return {it,ps,after:ps.qty-it.needed,subs:[]};});
+  items.forEach(x=>{if(x.after<0)x.subs=subFor(x.it.code);});
+  items.sort((a,b)=>((b.after<0)-(a.after<0))||((a.after<0&&b.after<0)?((!a.subs.length?0:1)-(!b.subs.length?0:1))||(a.after-b.after):0));
+  let totalNeeded=0,totalStock=0,noStockCount=0,shortCount=0,doneCount=0,shortQty=0;
+  const rowsHtml=items.map(({it,ps,after,subs})=>{
+    totalNeeded+=it.needed;totalStock+=Math.max(0,ps.qty);
+    const stockQty=ps.qty,short=after<0;
     const locTxt=ps.locs.length?ps.locs.join(', '):'<span style="color:var(--danger)">No stock</span>';
     if(!ps.locs.length)noStockCount++;
-    if(stockAfter<0)shortCount++;
-    const remCls=remaining<0?'plan-rem-over':remaining===0?'plan-rem-ok':'plan-rem-pending';
-    const stockAfterCls=stockAfter<0?'plan-rem-pending':'plan-rem-ok';
+    if(short){shortCount++;shortQty+=-after;}
     const equivNote=ps.note?`<div style="font-size:9px;color:var(--warn)">${ps.note}</div>`:'';
+    const subTxt=short?(subs.length?`<div style="font-size:10px;color:var(--warn);font-weight:600">🔄 sub ${subs.map(x=>poEsc(x.c)+': '+x.have.toLocaleString()+' on hand · '+x.free.toLocaleString()+' available').join(' / ')}</div>`
+      :`<div style="font-size:10px;color:var(--danger);font-weight:700">no substitute</div>`):'';
     if(it.done)doneCount++;
-    return `<tr class="${it.done?'plan-row-done':''}">
+    return `<tr class="${it.done?'plan-row-done':''}"${short?' style="box-shadow:inset 4px 0 0 var(--danger)"':''}>
       <td><button class="plan-check${it.done?' on':''}" onclick="togglePlanDone('b','${jsArg(it.code)}')" title="Mark ready">${it.done?'✓':''}</button></td>
       <td style="font-weight:700;color:var(--accent2)">${poEsc(it.code)}</td>
-      <td style="color:var(--text2);font-size:11px">${poEsc(it.desc)}</td>
+      <td style="color:var(--text2);font-size:11px">${poEsc(it.desc)}${subTxt}</td>
       <td>${it.needed.toLocaleString()}</td>
-      <td><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" class="plan-delivered-input" value="${it.delivered}" onfocus="this.select()" onchange="updatePlanDelivered('${it.code}',this.value)"></td>
-      <td class="${remCls}">${remaining.toLocaleString()}</td>
       <td>${stockQty.toLocaleString()}${equivNote}</td>
-      <td class="${stockAfterCls}">${stockAfter.toLocaleString()}</td>
+      <td class="${short?'plan-rem-pending':'plan-rem-ok'}" style="font-weight:700">${after.toLocaleString()}${short?'<div style="font-size:9px">short</div>':''}</td>
       <td style="font-size:10px;color:var(--text3)">${locTxt}</td>
     </tr>`;
   }).join('');
   const alertParts=[];
   if(noStockCount)alertParts.push(noStockCount+' code'+(noStockCount>1?'s':'')+' with no stock');
-  if(shortCount)alertParts.push(shortCount+' code'+(shortCount>1?'s':'')+' won\'t cover full need');
+  if(shortCount)alertParts.push(shortCount+' code'+(shortCount>1?'s':'')+' short (negative “Left after”) — listed first');
   const alertBanner=alertParts.length?`<div class="plan-alert">⚠ ${alertParts.join(' · ')}</div>`:'';
   const importedDate=new Date(planData.importedAt).toLocaleString('en-US',{month:'numeric',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
   document.getElementById('main-content').innerHTML=`
@@ -5605,16 +5610,15 @@ function renderPlanView(){
     <div class="stat-grid" style="margin-bottom:14px;grid-template-columns:repeat(auto-fit,minmax(100px,1fr))">
       <div class="stat"><div class="stat-num">${items.length}</div><div class="stat-lbl">Box Codes</div></div>
       <div class="stat"><div class="stat-num" style="color:var(--success)">${doneCount}/${items.length}</div><div class="stat-lbl">Ready ✓</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--warn)">${totalNeeded.toLocaleString()}</div><div class="stat-lbl">Needed (Total)</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--success)">${totalDelivered.toLocaleString()}</div><div class="stat-lbl">Delivered (Total)</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--danger)">${(totalNeeded-totalDelivered).toLocaleString()}</div><div class="stat-lbl">Remaining (Total)</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--warn)">${totalNeeded.toLocaleString()}</div><div class="stat-lbl">Production asks</div></div>
+      <div class="stat"><div class="stat-num" style="color:${shortCount?'var(--danger)':'var(--success)'}">${shortCount?shortCount:'✓'}</div><div class="stat-lbl">${shortCount?'Short · −'+shortQty.toLocaleString():'Nothing short'}</div></div>
     </div>
     <div class="stats-subtabs" style="margin-bottom:10px">
       <button class="stats-subtab${planViewMode!=='line'?' active':''}" onclick="setPlanViewMode('code')">📦 By box code</button>
       <button class="stats-subtab${planViewMode==='line'?' active':''}" onclick="setPlanViewMode('line')">🏭 By line</button>
     </div>
     ${planViewMode==='line'?renderPlanByLine(summary):items.length?`<div style="overflow-x:auto"><table class="log-table plan-table">
-      <thead><tr><th>✓</th><th>Code</th><th>Description</th><th>Needed</th><th>Delivered</th><th>Remaining</th><th>Stock</th><th>Stock After</th><th>Location</th></tr></thead>
+      <thead><tr><th>✓</th><th>Code</th><th>Description</th><th>Asks</th><th>We have</th><th>Left after</th><th>Location</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table></div>`:`<div class="log-empty">No box codes in this plan.</div>`}
     ${renderSleevesNeeded(summary)}${renderTraysNeeded(summary)}`;
@@ -7940,7 +7944,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.21u';
+const APP_VERSION='2026.11.23b';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -8010,7 +8014,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        stockAt:shared?shared.at:0,cntN:window.REO_CNT_N||0,cntMin:CNT_MIN,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
+        subs:(()=>{const o={};try{SUBSTITUTIONS.forEach(x=>{o[x.code]=x.sub?(String(x.sub).match(/\(BX\w+\)/g)||[]).map(m=>m.slice(1,-1)):null;});}catch(e){}return o;})(),stockAt:shared?shared.at:0,cntN:window.REO_CNT_N||0,cntMin:CNT_MIN,liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
         times:Object.assign({},times)};};
     const old=(o,ms)=>!o||Date.now()-new Date(o.loaded).getTime()>ms;
     const collect=async(force,send)=>{
