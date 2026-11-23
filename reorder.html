@@ -283,7 +283,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.23f</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.23i</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -396,7 +396,7 @@ const inCat=r=>cat==='ALL'||catOf(r)===cat;
 const unitOf=r=>(r.pack&&r.pack.u)||(catOf(r)==='BOXES'?'boxes':'cases');   // Julian counts everything else in cases (Nov 19)
 /* "~1,500 boxes · 3 pallets" */
 function qtyTxt(r,qty,pal){let u=unitOf(r);if(u==='pallets'&&Math.round(qty)===1)u='pallet';let t='~'+n0(qty)+(u?' '+u:'');
-  if(pal&&!/^pallet/.test(u))t+=' · '+pal+' pallet'+(pal>1?'s':'');return t;}
+  if(pal&&!/^pallet/.test(u)){const p=Math.round(pal*10)/10,pt=Number.isInteger(p)?n0(p):'~'+n1(p);t+=' · '+pt+' pallet'+(p>1?'s':'');}return t;}   // Nov 23: 9.7222… pallets
 function setCat(c){cat=c;const k=counts();if(tab==='now'&&!k.red)tab=k.amber?'week':'all';render();}
 const addDays=n=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d;};
 /* POs placed and arriving the same day are one delivery: show them together */
@@ -671,17 +671,15 @@ function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
     const btn=st==='todo'?`<button class="ob-b" onclick="event.stopPropagation();poAll(${gi},'done')">✅ Mark as created</button>`
       :st==='nopo'?`<button class="ob-b2" onclick="event.stopPropagation();addPoNum(${gi})">＃ Add Yooz PO #</button>`
       :st==='notrk'?`<span class="ob-s">📋 Put <b>${esc(po)}</b> in the PO Tracker</span>`:`<span class="ob-s ok">✓ ${esc(po)} · in the tracker</span>`;
-    const tw=ls.filter(x=>truckWait(x.r)),to=((data.tonly)||[]).filter(x=>vKey(x.sup)===g.k);
-    const items=ls.map(({r,o})=>`<details class="ob-it"><summary><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span><span class="ob-q">${qtyTxt(r,o.qty,o.pallets)}${o.rush?' · <b style="color:var(--danger)">rush</b>':''}${o.done?' ✅':o.pending?' ⏳':''}</span></summary>
-      <div class="ob-x">${dlTxt(o)}${o.rush?' — ask for the earliest delivery':''}${truckTxt(r)}${weekStrip(r)}</div></details>`).join('');
-    const OH={};ls.forEach(({r,o})=>{const x=OH[r.base]||(OH[r.base]={r,q:0,rq:0});x.q+=+o.qty||0;if(o.rush)x.rq+=+o.qty||0;});const ohL=Object.values(OH);
+    // Nov 23 (Julian): only what to order now — one line per item (rush + normal together). Everything else (on hand,
+    // delivery days, the week) opens on tap; trucks to verify stay in the alert at the top and in By item.
+    const OH={};ls.forEach(({r,o})=>{const x=OH[r.base]||(OH[r.base]={r,q:0,rq:0,pal:0,os:[]});x.q+=+o.qty||0;if(o.rush)x.rq+=+o.qty||0;x.pal+=+o.pallets||0;x.os.push(o);});const ohL=Object.values(OH);
+    const items=ohL.map(({r,q,rq,pal,os})=>{const d=r.dbar>0?r.stock/r.dbar:null;
+      return `<details class="ob-it"><summary><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span><span class="ob-q">${qtyTxt(r,q,pal||undefined)}${rq?' · <b style="color:var(--danger)">rush</b>':''}${os.every(o=>o.done)?' ✅':os.some(o=>o.pending)?' ⏳':''}</span></summary>
+      <div class="ob-x">On hand <b>${n0(r.stock)}</b>${d!=null?' ('+n1(d)+' days)':''}.${os.map(o=>'<br>'+(os.length>1?n0(o.qty)+': ':'')+dlTxt(o)+(o.rush?' — ask for the earliest delivery':'')).join('')}${truckTxt(r)}${weekStrip(r)}</div></details>`;}).join('');
     return `<div class="ob-g ${st}"><div class="ob-h"><span class="mb-c">${st==='done'?'✓':st==='todo'?'○':'◐'}</span>
-      <div class="ob-n"><b>${esc(vName(g.k,g.raw).split(' ·')[0])}</b><i>${ohL.length} item${ohL.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallets':''}${ls.some(x=>x.o.rush)?' · rush':''}</i></div>${btn}</div>
-      ${tw.length?`<div class="ob-a">🚚 Verify first: ${tw.map(x=>esc((x.r.codes||[x.r.base])[0])).join(', ')} — a PO was due and isn't marked received</div>`:''}
-      ${to.length?`<div class="ob-a">📋 In the tracker, not in Yooz yet: ${to.map(x=>esc(x.po)).join(', ')} — check what it brings</div>`:''}
-      <div class="ob-oh">${ohL.slice(0,4).map(({r,q,rq})=>{const d=r.dbar>0?r.stock/r.dbar:null,L=Math.round(r.Lavg||r.L||0);
-        return `<span><b>${esc((r.codes||[r.base])[0])}</b> ${n0(q)}${rq&&rq<q?` <span class="mut">(${n0(rq)} rush + ${n0(q-rq)})</span>`:''} · <span class="mut">on hand ${n0(r.stock)}${d!=null?' ('+n1(d)+' d'+(L>=2&&d>=2?' · supplier takes ~'+L+' d':'')+')':''}</span></span>`;}).join('')}${ohL.length>4?`<span class="mut">+${ohL.length-4} more</span>`:''}</div>
-      <details class="ob-l"><summary>See the items ▾</summary>${items}</details></div>`;};
+      <div class="ob-n"><b>${esc(vName(g.k,g.raw).split(' ·')[0])}</b><i>${ohL.length} item${ohL.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallets':''}</i></div>${btn}</div>
+      <div class="ob-l">${items}</div></div>`;};
   const done=gs.length&&gs.every(g=>g.lines.every(x=>x.o.done)&&g.lines.some(x=>x.o.po)&&g.lines.filter(x=>x.o.po).every(x=>trk.has(String(x.o.po).toUpperCase())));
   return `<div class="mb"><div class="mb-h">🛒 To order today${gs.length?' · '+gs.length+' supplier'+(gs.length>1?'s':''):''}</div>${warn}
     ${gs.length?gs.map(grp).join(''):'<div class="ob-none">✓ Nothing to order today.</div>'}
@@ -998,7 +996,7 @@ function howExample(){
     <li><b>Covered until:</b> ${cov} — the last day stock + POs on the way are enough.</li>
     <li><b>Cushion:</b> priority ${r.cls||'—'} = ${n1(r.sdays)} days of use ≈ ${n0(r.ss)} ${u}.</li>
     <li><b>When:</b> ${esc(sup)} takes ~${L} days, so to arrive before we dip into the cushion it must be ordered ${new Date(o.orderBy)<=addDays(0)?'<b>today</b>':'by <b>'+dayTxt(o.orderBy)+'</b>'}${o.rush?' (rush: we would run out before a normal PO arrives)':''}.</li>
-    <li><b>How much:</b> enough to stay above the cushion until the next order arrives = ${n0(o.qty)} ${u}${o.pallets?' = <b>'+o.pallets+' full pallet'+(o.pallets>1?'s':'')+'</b>'+(r.pack&&r.pack.p>1?' of '+n0(r.pack.p):''):''}, delivered ${dlTxt(o).replace(/^arrives /,'')}.</li>
+    <li><b>How much:</b> enough to stay above the cushion until the next order arrives = ${n0(o.qty)} ${u}${o.pallets?' = <b>'+(Math.round(o.pallets*10)/10)+' full pallet'+(o.pallets>1?'s':'')+'</b>'+(r.pack&&r.pack.p>1?' of '+n0(r.pack.p):''):''}, delivered ${dlTxt(o).replace(/^arrives /,'')}.</li>
   </ol></div>`;
 }
 function render(keepFocus){
@@ -1049,7 +1047,7 @@ function render(keepFocus){
 }
 /* 📐 No count today? (Nov 21) — when nobody could count (day off, sick…), the orders use an estimate:
    last count + what shipping received in Receiving − the use of the work days since then. This section shows it item by item. */
-function cntDoneToday(){if(data&&data.cntN!=null)return data.cntN>=(data.cntMin||10);
+function cntDoneToday(){if(data&&data.cntDone!=null)return !!data.cntDone;if(data&&data.cntN!=null)return data.cntN>=(data.cntMin||10);
   return !!(data&&data.stockAt&&new Date(data.stockAt).toDateString()===new Date().toDateString());}
 /* today's count done / not done — by hand when the app can't tell (a Saturday with a partial count, etc.). Shared, PIN */
 function setCntDay(done){const c=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));
@@ -1067,7 +1065,7 @@ function estSection(){const rows=((data&&data.rows)||[]).filter(r=>r.est);
       <div class="mut" style="font-size:12px">use from ${esc(e.src||'')}${e.live!=null&&Math.round(e.live)!==Math.round(e.real)?' · on the screen now: '+n0(e.live):''}</div></div>`;}).join('');
   const nC=data.cntN||0,mC=data.cntMin||10;
   const sw=`<div class="es-sw"><span>Today's count: <b>${today?'✓ done':'not done yet'}</b></span>
-    <span class="mut">(set by itself: ${n0(nC)} position${nC===1?'':'s'} changed today${today?'':' — it counts as done at '+mC})</span></div>`;
+    <span class="mut">(set by itself: ${data.turno&&data.turno!=='pre9'&&today?'the After 9am shift started — the morning count was done':n0(nC)+' position'+(nC===1?'':'s')+' changed today'+(today?'':' — it counts as done at '+mC)})</span></div>`;
   return `<details class="xs" id="secE"${(window._secOpen||{}).E?' open':''} ontoggle="(window._secOpen=window._secOpen||{}).E=this.open"><summary><b>📐 No count today? Estimated inventory</b><span>${sub}</span></summary>${sw}
     <div class="hint" style="margin:0 6px 8px">When the morning count can't be done (day off, sick…), the app estimates each item:
       <b>last count + what shipping received in Receiving − what was used</b> (Production Plan / Line 22-23 for boxes, sleeves and trays; the usual use for the rest).
