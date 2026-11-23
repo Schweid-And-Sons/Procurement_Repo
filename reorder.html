@@ -283,7 +283,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.23d</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.23e</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -519,20 +519,20 @@ function drawTooBig(){const t=window._tb,r=t.r;
 function saveTooBig(mode){const t=window._tb,c=t.cfg;
   if(mode==='item')c.ssItem[t.r.base]=t.v;else if(mode==='reset')delete c.ssItem[t.r.base];else{c.ss[t.r.cls||'C']=t.v;delete c.ssItem[t.r.base];}
   closeSheet();sendSave({type:'wms-reorder-cfg',cfg:c});}
-/* ---------- Details: 1) Juan's plan day by day  2) the calculation  3) suggestions ---------- */
-/* where the daily use comes from: boxes = Juan's plan; trays = plan, then the counts; the rest = only the counts */
+/* ---------- Details: 1) Production Plan day by day  2) the calculation  3) suggestions ---------- */
+/* where the daily use comes from: boxes = Production Plan; trays = plan, then the counts; the rest = only the counts */
 function useBlock(r){const u=unitOf(r)||'',iu=r.iu;
   if(r.pbi){const p=r.pbi;
-    return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From <b>Juan's plan</b>${p.planTo?' until '+dShort(p.planTo):''}, then <b>Power BI</b>.
+    return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From <b>Production Plan</b>${p.planTo?' until '+dShort(p.planTo):''}, then <b>Power BI</b>.
       <br><b>~${n0(p.avg)} trays per production day</b> <span class="mut">· ${dShort(p.from)} → ${dShort(p.to)}, ${p.days} production days</span>
       ${p.old?`<br><span class="late">⚠ ${p.age} days without updating the trays from Power BI.</span>`:''}
       ${iu?`<br><span class="mut">Morning counts would say ~${n0(iu.rate)}/working day — only a check (T2000 and T2100 get mixed in the count).</span>`:''}
       <br><span class="mut">${p.up?'Typed '+(p.at?new Date(p.at).toLocaleDateString('en-US'):'')+(p.by?' · '+esc(p.by):''):'Data from Nov 19 (not typed yet)'}</span>
       <br><button class="c-more" style="margin-top:6px" onclick="event.stopPropagation();pbiForm()">✏️ Update from Power BI</button></div></div>`;}
-  const src=r.kind==='box'?"Juan's plan (Boxes Total today), then the usual use"
-    :r.kind==='tray'?"Juan's plan, then what goes down in the morning counts"
+  const src=r.kind==='box'?"Production Plan (Boxes Total today), then the usual use"
+    :r.kind==='tray'?"Production Plan, then what goes down in the morning counts"
     :'what goes down in the morning counts (Juan\'s plan and Power BI are not used for this item)';
-  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b>${iu.how==='balance'?` — balance ${dShort(iu.from)} → ${dShort(iu.to)}: count went from start to end, plus ${n0(iu.rcvAll)} received in Yooz, over ${iu.wAll} working days`:` — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: a delivery came in (or a recount)`:''}`}${iu.bal!=null&&iu.how!=='balance'?` <span class="mut">(balance of the period: ~${n1(Math.max(0,iu.bal))}/day)</span>`:''}${r.capped?`<br><span class="late">⚠ The counts gave far more than Juan's plan (~${n0(r.capped)}/day) — using the plan × 1.2. Check the morning counts (pallets taken to the line before the count?).</span>`:''}`
+  const det=iu?`<b>~${n1(iu.rate)} ${esc(u)} per working day</b>${iu.how==='balance'?` — balance ${dShort(iu.from)} → ${dShort(iu.to)}: count went from start to end, plus ${n0(iu.rcvAll)} received in Yooz, over ${iu.wAll} working days`:` — went down ${n0(iu.used)} in ${iu.days} working days (${dShort(iu.from)} → ${dShort(iu.to)})${iu.skip?` · ${iu.skip} stretch(es) left out: a delivery came in (or a recount)`:''}`}${iu.bal!=null&&iu.how!=='balance'?` <span class="mut">(balance of the period: ~${n1(Math.max(0,iu.bal))}/day)</span>`:''}${r.capped?`<br><span class="late">⚠ The counts gave far more than Production Plan (~${n0(r.capped)}/day) — using the plan × 1.2. Check the morning counts (pallets taken to the line before the count?).</span>`:''}`
     :r.kind==='box'?'':'<span class="late">Not enough morning counts yet</span> — using what was received in Yooz (last 30 days) until there are 3+ mornings.';
   return `<div class="blk"><div class="blk-h">Daily use</div><div class="blk-n">From ${src}.${det?'<br>'+det:''}${r.kind==='inv'?'<br><span class="mut">Count it carefully every morning: a wrong count changes this number.</span>':''}</div></div>`;}
 function calcBlock(r){
@@ -600,7 +600,7 @@ function metrics(r){const u=esc(unitOf(r)||''),w=weekData(r),ow=(r.coming||[]).r
   return `<div class="mx">
     <div class="m${r.est?' w':''}"><span>${r.est?'📐 Have (est.)':'📦 Have'}</span><b>${n0(r.stock)}</b><i>${r.est?'count '+dShort(r.est.at)+' '+n0(r.est.real)+(r.est.got?' + '+n0(r.est.got):'')+' − '+n0(r.est.used):d!=null&&r.st!=='none'?'≈ '+(d<10?n1(d):n0(d))+' days':u}</i></div>
     <div class="m${nl?' w':''}"><span>🚚 Coming</span><b>${n0(ow)}</b><i>${nl?'⚠ '+nl+' to verify':(r.coming||[]).length?'next '+dayTxt(String(r.coming[0].date).slice(0,10)+'T12:00:00'):createdDl(r).length?'created · '+dayTxt(createdDl(r)[0].d+'T12:00:00'):'none'}</i></div>
-    <div class="m"><span>📅 This week</span><b>${w.need?n0(w.need):'—'}</b><i>${w.planRow?"Juan's plan":r.dbar>0?'~'+(r.dbar<10?n1(r.dbar):n0(r.dbar))+'/day':''}</i></div>
+    <div class="m"><span>📅 This week</span><b>${w.need?n0(w.need):'—'}</b><i>${w.planRow?"Production Plan":r.dbar>0?'~'+(r.dbar<10?n1(r.dbar):n0(r.dbar))+'/day':''}</i></div>
   </div>`;}
 function weekStrip(r){const w=weekData(r),u=esc(unitOf(r)||'');if(!w.planRow&&!(r.dbar>0)&&!Object.keys(w.arr).length&&!(r.late||[]).length)return '';
   const t=ymdL(addDays(0)),hd=k=>{const d=new Date(k+'T12:00:00');return DAYN[d.getDay()]+' '+d.getDate();};
@@ -973,7 +973,7 @@ async function exportExcel(){
     out.push([(r.codes||[r.base]).join(' + '),Math.round(o.qty),unitOf(r),o.pallets||'',ymdL(o.orderBy),o.dl.map(x=>ymdL(x.d)+' '+n0(x.q)).join(' | '),
       o.done?'Created':o.pending?'Pending':o.edited?'Not ordered (qty changed)':'Not ordered',(r.main||{}).vendor||'',r.cls||'',o.rush?'YES':'',r.name||'',catOf(r),
       r.coverDay==null?'6+ weeks':ymdL(addDays(Math.max(0,r.coverDay-1))),Math.round(r.stock||0),Math.round((r.coming||[]).reduce((a,x)=>a+(+x.qty||0),0)),
-      r.dbar>0?Math.round(r.dbar*10)/10:'',r.dbar>0?Math.round(r.stock/r.dbar*10)/10:'',r.kind==='box'?"Juan's plan":r.pbi?"Juan's plan + Power BI ("+r.pbi.days+' production days)':r.iu?'Morning counts ('+r.iu.days+' days)':r.kind==='tray'?"Juan's plan":'Yooz received (30 days)',o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
+      r.dbar>0?Math.round(r.dbar*10)/10:'',r.dbar>0?Math.round(r.stock/r.dbar*10)/10:'',r.kind==='box'?"Production Plan":r.pbi?"Production Plan + Power BI ("+r.pbi.days+' production days)':r.iu?'Morning counts ('+r.iu.days+' days)':r.kind==='tray'?"Production Plan":'Yooz received (30 days)',o.by?(o.by+' '+(o.at?new Date(o.at).toLocaleString('en-US'):'')):'']);}));
   if(!out.length){toast('No POs to export');return;}
   out.sort((a,b)=>a[4].localeCompare(b[4])||a[0].localeCompare(b[0]));
   const title=['Schweid & Sons · Next POs · '+(PLANT==='NJ'?'New Jersey':'Georgia')+(cat!=='ALL'?' · '+cat:'')+' · '+new Date().toLocaleString('en-US')];
@@ -1069,7 +1069,7 @@ function estSection(){const rows=((data&&data.rows)||[]).filter(r=>r.est);
     <span class="mut">(set by itself: ${n0(nC)} position${nC===1?'':'s'} changed today${today?'':' — it counts as done at '+mC})</span></div>`;
   return `<details class="xs" id="secE"${(window._secOpen||{}).E?' open':''} ontoggle="(window._secOpen=window._secOpen||{}).E=this.open"><summary><b>📐 No count today? Estimated inventory</b><span>${sub}</span></summary>${sw}
     <div class="hint" style="margin:0 6px 8px">When the morning count can't be done (day off, sick…), the app estimates each item:
-      <b>last count + what shipping received in Receiving − what was used</b> (Juan's plan / Line 22-23 for boxes, sleeves and trays; the usual use for the rest).
+      <b>last count + what shipping received in Receiving − what was used</b> (Production Plan / Line 22-23 for boxes, sleeves and trays; the usual use for the rest).
       It only works well if <b>Eleni marks the POs as created</b> and <b>shipping marks what arrived in Receiving</b>. The real count replaces it as soon as it's in.</div>
     ${rows.length&&estAge(rows)?`<div class="ob-w" style="margin:0 6px 10px${estAge(rows).c==='r'?';border-color:var(--danger);color:var(--danger)':''}">${estAge(rows).t}</div>`:''}
     ${rows.length?`<div class="rl" style="padding:4px 10px">${list}</div>`:''}</details>`;}
@@ -1102,7 +1102,7 @@ function row(r){const key=r.base,k=esc(key).replace(/'/g,''),u=esc(unitOf(r)||''
     <div class="ra">${act2}<span class="chev">${isOpen?'▴':'›'}</span></div></div>
     ${isOpen?`<div class="rx">${tab==='cnt'&&r.recount?countCard(r):card(r)}</div>`:''}</div>`;}
 /* ===================== 🔄 PLAN CHANGES =====================
-   What production planning changed in Juan's plan, by Inv Date. index.html reads each day's last plan (SharePoint,
+   What production planning changed in Production Plan, by Inv Date. index.html reads each day's last plan (SharePoint,
    last week → today) and compares them. Only days still ahead count; days that appear because the plan reaches
    further are "first planned", not changes. So when someone asks "why so many / so few boxes?", it is here. */
 let view='pos';const chg={h:null,busy:false,err:'',at:0,id:0,want:false,wk:'this',q:''};
@@ -1118,6 +1118,8 @@ function chgSign(n){return (n>0?'+':n<0?'−':'')+n0(Math.abs(n));}
    30 min) and shows how many are new since this device last opened 🔄 Changes: a number on the tab and a bar on By item.
    Only inside the app — no emails or Teams messages. New = a change saved after the last visit (first time: since today 00:00). */
 const NOSUB=['BX7700-1','BX7700PCA-1','BX3200-1'];   // boxes with no substitute (Julian, Nov 23) — short = critical
+/* the planning file's own name (Nov 23: not a person's name — it's the company's plan) */
+const PLAN_NAME=PLANT==='GA'?'ATL Daily Production Plan':'NJ Daily Production Plan';
 const CHG_SEEN_K='reo_chgseen_'+PLANT;
 function chgSeen(){try{const v=localStorage.getItem(CHG_SEEN_K);if(v)return v;}catch(e){}const t=new Date();t.setHours(0,0,0,0);return t.toISOString();}
 function chgSetSeen(){try{localStorage.setItem(CHG_SEEN_K,new Date().toISOString());}catch(e){}}
@@ -1129,7 +1131,7 @@ function chgBadge(){const b=document.getElementById('v-chg');if(!b)return;const 
   b.innerHTML='🔄 Changes'+(n?` <span style="background:#d93025;color:#fff;border-radius:10px;padding:0 7px;font-size:12px;margin-left:4px">${n}</span>`:'');}
 function chgBar(){const nw=chgNew();if(!nw.length)return '';
   const top=nw.slice(0,3).map(x=>`<b>${esc(x.code)}</b> ${dShort(x.inv)}: ${n0(x.from)} → <b>${n0(x.to)}</b> <span class="${x.to>x.from?'up':'dn'}">(${chgSign(x.to-x.from)})</span>`).join('<br>');
-  return `<div class="blk" style="border-left:4px solid #1a56db;cursor:pointer" onclick="setView('chg')"><div class="blk-n">🔔 <b>Juan's plan changed — ${nw.length} new change${nw.length>1?'s':''}</b><br>${top}${nw.length>3?'<br><span class="mut">+ '+(nw.length-3)+' more</span>':''}<br><b>Tap to see them in 🔄 Changes.</b></div></div>`;}
+  return `<div class="blk" style="border-left:4px solid #1a56db;cursor:pointer" onclick="setView('chg')"><div class="blk-n">🔔 <b>${PLAN_NAME} changed — ${nw.length} new change${nw.length>1?'s':''}</b><br>${top}${nw.length>3?'<br><span class="mut">+ '+(nw.length-3)+' more</span>':''}<br><b>Tap to see them in 🔄 Changes.</b></div></div>`;}
 setInterval(()=>{if(document.visibilityState==='visible'&&!chg.busy&&Date.now()-chg.at>30*60e3)askChg();},60e3);
 
 function renderChg(){
@@ -1175,7 +1177,7 @@ function renderChg(){
     +(rest.length?`<div class="cg-sec" style="color:var(--text3)">Changed · ${rest.length}</div>${table(rest)}`:'');
   const quiet=its.filter(it=>!it.changed.length);
   body.innerHTML=`<div class="fri" style="line-height:1.5">
-      <b>What changed in Juan's plan</b> — by Inv Date (the day on the sheet). One photo of the plan per day (the last one uploaded that day); only days still ahead are compared, so what was already produced is not a change.
+      <b>What changed in the ${PLAN_NAME}</b> — by Inv Date (the day on the sheet). One photo of the plan per day (the last one uploaded that day); only days still ahead are compared, so what was already produced is not a change.
       <div style="margin-top:6px">${boxes.length?`Boxes, ${WK.find(x=>x[0]===wk)[1].toLowerCase()}: <span class="up">${chgSign(up)} more</span> · <span class="dn">${chgSign(dn)} less</span> · ${withCh.length} item(s) changed`:'No changes in this week so far.'}</div>
       <div class="mut" style="font-size:12px;margin-top:4px">Keeps last week and this week. Days that appear because the plan reaches further ahead are "first planned", not a change.</div>
       <div style="margin-top:8px"><button class="refresh" onclick="chgExcel()">⬇ Excel</button></div></div>
@@ -1217,7 +1219,7 @@ function countCard(r){const dd=k=>{const d=new Date(k+'T12:00:00');return DAYN[d
       <div class="m"><span>Should be</span><b>${n0(should)}</b><i>−${n0(c.exp)} used${c.got?' · +'+n0(c.got)+' arrived':''}</i></div>
       <div class="m w"><span>${dd(c.c)} count</span><b>${n0(c.qc)}</b><i>${c.qc>should?'+':''}${n0(c.qc-should)}${u}</i></div>
     </div>
-    <div class="hint" style="margin:4px 0 8px">${r.kind==='box'?"Use expected from Juan's plan":r.pbi?'Use expected from Power BI':'Use expected from the usual use'}${l?' · 📍 '+esc(l.l)+(l.n>1?' (+'+(l.n-1)+' more)':''):''}</div>
+    <div class="hint" style="margin:4px 0 8px">${r.kind==='box'?"Use expected from Production Plan":r.pbi?'Use expected from Power BI':'Use expected from the usual use'}${l?' · 📍 '+esc(l.l)+(l.n>1?' (+'+(l.n-1)+' more)':''):''}</div>
     <div class="c-acts">
       <button class="c-btn" style="border-color:var(--success);color:var(--success)" onclick="cntSetOk('${esc(r.base)}')">✓ The count is right</button>
       ${c.why==='up'?`<button class="c-btn" onclick="window.open('index.html?receiving=${PLANT}','_blank')">🚚 A truck came → Receiving</button>`:''}
