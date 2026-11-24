@@ -4158,10 +4158,10 @@ async function loadCntHistFromFlow(){
     raw.map(normalizeSyncRecord).filter(r=>r.plant===currentPlant&&syncShiftRank(r)===0).forEach(r=>{   // morning copies only
       const dp=syncDateParts(r.date);if(!dp)return;const k=syncDayKey(dp);if(k<cut)return;
       const p0=pick[k];if(!p0||(r.at&&p0.at?r.at>p0.at:r.id>p0.id))pick[k]=r;});   // two morning copies of a day (saved by hand + by itself) → the newest
-    const days={};
+    const days={},ats={};
     Object.entries(pick).forEach(([k,r])=>{const t={};Object.values(r.data||{}).forEach(occ=>occItems(occ).forEach(x=>{
-      const b=reoBase(x.item);t[b]=(t[b]||0)+toUnits(x.item,+x.qty||0);}));days[k]=t;});
-    localStorage.setItem(cntHistKey(),JSON.stringify({at:new Date().toISOString(),days}));
+      const b=reoBase(x.item);t[b]=(t[b]||0)+toUnits(x.item,+x.qty||0);}));days[k]=t;ats[k]=r.at||'';});
+    localStorage.setItem(cntHistKey(),JSON.stringify({at:new Date().toISOString(),days,ats}));
   }catch(e){cntFetch.err=e.message;}finally{cntFetch.busy=false;}
 }
 function reorderRows(summary){
@@ -4386,8 +4386,8 @@ function reorderRows(summary){
     // ⏱ After 9am (Nov 23, Julian): once the After shift starts, the screen is for the day's control (boxes sent to production
     // go down there) and today's plan already counts that use → the order uses today's BEFORE 9AM copy + what Receiving
     // got after the shift started. An item missing from the copy keeps the screen's number.
-    let am=null;if(!est&&window.REO_TURNO&&window.REO_TURNO!=='pre9'&&ch&&ch.days&&ch.days[ymd(today)]&&Object.prototype.hasOwnProperty.call(ch.days[ymd(today)],f.base)){
-      const after=String(window.REO_SHIFT_AT||'');let got=0;
+    let am=null;if(!est&&ch&&ch.days&&ch.days[ymd(today)]&&Object.prototype.hasOwnProperty.call(ch.days[ymd(today)],f.base)){   // rule 1
+      const after=String((ch.ats&&ch.ats[ymd(today)])||window.REO_SHIFT_AT||ymd(today)+'T09:00:00');let got=0;
       try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||!after||String(x.ts||'')<=after)return;
         (x.lines||[]).forEach(l=>{if(reoBase(l.code)!==f.base)return;const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;if(q>0)got+=toUnits(l.code,q);});});}catch(e){}
       am={copy:Math.round(+ch.days[ymd(today)][f.base]||0),got:Math.round(got),screen:Math.round(f.stock)};f.stock=am.copy+am.got;}
@@ -6467,7 +6467,12 @@ function renderCheckView(){const el=document.getElementById('main-content');
 const CNT_MIN=10;
 /* count done today: 10+ positions changed today — OR the After 9am shift was started today (Nov 23: starting the After
    stamps every position with its start time, so the morning's changes no longer show; the morning count was done) */
-function reoCntDone(){return (window.REO_CNT_N||0)>=CNT_MIN||(!!window.REO_TURNO&&window.REO_TURNO!=='pre9'&&window.REO_LIVE_DAY===ymd(new Date()));}
+/* Nov 24 (Julian) — ONE simple rule for Next POs' stock, whatever device changed the shift:
+   1) today's Before 9am copy is in SharePoint → use it (+ what Receiving got after it)
+   2) no copy yet, but the morning count is going on now (today's Before 9am shift with 10+ positions changed) → the screen
+   3) neither → 📐 estimate (last count + received − average use) */
+function reoAmToday(){return !!(((loadCntHist()||{}).days||{})[ymd(new Date())]);}
+function reoCntDone(){return reoAmToday()||(window.REO_LIVE_DAY===ymd(new Date())&&(window.REO_CNT_N||0)>=CNT_MIN);}
 function liveCntInfo(r){const st=String(r.startedAt||''),t0=ymd(new Date());
   const real=[...Object.values(r.ts||{}),...Object.values(r.del||{})].map(String).filter(v=>v&&v!==st);
   const day=v=>{const d=new Date(v);return isNaN(d)?'':ymd(d);};
@@ -8254,7 +8259,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24m';
+const APP_VERSION='2026.11.24o';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -8324,7 +8329,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        subs:(()=>{const o={};try{subsList().forEach(x=>{o[x.code]=x.sub?(String(x.sub).match(/\(BX\w+\)/g)||[]).map(m=>m.slice(1,-1)):null;});}catch(e){}return o;})(),amCopy:!!(window.REO_TURNO&&window.REO_TURNO!=='pre9'&&((loadCntHist()||{}).days||{})[ymd(new Date())]),turno:window.REO_TURNO||'',stockAt:shared?shared.at:0,cntN:window.REO_CNT_N||0,cntMin:CNT_MIN,cntDone:reoCntDone(),liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
+        subs:(()=>{const o={};try{subsList().forEach(x=>{o[x.code]=x.sub?(String(x.sub).match(/\(BX\w+\)/g)||[]).map(m=>m.slice(1,-1)):null;});}catch(e){}return o;})(),amCopy:reoAmToday(),amAt:((loadCntHist()||{}).ats||{})[ymd(new Date())]||'',turno:window.REO_TURNO||'',stockAt:shared?shared.at:0,cntN:window.REO_CNT_N||0,cntMin:CNT_MIN,cntDone:reoCntDone(),liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
         times:Object.assign({},times),
         // Nov 24: what THIS device used — two screens with different numbers can be compared line by line
         fp:{v:APP_VERSION,clock:new Date().toString().replace(/ \(.*\)$/,''),tz:(Intl.DateTimeFormat().resolvedOptions()||{}).timeZone||'',
@@ -8353,7 +8358,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       if(yzOld&&loadYooz()&&!times.Yooz)later.push(timed('Yooz',()=>loadYoozFromFlow(false),45000,()=>yoozFetch.err));
       if(plOld&&loadPlanner()&&!times.planner)later.push(timed('planner',()=>loadPlannerFromFlow(false),45000));
       if(POTRACK_FLOW_URL&&loadPoTrack()&&(force||old(loadPoTrack(),3600e3)))later.push(timed('PO Tracker',()=>loadPoTrackFromFlow(false),45000,()=>potFetch.err));
-      const amMiss=window.REO_TURNO&&window.REO_TURNO!=='pre9'&&!((loadCntHist()||{}).days||{})[ymd(new Date())];
+      const amMiss=!reoAmToday()&&new Date().getHours()>=9;
       if((force||cntHistOld()||amMiss)&&syncMode()==='sharepoint'&&Date.now()-cntFetch.tried>(force?60e3:(amMiss?5:30)*60e3))later.push(timed('counts',loadCntHistFromFlow,90000,()=>cntFetch.err));
       if(ltOld&&loadLeadTime()&&!times['lead times'])later.push(timed('lead times',()=>loadLeadTimeFromFlow(false),90000,()=>ltFetch.err));
       const o1=build(later.length>0);o1.secs=(Date.now()-t0)/1000;send(o1);

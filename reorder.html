@@ -290,7 +290,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24g</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24h</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -367,7 +367,7 @@ function onSearch(v){q=v.trim().toLowerCase();render(true);}
 let stDet=false;
 function srcPills(){const d=data,P=[],pill=(c,t,tip)=>P.push(`<span class="pl ${c}"${tip?` title="${esc(tip)}"`:''}>${t}</span>`);
   const today=x=>x&&new Date(x).toDateString()===new Date().toDateString();
-  if(d.amCopy)pill('g','✓ Stock: Before 9am copy');   // After shift started: orders use this morning's copy (+ received after)
+  if(d.amCopy)pill('g','✓ Stock: Before 9am copy'+(d.amAt?' '+timeTxt(d.amAt):''));   // After shift started: orders use this morning's copy (+ received after)
   else pill(d.liveOn?(today(d.stockAt)?'g':'o'):'o',(d.liveOn&&today(d.stockAt)?'✓':'⚠')+' Stock'+(d.stockAt?' '+timeTxt(d.stockAt):''));
   pill(d.plan?'g':'o',d.plan?'✓ Plan':'⚠ Plan: none today');
   pill(d.yzErr?'r':d.yzAt?'g':'r',(d.yzErr||!d.yzAt?'✕':'✓')+' Yooz'+(d.yzAt?' '+timeTxt(d.yzAt):''));
