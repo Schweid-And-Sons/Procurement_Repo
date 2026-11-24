@@ -3367,7 +3367,9 @@ async function reoReadSharedFor(P){if(!PLAN_READ_URL)return;
     if(k==='reocfg'&&Array.isArray(o.days))localStorage.setItem('wms_reocfg_'+P,JSON.stringify(o));
     if(k==='reomarks'&&o.marks)localStorage.setItem('wms_reomarks_'+P,JSON.stringify(q.length?reoApplyOps(o.marks,q):o.marks));
     if(k==='subs'&&Array.isArray(o.rows))localStorage.setItem('wms_subs_'+P,JSON.stringify(o));});}
-async function startPrefetch(force){if(!force&&Date.now()-_pfAt<30*60000)return;_pfAt=Date.now();const tok=++_pfTok,t0=Date.now();
+async function startPrefetch(force){   // at most every 30 min PER DEVICE (kept across page loads: Menu / Receiving reload the page)
+  let last=0;try{last=+localStorage.getItem('wms_pf_at')||0;}catch(e){}
+  if(!force&&Date.now()-Math.max(_pfAt,last)<30*60000)return;_pfAt=Date.now();try{localStorage.setItem('wms_pf_at',String(_pfAt));}catch(e){}const tok=++_pfTok,t0=Date.now();
   const steps=[['Yooz',()=>yoozAutoRefresh()],['PO Tracker',()=>POTRACK_FLOW_URL?loadPoTrackFromFlow(false):null],['planner',()=>PLANNER_FLOW_URL?loadPlannerFromFlow(false):null],
     ['lead times',()=>{const l=loadLeadTime();return !l||Date.now()-new Date(l.loaded).getTime()>7*864e5?loadLeadTimeFromFlow(false):null;}]];
   ['NJ','GA'].forEach(P=>{steps.push([P+' Next POs',()=>reoReadSharedFor(P)]);steps.push([P+' batch',()=>pfBatchToday(P)]);});
@@ -4084,7 +4086,10 @@ async function reoSaveCfg(cfg){
   throw new Error('another device kept saving — try again');}
 let _reoFlush=null;
 function reoSaveMark(key,mark,list){   // mark = {base,ob,qty,dl,done,edited,rush} or null to undo; list = [{key,mark}] (a whole supplier PO at once)
-  const now=new Date().toISOString(),ops=(list||[{key,mark}]).map(x=>({key:x.key,mark:x.mark?Object.assign({},x.mark,{by:planDevice(),at:now}):null}));
+  const now=new Date().toISOString(),ops=(list||[{key,mark}]).map(x=>{if(!x.mark)return {key:x.key,mark:null};
+    // only a PO # added (keepWho): the mark keeps who created it and when (Nov 24: "Created by JD 11:47 PM" hid Eleni's 10:07 AM)
+    const m=Object.assign({},x.mark);if(m.keepWho&&m.by&&m.at){delete m.keepWho;m.poBy=planDevice();m.poAt=now;return {key:x.key,mark:m};}
+    delete m.keepWho;return {key:x.key,mark:Object.assign(m,{by:planDevice(),at:now})};});
   const q=reoQueue().filter(x=>!ops.some(o=>o.key===x.key)).concat(ops);reoQueueSet(q);
   localStorage.setItem('wms_reomarks_'+currentPlant,JSON.stringify(reoApplyOps(loadReoMarks(),ops)));   // shows right away on this device
   return reoFlushMarks();}
@@ -5011,9 +5016,14 @@ async function bgRefreshFirst(){const t0=Date.now(),L=[];
   try{if(currentView==='plan')renderPlanView();else if(currentView==='items')renderItemsView();}catch(e){}}
 async function bgRefreshAll(first){
   if(RCV_ONLY)return;
-  if(first){const k='wms_full_'+currentPlant,t=ymd(new Date());let done=null;try{done=localStorage.getItem(k);}catch(e){}
-    if(done!==t){try{localStorage.setItem(k,t);}catch(e){}return bgRefreshFirst();}   // first time today on this device: everything, with the chip
-    first=false;}   // later the same day: quiet, only what is old
+  if(first){   // Nov 24: opening / switching a plant is quiet — the main screen already brought the shared data
+    let last=0;try{last=+localStorage.getItem('wms_pf_at')||0;}catch(e){}
+    const step=async f=>{try{await Promise.resolve(f());}catch(e){}};
+    await Promise.all([step(()=>syncReceiptsFromSP(false)),
+      step(()=>(cntHistOld()||!((loadCntHist()||{}).days||{})[ymd(new Date())])&&!cntFetch.busy&&Date.now()-(cntFetch.tried||0)>10*60000?loadCntHistFromFlow():null),
+      step(()=>reoQueue().length?reoFlushMarks():null),
+      step(()=>Date.now()-last>30*60000?Promise.all([yoozAutoRefresh(),plannerAutoRefresh(),potAutoRefresh(),reoReadShared()]):null)]);
+    try{renderLiveBar();}catch(e){}try{chkCompute();}catch(e){}return;}
   const step=async f=>{try{await Promise.resolve(f());}catch(e){}};
   await step(()=>yoozAutoRefresh());await step(()=>plannerAutoRefresh());await step(()=>potAutoRefresh());
   if(reoQueue().length)await step(()=>reoFlushMarks());   // Next POs changes that couldn't be sent yet
@@ -6326,7 +6336,7 @@ function poAutoAssign(){if(Date.now()-_autoPoAt<60000)return;_autoPoAt=Date.now(
       const sum={};cand.forEach(([k,m])=>{sum[m.base]=(sum[m.base]||0)+(+m.qty||0);});
       const ok=Object.keys(sum).filter(c=>sum[c]<=want[c]*1.1);
       if(!(ok.length>=2||(ok.length===1&&g.lines.length===1)))return;
-      cand.filter(([k,m])=>ok.includes(m.base)).forEach(([k,m])=>{used.add(k);list.push({key:k,mark:Object.assign({},m,{po:g.po,autoPo:true})});});});
+      cand.filter(([k,m])=>ok.includes(m.base)).forEach(([k,m])=>{used.add(k);list.push({key:k,mark:Object.assign({},m,{po:g.po,autoPo:true,keepWho:true})});});});
     if(list.length)reoSaveMark(null,null,list).then(()=>{showToast('PO # found in Yooz for '+list.length+' Next POs line(s)','success');if(currentView==='po')renderPoView(true);}).catch(()=>{});
   }catch(e){console.error(e);}}
 function poRealDue(){const o={};
@@ -6389,7 +6399,7 @@ function poGiveNumber(gkey){const g=poGroups().find(x=>x.key===gkey);if(!g||!g.m
   let keys=g.mkeys.slice();
   if(others.length&&confirm('Does '+po+' also include the other '+g.vendor+' truck'+(others.length>1?'s':'')+' without a PO #?\n\n'+others.map(x=>'• '+x.due+' — '+x.lines.length+' line(s): '+x.lines.slice(0,4).map(l=>l.code+' '+l.ordered).join(', ')).join('\n')+'\n\nOK = yes, same PO · Cancel = only this truck'))
     others.forEach(x=>keys=keys.concat(x.mkeys));
-  const list=[...new Set(keys)].filter(k=>m[k]).map(k=>({key:k,mark:Object.assign({},m[k],{po})}));if(!list.length)return;
+  const list=[...new Set(keys)].filter(k=>m[k]).map(k=>({key:k,mark:Object.assign({},m[k],{po,keepWho:true})}));if(!list.length)return;
   reoSaveMark(null,null,list).then(()=>{showToast('PO # saved — '+po,'success');if(currentView==='po')renderPoView(true);}).catch(e=>showToast('Could not save: '+e.message,'error'));}
 let _rcvMarksAt=0;
 function rcvMarksRefresh(){if(!PLAN_READ_URL||Date.now()-_rcvMarksAt<5*60000)return;_rcvMarksAt=Date.now();
@@ -8229,7 +8239,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24g';
+const APP_VERSION='2026.11.24i';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

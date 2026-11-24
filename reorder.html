@@ -290,7 +290,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24f</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24g</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -756,8 +756,8 @@ function addPoNum(gi){const g=(window._sg||[])[gi];if(!g)return;const ot=poOther
     ${ot.length?`<div class="hint" style="margin-top:10px">Also in this PO? (other ${esc(vName(g.k,g.raw).split(' ·')[0])} lines created without a PO #)</div>
       ${ot.map(({r,o},i)=>`<label style="display:flex;gap:8px;align-items:center;margin:6px 0;font-size:14px"><input type="checkbox" class="po-ot" data-i="${i}" checked> <b>${esc((r.codes||[r.base])[0])}</b> ${n0(o.qty)} <span class="mut">· ${dlTxt(o)}</span></label>`).join('')}`:''}
     <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="(()=>{const v=document.getElementById('po-n2').value.trim().toUpperCase();if(!v)return;
-      const po=/^\\d+$/.test(v)?'YZ-26-'+v:v;const list=g.lines.filter(x=>x.o.done).map(({r,o})=>({key:o.key,mark:markOf(r,o,{po})}));
-      document.querySelectorAll('.po-ot:checked').forEach(c=>{const x=(window._poOt||[])[+c.dataset.i];if(x)list.push({key:x.o.key,mark:markOf(x.r,x.o,{po})});});
+      const po=/^\\d+$/.test(v)?'YZ-26-'+v:v;const list=g.lines.filter(x=>x.o.done).map(({r,o})=>({key:o.key,mark:markOf(r,o,{po,keepWho:true,by:o.by,at:o.at})}));
+      document.querySelectorAll('.po-ot:checked').forEach(c=>{const x=(window._poOt||[])[+c.dataset.i];if(x)list.push({key:x.o.key,mark:markOf(x.r,x.o,{po,keepWho:true,by:x.o.by,at:x.o.at})});});
       if(list.length)sendSave({type:'wms-reorder-mark',list});closeSheet();toast('PO # saved — '+po);})()">Save</button></div>`));}
 function morningBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const rc=rows.filter(r=>r.recount),tw=rows.filter(truckWait),td=sumOrders(rows,o=>new Date(o.orderBy)<=addDays(0));
