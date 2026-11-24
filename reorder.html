@@ -293,7 +293,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24l</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24m</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -475,7 +475,9 @@ function poDismissR(po){withPin(()=>{if(!confirm('Dismiss '+po+'?\n\nIt leaves t
   sendSave({type:'wms-reorder-mark',key:'DIS|'+String(po).toUpperCase(),mark:{dismiss:true,po:String(po).toUpperCase()}});toast('Dismissed — '+po);});}
 function joinClear(){JOIN.clear();render();}
 function joinItems(){const out=[];JOIN.forEach((x,id)=>{const {r,o}=findPO(x.base,x.key);if(r&&o&&!o.done)out.push({r,o});else JOIN.delete(id);});return out;}
-function joinBar(){document.querySelectorAll('.joinbar').forEach(e=>e.remove());const it=joinItems();document.body.classList.toggle('has-join',it.length>=2);if(it.length<2)return;
+function joinBar(){document.querySelectorAll('.joinbar').forEach(e=>e.remove());const it=joinItems();
+  const one=it.length===1&&joinExisting(joinVk(it[0].r,it[0].o)).length>0;   // 1 line + a PO already created → can be added to it
+  document.body.classList.toggle('has-join',it.length>=2||one);if(it.length<2&&!one)return;
   const vk=joinVk(it[0].r,it[0].o),pal=it.reduce((a,{o})=>a+(+o.pallets||0),0);
   const d=joinDefDay(it);
   // Nov 24: joined POs that were suggested for a later day arrive early → pallets to fit in the warehouse sooner
@@ -485,13 +487,24 @@ function joinBar(){document.querySelectorAll('.joinbar').forEach(e=>e.remove());
   const el=document.createElement('div');el.className='joinbar';
   el.innerHTML=`<div class="jb-t" onclick="joinSave()"><b>✅ Mark ${it.length} as created</b><i>${esc(vName(vk).split(' ·')[0])} · one PO${pal>=0.5?' · ~'+n1(pal)+' pallets':''} · arrives ~${dShort(d)}</i>${spTxt}</div><button onclick="joinClear()">✕</button>`;
   document.body.appendChild(el);}
+/* Nov 24 (Julian): type only the last 3 digits of the PO — the rest comes from the newest PO number the app knows */
+function poNorm(v){v=String(v||'').trim().toUpperCase();if(!v)return '';const yy=new Date().getFullYear()%100,last=+((data&&data.lastPo)||0);
+  if(/^\d{1,4}$/.test(v)&&last){const s=String(last);let n=+(s.slice(0,5-v.length)+v);if(n<last-500)n+=Math.pow(10,v.length);return 'YZ-'+yy+'-'+String(n).padStart(5,'0');}
+  if(/^\d{5}$/.test(v))return 'YZ-'+yy+'-'+v;return v;}
+function poHint(id){const i=document.getElementById(id),h=document.getElementById(id+'-h');if(i&&h){const p=poNorm(i.value);h.textContent=p&&p!==i.value.trim().toUpperCase()?'→ '+p:'';}}
+const poPh=()=>'last 3 digits are enough'+((data&&data.lastPo)?' (e.g. '+String(data.lastPo).slice(-3)+' → YZ-'+(new Date().getFullYear()%100)+'-'+data.lastPo+')':'');
+/* POs of this supplier already marked with a number (to add more lines to them) — {po, day} */
+function joinExisting(vk){const M={};((data&&data.rows)||[]).forEach(r=>(r.orders||[]).forEach(o=>{if(!o.fixed||!o.po||!o.done)return;
+  if(vKey(o.vendor||(r.main||{}).vendor||'')!==vk)return;const P=String(o.po).toUpperCase(),d=o.dl&&o.dl[0]?ymdL(o.dl[0].d||o.dl[0]):'';
+  const x=M[P]||(M[P]={po:P,day:d,n:0});x.n++;if(d&&(!x.day||d<x.day))x.day=d;}));
+  const t0=ymdL(new Date(Date.now()-3*864e5));return Object.values(M).filter(x=>!x.day||x.day>=t0).sort((a,b)=>String(b.po).localeCompare(String(a.po)));}
 /* Nov 24 (Julian): if Eleni joins POs, she is bringing them all at once — by default TODAY (Sonic delivers the same day;
    another supplier: the earliest day of the ones joined). She can pick the day it should arrive. */
 function joinDefDay(it){const t0=ymdL(new Date()),recv=((data.cfg||{}).days)||[2,3,4,5],vk=joinVk(it[0].r,it[0].o);
   const first=it.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy)).sort()[0];
   if(vk==='SONIC'){const d=new Date();for(let i=0;i<7;i++){if(recv.includes(d.getDay()))return ymdL(d);d.setDate(d.getDate()+1);}}   // today, or the next receiving day
   return first<t0?t0:first;}
-function joinSave(){const it=joinItems();if(it.length<2)return;
+function joinSave(){const it=joinItems();if(!it.length)return;
   const d=joinDefDay(it),t0=ymdL(new Date()),add=n=>{const x=new Date();x.setDate(x.getDate()+n);return ymdL(x);};
   const first=it.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy)).sort()[0];
   const hol=new Set(((data.cfg||{}).holidays||[]).map(h=>h.d)),opts=[...new Set([d,t0,add(1),add(2),add(3),first<t0?t0:first])].filter(x=>x===d||!hol.has(x)).sort().slice(0,5);   // no holidays
@@ -501,10 +514,13 @@ function joinSave(){const it=joinItems();if(it.length<2)return;
     <div class="jd-row">${opts.map(x=>`<button class="st jd${x===d?' on':''}" data-d="${x}" onclick="joinPickDay('${x}')">${x===t0?'Today':x===add(1)?'Tomorrow':dShort(x)}</button>`).join('')}
       <input type="date" id="jd-other" value="${d}" min="${t0}" onchange="joinPickDay(this.value)" style="padding:8px;border-radius:10px;border:1px solid var(--border,#ccc)"></div>
     ${it.map(({r,o})=>`<div style="font-size:14px;margin:5px 0"><b>${esc((r.codes||[r.base])[0])}</b> ${qtyTxt(r,o.qty,o.pallets)}</div>`).join('')}
-    <div class="hint" style="margin-top:10px">Yooz PO # (optional)</div><input type="text" id="po-j" placeholder="e.g. YZ-26-28700">
+    ${(()=>{const ex=joinExisting(joinVk(it[0].r,it[0].o));window._joinEx=ex;return ex.length?`<div class="hint" style="margin-top:10px">Add them to a PO already created?</div><div class="jd-row">${ex.map((x,i)=>`<button class="st" onclick="joinUseEx(${i})">＋ ${esc(x.po)} <span class="mut">· ${x.n} line${x.n>1?'s':''}${x.day?' · '+dShort(x.day):''}</span></button>`).join('')}</div>`:'';})()}
+    <div class="hint" style="margin-top:10px">Yooz PO # (optional)</div><input type="text" id="po-j" placeholder="${esc(poPh())}" oninput="poHint('po-j')"><div class="mut" id="po-j-h" style="font-size:12px;margin-top:4px"></div>
     <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="joinDo(window._joinDay)">Mark created</button></div>`));}
+function joinUseEx(i){const x=(window._joinEx||[])[i];if(!x)return;const el=document.getElementById('po-j');if(el)el.value=x.po;poHint('po-j');if(x.day)joinPickDay(x.day);toast('Added to '+x.po+' — same arrival day');}
 function joinPickDay(x){if(!x)return;window._joinDay=x;document.querySelectorAll('.jd').forEach(b=>b.classList.toggle('on',b.dataset.d===x));const i=document.getElementById('jd-other');if(i&&i.value!==x)i.value=x;}
-function joinDo(d){const v=(document.getElementById('po-j')||{}).value||'';const t=v.trim().toUpperCase(),po=t?(/^\d+$/.test(t)?'YZ-26-'+t:t):'';
+function joinDo(d){const po=poNorm((document.getElementById('po-j')||{}).value||'');
+  {const ex=(window._joinEx||[]).find(x=>x.po===po);if(ex&&ex.day)d=ex.day;}   // more lines for a PO already created → they arrive with it (one PO in Receiving, no overwriting)
   const it=joinItems(),list=it.map(({r,o})=>({key:o.key,mark:Object.assign(markOf(r,o,Object.assign({done:true,pending:false,joined:true},po?{po}:{})),{dl:[{d,q:o.qty}]})}));
   sendSave({type:'wms-reorder-mark',list});closeSheet();JOIN.clear();toast('✅ '+list.length+' marked created as one PO'+(po?' — '+po:''));render();}
 function stateChips(r,o){const k=esc(o.key||'').replace(/'/g,''),b=esc(r.base);
@@ -773,11 +789,11 @@ function poOthers(g){const mine=new Set(g.lines.map(x=>x.o.key)),out=[];
   ((data&&data.rows)||[]).forEach(r=>(r.orders||[]).forEach(o=>{if(!o.done||o.po||mine.has(o.key))return;
     if(vKey(o.vendor||(o.rush&&o.via)||(r.main||{}).vendor||r.vendor||'')!==g.k)return;out.push({r,o});}));return out;}
 function addPoNum(gi){const g=(window._sg||[])[gi];if(!g)return;const ot=poOthers(g);window._poOt=ot;
-  withPin(()=>sheet(`<h2>＃ Yooz PO # — ${esc(vName(g.k,g.raw).split(' ·')[0])}</h2><input type="text" id="po-n2" placeholder="e.g. YZ-26-28700">
+  withPin(()=>sheet(`<h2>＃ Yooz PO # — ${esc(vName(g.k,g.raw).split(' ·')[0])}</h2><input type="text" id="po-n2" placeholder="${esc(poPh())}" oninput="poHint('po-n2')"><div class="mut" id="po-n2-h" style="font-size:12px;margin-top:4px"></div>
     ${ot.length?`<div class="hint" style="margin-top:10px">Also in this PO? (other ${esc(vName(g.k,g.raw).split(' ·')[0])} lines created without a PO #)</div>
       ${ot.map(({r,o},i)=>`<label style="display:flex;gap:8px;align-items:center;margin:6px 0;font-size:14px"><input type="checkbox" class="po-ot" data-i="${i}" checked> <b>${esc((r.codes||[r.base])[0])}</b> ${n0(o.qty)} <span class="mut">· ${dlTxt(o)}</span></label>`).join('')}`:''}
     <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="(()=>{const v=document.getElementById('po-n2').value.trim().toUpperCase();if(!v)return;
-      const po=/^\\d+$/.test(v)?'YZ-26-'+v:v;const list=g.lines.filter(x=>x.o.done).map(({r,o})=>({key:o.key,mark:markOf(r,o,{po,keepWho:true,by:o.by,at:o.at})}));
+      const po=poNorm(v);const list=g.lines.filter(x=>x.o.done).map(({r,o})=>({key:o.key,mark:markOf(r,o,{po,keepWho:true,by:o.by,at:o.at})}));
       document.querySelectorAll('.po-ot:checked').forEach(c=>{const x=(window._poOt||[])[+c.dataset.i];if(x)list.push({key:x.o.key,mark:markOf(x.r,x.o,{po,keepWho:true,by:x.o.by,at:x.o.at})});});
       if(list.length)sendSave({type:'wms-reorder-mark',list});closeSheet();toast('PO # saved — '+po);})()">Save</button></div>`));}
 function morningBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
@@ -1386,7 +1402,7 @@ function poAll(gi,v){const g=(window._sg||[])[gi];if(!g)return;
     undoToast((v==='done'?'✅ PO created':v==='pend'?'⏳ PO pending':'PO back to not ordered')+' · '+vName(g.k,g.raw).split(' ·')[0]+' · '+list.length+' item(s)',()=>sendSave({type:'wms-reorder-mark',list:prev}));};
   withPin(()=>{if(v!=='done')return go('');
     sheet(`<h2>✅ Mark as created — ${esc(vName(g.k,g.raw))}</h2><div class="hint">${g.lines.filter(x=>!x.o.done).length} item(s)${palSum(g)>=0.5?' · ~'+n0(palSum(g))+' pallets':''}. Type the Yooz PO # (optional) — it is saved on every line.</div>
-      <input type="text" id="po-n" placeholder="Yooz PO # (e.g. YZ-26-28700)"><div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="window._poGo(document.getElementById('po-n').value.trim())">Save</button></div>`);
+      <input type="text" id="po-n" placeholder="Yooz PO # — ${esc(poPh())}" oninput="poHint('po-n')"><div class="mut" id="po-n-h" style="font-size:12px;margin-top:4px"></div><div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="window._poGo(poNorm(document.getElementById('po-n').value))">Save</button></div>`);
     window._poGo=go;});}
 /* ⇄ send one box to the other supplier (Sonic ⇄ PCA): full pallets of that supplier, kept as a changed line */
 function switchSup(base,key,to){const {r,o}=findPO(base,key);if(!o)return;

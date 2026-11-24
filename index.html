@@ -4280,7 +4280,7 @@ function reorderRows(summary){
       g.lines.forEach(l=>{if(l.recv)return;const q=Math.max(0,(+l.ordered||0)-(+l.received||0));if(!q)return;
         (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:yzUnits(l.code,q),po:g.po,ord:yzUnits(l.code,+l.ordered||0),rec:yzUnits(l.code,+l.received||0),planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
   }catch(e){console.error(e);}
-  try{const DIS=reoDismissed();if(DIS.size)Object.keys(inc).forEach(c=>{inc[c]=inc[c].filter(x=>!(x.late&&DIS.has(String(x.po).toUpperCase())));});}catch(e){}
+  try{const DIS=reoDismissed(),DEL=reoDeleted();if(DIS.size)Object.keys(inc).forEach(c=>{inc[c]=inc[c].filter(x=>{const P=String(x.po).toUpperCase();return !DEL.has(P)&&!(x.late&&DIS.has(P));});});}catch(e){}
   const card=potCard(currentPlant);
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
   // not ordered from Next POs (Julian, Nov 19): pallets M2000, thermal / pallet labels (the warehouse orders them),
@@ -6325,6 +6325,15 @@ function poVendorOfBase(base){const ls=((loadYooz()||{}).lines||[]).filter(l=>re
    numbers arrives on THAT day, not on the day Next POs suggested (she may join two suggested POs into one truck). */
 /* Nov 24 (Julian): a PO that was due and nobody knows if it came → "🙈 Dismiss": it leaves "still waiting" and the Next POs
    alerts until someone marks it arrived or cancelled. Shared like the marks (key DIS|PO, kept 21 days). */
+function reoDeleted(){const o=new Set();Object.values(loadReoMarks()).forEach(m=>{if(m&&m.deleted&&m.po)o.add(String(m.po).toUpperCase());});return o;}
+async function poDeleteWms(gkey){const g=poGroups(true).concat(poGroups()).find(x=>x.key===gkey);if(!g)return;
+  const p=prompt('PIN to DELETE '+g.po+' ('+g.vendor+') from the WMS:','');if(p==null)return;if(p!==getPin()){showToast('Wrong PIN','error');return;}
+  if(!confirm('Delete '+g.po+' from the WMS?\n\nIt disappears from Receiving and Next POs on every device (its "created" marks too). Yooz / the tracker are not changed. It can be restored for 21 days (Receiving → Earlier POs).'))return;
+  const m=loadReoMarks(),P=String(g.po).toUpperCase(),list=[];
+  Object.entries(m).forEach(([k,x])=>{if(x&&x.base&&((g.mkeys||[]).includes(k)||(x.po&&String(x.po).toUpperCase()===P&&!/^PO TO ASSIGN/.test(P))))list.push({key:k,mark:null});});
+  if(!/^PO TO ASSIGN/.test(P))list.push({key:'DEL|'+P,mark:{dismiss:true,deleted:true,po:P,vendor:g.vendor,due:g.due}});
+  try{await reoSaveMark(null,null,list);showToast('🗑 '+g.po+' deleted from the WMS','success');closePoModal();renderPoView(true);}catch(e){showToast('Could not delete: '+e.message,'error');}}
+function poRestoreDel(po){reoSaveMark('DEL|'+String(po).toUpperCase(),null).then(()=>{showToast('Restored — '+po+' (its created marks are not restored)','success');renderPoView(true);}).catch(e=>showToast('Could not restore: '+e.message,'error'));}
 function reoDismissed(){const o=new Set();Object.entries(loadReoMarks()).forEach(([k,m])=>{if(m&&m.dismiss&&m.po)o.add(String(m.po).toUpperCase());});return o;}
 function poDismiss(po,undo){if(!undo&&!confirm('Dismiss '+po+'?\n\nIt leaves "still waiting" and the Next POs alerts until someone marks it arrived or cancelled. You can restore it below.'))return;
   reoSaveMark('DIS|'+String(po).toUpperCase(),undo?null:{dismiss:true,po:String(po).toUpperCase()}).then(()=>{showToast(undo?'Restored — '+po:'Dismissed — '+po,'success');if(currentView==='po')renderPoView(true);})
@@ -6400,7 +6409,7 @@ function poAssign(key,po){const r=allReceipts()[key];if(!r)return;
   if(currentView==='po')renderPoView(true);}
 /* a Next-POs PO without a number: give it the Yooz PO # from Receiving (saved on the Next POs marks, every device) */
 function poGiveNumber(gkey){const g=poGroups().find(x=>x.key===gkey);if(!g||!g.mkeys)return;
-  const v=prompt('Yooz PO # for this truck from '+g.vendor+' (e.g. 28461):','');if(!v)return;
+  const v=prompt('Yooz PO # for this truck from '+g.vendor+' — the last 3 digits are enough (e.g. 487 → '+poShort('487')+'):','');if(!v)return;
   const q=v.trim().toUpperCase(),po=poCandidatePOs(q)[0]||q,m=loadReoMarks();
   // Nov 24: she may join several suggested trucks into one PO — offer the other trucks of this supplier without a PO #
   const others=poGroups().filter(x=>x.mark&&x.key!==g.key&&x.po==='PO to assign'&&x.vendor===g.vendor);
@@ -6670,7 +6679,7 @@ function renderPoView(noSync){try{poAutoAssign();}catch(e){}
   if(!data){
     h+=`<div class="po-empty">Load the Yooz export to see the POs expected each day.<br>Past receiving reports can still be found below.</div>`;
   }else{
-    const groups=poGroups();
+    let groups=poGroups();{const DEL=reoDeleted();if(DEL.size)groups=groups.filter(g=>!DEL.has(String(g.po).toUpperCase()));}   // 🗑 deleted from the WMS
     const today=groups.filter(g=>g.due===poDate).sort((a,b)=>a.vendor.localeCompare(b.vendor));
     const lim=new Date(poDate+'T12:00');lim.setDate(lim.getDate()-14);const limS=ymd(lim);
     const yoozRecv=g=>(g.lines.length&&g.lines.every(l=>l.recv))||!!(g.pt&&g.pt.rcv);   // already received in Yooz or in Eleni's tracker
@@ -6696,6 +6705,7 @@ function renderPoView(noSync){try{poAutoAssign();}catch(e){}
     if(earlier.length)h+=`<button class="po-earlier-btn${poEarlierOpen?' open':''}" onclick="poEarlierOpen=!poEarlierOpen;renderPoView(true)">
         <span>⏳ Earlier POs still waiting <b>${earlier.length}</b></span><span class="po-sub">due before ${fmtDay(poDate)} · last 14 days · not received yet</span><span class="chev">${poEarlierOpen?'▴':'▾'}</span></button>`
       +(poEarlierOpen?`<div class="po-earlier">${earlier.map(g=>card(g).replace('<span class="po-st','<button class="po-btn" style="margin-right:6px" onclick="event.stopPropagation();poDismiss(\''+poEsc(g.po)+'\')" title="Nobody knows if it came: hide it until someone marks it">🙈 Dismiss</button><span class="po-st')).join('')}
+        ${(()=>{const D=Object.values(loadReoMarks()).filter(m=>m&&m.deleted&&m.po);return D.length?`<div class="po-sub" style="margin:10px 4px 4px">🗑 Deleted from the WMS (${D.length})</div>${D.map(m=>`<div class="po-x" style="display:flex;justify-content:space-between;align-items:center;padding:6px 4px"><span>${poEsc(m.po)} · ${poEsc(m.vendor||'')}${m.due?' · due '+fmtDay(m.due):''}</span><button class="po-btn" onclick="poRestoreDel('${poEsc(m.po)}')">↩ Restore</button></div>`).join('')}`:'';})()}
         ${dismissed.length?`<div class="po-sub" style="margin:10px 4px 4px">🙈 Dismissed (${dismissed.length}) — hidden until someone marks them arrived or cancelled</div>${dismissed.map(g=>`<div class="po-x" style="display:flex;justify-content:space-between;align-items:center;padding:6px 4px;cursor:pointer" onclick="openPoGroup('${poEsc(g.key)}')" title="Tap to receive it"><span>${poEsc(g.po)} · ${poEsc(g.vendor)} · due ${fmtDay(g.due)} <span style="color:var(--accent)">· receive ›</span></span><button class="po-btn" onclick="event.stopPropagation();poDismiss('${poEsc(g.po)}',true)">↩ Restore</button></div>`).join('')}`:''}</div>`:'');
   }
   {const gk=new Set(poGroups().map(g=>g.key));
@@ -6739,8 +6749,21 @@ function poQResultsHtml(){
       <span class="po-st ${s==='late'?'miss':s}">${ST[s]||'To check'}</span></div>`;}).join('')+reps.map(r=>poReportCard(r)).join('');
 }
 function poQRender(){const el=document.getElementById('po-q-res');if(el)el.innerHTML=poQResultsHtml();}
+/* Nov 24 (Julian): type only the last 3 digits — the rest is predictable: taken from the newest PO number the app has
+   seen (Yooz, tracker, marks). "487" → YZ-26-28487. */
+function poLastNum(){let best=0;const see=v=>{const m=String(v||'').toUpperCase().match(/YZ-(\d{2})-(\d{5})/);if(m){const n=+m[2];if(n>best)best=n;}};
+  try{(loadYooz()||{}).lines&&loadYooz().lines.forEach(l=>see(l.po));}catch(e){}
+  try{((loadPoTrack()||{}).rows||[]).forEach(t=>see(t.po));}catch(e){}
+  try{Object.values(loadReoMarks()).forEach(m=>see(m.po));}catch(e){}return best;}
+function poShort(q){q=String(q||'').trim().toUpperCase();const yy=new Date().getFullYear()%100,last=poLastNum();
+  if(/^\d{1,4}$/.test(q)&&last){const s=String(last);let n=+(s.slice(0,5-q.length)+q.padStart(q.length,'0'));
+    if(n<last-500)n+=Math.pow(10,q.length);   // rolled over (e.g. 28998 → "005" = 29005)
+    return 'YZ-'+yy+'-'+String(n).padStart(5,'0');}
+  if(/^\d{5}$/.test(q))return 'YZ-'+yy+'-'+q;
+  return q;}
 function poCandidatePOs(q){
   q=q.trim().toUpperCase();const yy=new Date().getFullYear()%100;
+  if(/^\d{1,3}$/.test(q)){const p=poShort(q);return p.startsWith('YZ-')?[p]:[];}
   if(/^\d{4,6}$/.test(q))return ['YZ-'+yy+'-'+q,'YZ-'+(yy-1)+'-'+q];
   if(/^\d{2}-\d{4,6}$/.test(q))return ['YZ-'+q];
   if(/^YZ-\d{2}-\d{4,6}$/.test(q))return [q];
@@ -6849,7 +6872,8 @@ function openPoReceive(key,opt){
     <textarea class="po-note" id="po-note">${poEsc(prev?prev.notes:'')}</textarea>
     <label>Received by</label>
     <input type="text" id="po-by" value="${poEsc(prev&&prev.by?prev.by:by)}" placeholder="Your name" autocomplete="off">
-    <div class="modal-actions"><button class="btn-primary" onclick="savePoReceipt()">Save &amp; create report</button><button class="btn-cancel" onclick="closePoModal()">Cancel</button></div>`;
+    <div class="modal-actions"><button class="btn-primary" onclick="savePoReceipt()">Save &amp; create report</button><button class="btn-cancel" onclick="closePoModal()">Cancel</button></div>
+    ${isManual?'':`<div style="text-align:right;margin-top:10px"><button class="po-btn" style="color:var(--danger);font-size:12px" onclick="poDeleteWms('${poEsc(baseKeyOf(key))}')">🗑 Delete this PO from the WMS (PIN)</button></div>`}`;
   lines.forEach((l,i)=>poUpdDiff(i));
   document.getElementById('po-overlay').classList.remove('hidden');
   if(!lines.length)poAddExtra();
@@ -8262,7 +8286,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24p';
+const APP_VERSION='2026.11.24q';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -8332,7 +8356,7 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       return Promise.race([p,sleep(ms).then(()=>{if(!done)times[name]={s:ms/1000,ok:false,timeout:true};})]);};
     const build=partial=>{const ltd=loadLeadTime(),y2=loadYooz(),pOk=planData&&planData.day===isoToday()&&planData.dm;
       return {partial,rows:ltd?reorderRows(getItemSummary()):[],ltAt:ltd?ltd.loaded:'',ltErr:ltd?'':ltFetch.err,yzAt:y2?y2.loaded:'',yzErr:y2?'':yoozFetch.err,
-        subs:(()=>{const o={};try{subsList().forEach(x=>{o[x.code]=x.sub?(String(x.sub).match(/\(BX\w+\)/g)||[]).map(m=>m.slice(1,-1)):null;});}catch(e){}return o;})(),amCopy:reoAmToday(),amAt:((loadCntHist()||{}).ats||{})[ymd(new Date())]||'',turno:window.REO_TURNO||'',stockAt:shared?shared.at:0,cntN:window.REO_CNT_N||0,cntMin:CNT_MIN,cntDone:reoCntDone(),liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
+        subs:(()=>{const o={};try{subsList().forEach(x=>{o[x.code]=x.sub?(String(x.sub).match(/\(BX\w+\)/g)||[]).map(m=>m.slice(1,-1)):null;});}catch(e){}return o;})(),lastPo:poLastNum(),amCopy:reoAmToday(),amAt:((loadCntHist()||{}).ats||{})[ymd(new Date())]||'',turno:window.REO_TURNO||'',stockAt:shared?shared.at:0,cntN:window.REO_CNT_N||0,cntMin:CNT_MIN,cntDone:reoCntDone(),liveOn:!!shared,plan:pOk?{end:planData.dm.end,file:planData.source||''}:null,plannerAt:(loadPlanner()||{}).loaded||'',racks:DM_RACKS[rd]||0,locs:reoLocs(),trk:((loadPoTrack()||{}).rows||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),tpos:(((loadPoTrack()||{}).rows)||[]).filter(x=>x.plant===currentPlant).map(x=>String(x.po).toUpperCase()),sups:reoSupStats(),mk:reoMarkStats(),tonly:(()=>{try{return poGroups().filter(g=>g.tracker&&g.due>=ymd(new Date(Date.now()-5*864e5))).map(g=>({po:g.po,sup:g.vendor,due:g.due,total:g.total||0}));}catch(e){return [];}})(),space:(()=>{try{const b=getRackFloorBreakdown(),sum=o=>Object.values(o).reduce((a,x)=>({occ:a.occ+x.occ,total:a.total+x.total}),{occ:0,total:0});return {rack:sum(b.rackAreas),floor:sum(b.floorAreas)};}catch(e){return null;}})(),cfg:loadReoCfg(),dev:planDevice(),potAt:(loadPoTrack()||{}).loaded||'',potOn:!!POTRACK_FLOW_URL,potErr:potFetch.err,suppliers:potCard(rd),
         times:Object.assign({},times),
         // Nov 24: what THIS device used — two screens with different numbers can be compared line by line
         fp:{v:APP_VERSION,clock:new Date().toString().replace(/ \(.*\)$/,''),tz:(Intl.DateTimeFormat().resolvedOptions()||{}).timeZone||'',
