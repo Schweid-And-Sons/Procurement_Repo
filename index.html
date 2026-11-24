@@ -6308,7 +6308,7 @@ function plannerRows(){
   d.rows.filter(r=>r.plant===currentPlant).forEach(r=>{
     const pos=String(r.po).toUpperCase().match(/YZ-\d\d-\d+/g);if(!pos)return;      // skip cells without a real PO number
     const it=cat.get(nz(r.code));if(!it)return;
-    const pu=palletUnits(it.code);const qty=pu&&r.qty&&r.qty<1000?r.qty*pu:r.qty;   // the planner writes trays in pallets (55), Yooz in trays (145,200)
+    const pu=it.cat==='TRAYS'?palletUnits(it.code):0;const qty=pu&&r.qty&&r.qty<1000?r.qty*pu:r.qty;   // the planner writes TRAYS in pallets (55 → 145,200); boxes and everything else are already units
     pos.forEach(po=>out.push({po,code:it.code,desc:it.name,vendor:r.vendor,date:r.date,qty}));
   });
   return out;
@@ -8286,7 +8286,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24q';
+const APP_VERSION='2026.11.24r';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
