@@ -5051,7 +5051,10 @@ function invCheck(){
   // Nov 24: starting the After 9am shift stamps every position with its start time, hiding the morning's changes —
   // if the After shift was started today, the morning count was done: no warning
   const afterToday=!!(live.rec&&live.rec.turno&&live.rec.turno!=='pre9'&&live.rec.day===today);
-  if(n.getHours()>=9&&!afterToday&&(!lastD||isoDay(lastD)!==today))out.push('⚠ No inventory updates today yet'+(lastD?' (last: '+tm(lastD)+')':''));
+  // same rule as Next POs (Nov 24): today's Before 9am copy exists, or 10+ positions changed today → the count is in
+  const nToday=[...Object.values(live.ts||{}),...Object.values(live.del||{})].map(String).filter(v=>v&&v!==st0&&isoDay(new Date(v))===today).length;
+  const counted=afterToday||(typeof reoAmToday==='function'&&reoAmToday())||nToday>=CNT_MIN;
+  if(n.getHours()>=9&&!counted)out.push('⚠ No inventory count today yet'+(nToday?' ('+nToday+' of '+CNT_MIN+' positions)':lastD?' (last: '+tm(lastD)+')':''));
   // the morning copy of a day is saved when the next shift starts or the next day → check the previous work day's
   const h=loadCntHist();let pw=new Date(n);do{pw.setDate(pw.getDate()-1);}while(pw.getDay()===0||pw.getDay()===6||hol.has(isoDay(pw)));
   const pk=isoDay(pw);
@@ -8259,7 +8262,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24o';
+const APP_VERSION='2026.11.24p';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
