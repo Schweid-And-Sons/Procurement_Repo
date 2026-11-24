@@ -4992,7 +4992,7 @@ let planAuto={busy:false,tried:{},checked:{}};
    planner, Eleni's PO Tracker, the receiving reports and the morning counts — no need to open each screen first.
    Each source keeps its own limit (Yooz after 8:00 AM / PM, planner and tracker once an hour, counts once a day after
    10 AM), so opening the app many times does not repeat the calls. Then every 10 min while the app is on screen. */
-window.addEventListener('online',()=>{try{if(currentPlant&&reoQueue().length)reoFlushMarks().catch(()=>{});}catch(e){}});
+window.addEventListener('online',()=>{try{if(currentPlant&&reoQueue().length)reoFlushMarks().catch(()=>{});}catch(e){}try{poAutoUpload();}catch(e){}});
 /* Nov 24: the FIRST load of the WMS brings everything at once (in parallel) and shows how far it is — bottom-left chip:
    "⟳ Updating data 3/8 · Yooz, counts" → "✓ Data up to date · 38 s" (tap = 🩺 Data health). Later refreshes stay quiet. */
 function refreshChip(txt,done){let c=document.getElementById('rf-chip');
@@ -5028,6 +5028,7 @@ async function bgRefreshAll(first){
   const step=async f=>{try{await Promise.resolve(f());}catch(e){}};
   await step(()=>yoozAutoRefresh());await step(()=>plannerAutoRefresh());await step(()=>potAutoRefresh());
   if(reoQueue().length)await step(()=>reoFlushMarks());   // Next POs changes that couldn't be sent yet
+  await step(()=>poAutoUpload());   // receiving reports that couldn't be sent yet
   if(first||Date.now()-(window._subsAt||0)>3600e3){window._subsAt=Date.now();await step(()=>reoReadShared());}   // substitutions / marks of the other devices
   if(first)await step(()=>syncReceiptsFromSP(false));
   if(cntHistOld()&&!cntFetch.busy&&Date.now()-(cntFetch.tried||0)>20*60000)await step(()=>loadCntHistFromFlow());
@@ -5047,7 +5048,10 @@ function invCheck(){
   const last=[...Object.values(live.ts||{}),...Object.values(live.del||{})].map(String).filter(v=>v&&v!==st0).sort().pop()||'';
   const lastD=last?new Date(last):null,tm=d=>d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
   const out=[];
-  if(n.getHours()>=9&&(!lastD||isoDay(lastD)!==today))out.push('⚠ No inventory updates today yet'+(lastD?' (last: '+tm(lastD)+')':''));
+  // Nov 24: starting the After 9am shift stamps every position with its start time, hiding the morning's changes —
+  // if the After shift was started today, the morning count was done: no warning
+  const afterToday=!!(live.rec&&live.rec.turno&&live.rec.turno!=='pre9'&&live.rec.day===today);
+  if(n.getHours()>=9&&!afterToday&&(!lastD||isoDay(lastD)!==today))out.push('⚠ No inventory updates today yet'+(lastD?' (last: '+tm(lastD)+')':''));
   // the morning copy of a day is saved when the next shift starts or the next day → check the previous work day's
   const h=loadCntHist();let pw=new Date(n);do{pw.setDate(pw.getDate()-1);}while(pw.getDay()===0||pw.getDay()===6||hol.has(isoDay(pw)));
   const pk=isoDay(pw);
@@ -6654,7 +6658,7 @@ function renderPoView(noSync){try{poAutoAssign();}catch(e){}
   <div class="po-qbox"><input id="po-q" type="search" placeholder="🔎 Find a PO — type part of the number (28175), the vendor or the item" value="${poEsc(poQ)}" oninput="poQ=this.value;poQRender()" autocomplete="off">${poQ?`<button class="po-btn" onclick="poQ='';renderPoView(true)">✕</button>`:''}</div>
   <div id="po-q-res">${poQResultsHtml()}</div>`;
   if(poCalOpen){h+=poCalendarHtml();el.innerHTML=h;if(!noSync)syncReceiptsFromSP(false);return;}
-  if(pend.length)h+=`<div class="po-pending">⚠ <b>${pend.length}</b> report(s) are only on this device — not in SharePoint yet. <button class="po-btn pri" onclick="uploadPendingPo()">☁ Upload ${pend.length===1?'it':'all'}</button></div>`;
+  if(pend.length)h+=`<div class="po-pending">⏳ <b>${pend.length}</b> report(s) not shared yet — they go out by themselves as soon as there is internet.</div>`;
   if(!data){
     h+=`<div class="po-empty">Load the Yooz export to see the POs expected each day.<br>Past receiving reports can still be found below.</div>`;
   }else{
@@ -6771,7 +6775,7 @@ function discardLocalReceipt(key){
 }
 function poReportCard(r,canDiscard){
   const s=receiptStatus(r);const dn=deliveryOf(r.key);
-  const src=isPending(r)?'<span class="po-tag warn">⚠ only on this device</span>':isGhost(r)?'<span class="po-tag warn">⚠ not in SharePoint anymore</span>':'<span class="po-tag">☁ SharePoint</span>';
+  const src=isPending(r)?'<span class="po-tag warn">⏳ not shared yet (automatic)</span>':isGhost(r)?'<span class="po-tag warn">⚠ not in SharePoint anymore</span>':'<span class="po-tag">☁ SharePoint</span>';
   return `<div class="po-card" onclick="openPoReport('${poEsc(r.key)}')"><div class="po-main"><div class="po-t">${poEsc(r.po)} · ${poEsc(r.vendor)}${dn>1?' · delivery '+dn:''}</div>
     <div class="po-l">${src} Checked ${new Date(r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'})}${r.by?' by '+poEsc(r.by):''} · ${r.lines.length} line(s)</div></div>${canDiscard?`<button class="po-btn bad" style="margin-right:6px" onclick="event.stopPropagation();discardLocalReceipt('${poEsc(r.key)}')">🗑 Discard</button>`:''}<span class="po-st ${s}">${ST_LABEL[s]}</span></div>`;
 }
@@ -7011,7 +7015,17 @@ function savePoReceipt(notArrived){
   addLog('RECEIVE',`PO ${f.po}${f.dn>1?' (delivery '+f.dn+')':''} · ${f.vendor} — ${ST_LABEL[s].replace(/^[^A-Za-z]+/,'')}`+(off.length&&!notArrived?': '+off.map(l=>`${l.code} PO ${l.ordered!=null?l.ordered:'—'} / BOL ${l.bol} / counted ${l.counted}`).join(', '):''));
   renderPoView(true);
   openPoReport(f.key);
+  // Nov 24 (Julian): sent to SharePoint right away, so every device (and Next POs) sees it. No internet → it stays
+  // "only on this device" and goes out by itself with the next background update (every 10 min) or when back online.
+  if(RECEIVING_FLOW_URL)poUpload(r).then(()=>{showToast('Saved and shared ✓','success');if(_poKey===f.key)openPoReport(f.key);if(currentView==='po')renderPoView(true);})
+    .catch(()=>showToast('Saved on this device — it will be shared when there is internet','error'));
 }
+/* receiving reports still only on this device → send them quietly (background update / back online) */
+let _poAutoBusy=false;
+setInterval(()=>{try{poAutoUpload();}catch(e){}},5*60000);setTimeout(()=>{try{poAutoUpload();}catch(e){}},8000);   // also on the Receiving-only page
+async function poAutoUpload(){if(_poAutoBusy||!RECEIVING_FLOW_URL||!currentPlant)return;_poAutoBusy=true;
+  try{const list=Object.values(loadReceipts()).filter(r=>isPending(r)||r.spPrev);for(const r of list){try{await poUpload(r);}catch(e){break;}}
+    if(list.length&&currentView==='po')renderPoView(true);}finally{_poAutoBusy=false;}}
 /* ---------- micro-report (what Procurement receives) ---------- */
 function poReportHtml(r){
   const s=receiptStatus(r);
@@ -7060,7 +7074,7 @@ function openPoReport(key){
   _poKey=key;
   const pend=isPending(r),base=baseKeyOf(key);
   const nextD=Math.max(...deliveriesFor(base).map(x=>deliveryOf(x.key)),1)+1;
-  const spLine=pend?`<button class="po-btn pri" id="po-sp-btn" onclick="sendPoToSharePoint()">${r.spPrev?'☁ Save to SharePoint again (count was edited)':'☁ Save to SharePoint'}</button><span class="po-tag warn">⚠ only on this device</span>`
+  const spLine=pend||r.spPrev?`<span class="po-tag warn">⏳ Sharing with the other devices… (automatic — if there's no internet, it goes out later by itself)</span>`
     :`<span class="po-tag">☁ In SharePoint · saved ${new Date(r.spAt||r.ts).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}${r.by?' · '+poEsc(r.by):''}</span>`;
   document.getElementById('po-modal-body').innerHTML=`
     <div class="po-report-wrap">${poReportHtml(r)}</div>
@@ -8240,7 +8254,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24j';
+const APP_VERSION='2026.11.24m';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
