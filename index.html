@@ -6386,7 +6386,8 @@ function poExtraGroups(g){
   Object.values(mk).forEach(x=>{
     // already in Yooz / the planner: same supplier, near the day, most of the same boxes → don't show it twice
     const codes=x.lines.map(l=>l.code);
-    const dup=base.some(b=>potVendor(b.vendor)===x.vendor&&near(b.due,x.due)&&codes.filter(c=>b.lines.some(l=>reoBase(l.code)===c)).length>=Math.ceil(codes.length*0.8));
+    // Nov 24: a truck that already has its own PO # (not in Yooz yet) is never "the same" as another PO of that supplier
+    const dup=RCV_NOPO.test(x.po)&&base.some(b=>potVendor(b.vendor)===x.vendor&&near(b.due,x.due)&&codes.filter(c=>b.lines.some(l=>reoBase(l.code)===c)).length>=Math.ceil(codes.length*0.8));
     if(!dup)g[x.key]=x;});
 }
 /* which PO is this truck? open POs of the same supplier within ±3 days, ranked by how many boxes match */
@@ -8291,7 +8292,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24s';
+const APP_VERSION='2026.11.24t';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
