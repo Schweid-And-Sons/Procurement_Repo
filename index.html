@@ -3357,27 +3357,27 @@ function plantSummary(p){
    the day's plan are read live when the plant opens; Batch and Waste read SharePoint themselves when they open.
    One plant at a time; if someone opens a plant meanwhile, the prefetch stops and leaves that plant alone. */
 let _pfTok=0,_pfAt=0;
-const PF_KEYS=['currentPlant','WMS_KEY','LOG_KEY','PLAN_DIA_KEY','COUNT_SESSION_KEY','SYNC_HISTORY_KEY','LAST_LOC_KEY'];
-async function withPlant(P,tok,fn){if(tok!==_pfTok)return;
-  const save={currentPlant,WMS_KEY,LOG_KEY,PLAN_DIA_KEY,COUNT_SESSION_KEY,SYNC_HISTORY_KEY,LAST_LOC_KEY},k=PLANTS[P].keys;
-  currentPlant=P;WMS_KEY=k.wms;LOG_KEY=k.log;PLAN_DIA_KEY=k.plan;COUNT_SESSION_KEY=k.count;SYNC_HISTORY_KEY=k.sync;LAST_LOC_KEY=k.last;
-  try{await fn();}catch(e){throw e;}
-  finally{if(tok===_pfTok){currentPlant=save.currentPlant;WMS_KEY=save.WMS_KEY;LOG_KEY=save.LOG_KEY;PLAN_DIA_KEY=save.PLAN_DIA_KEY;
-    COUNT_SESSION_KEY=save.COUNT_SESSION_KEY;SYNC_HISTORY_KEY=save.SYNC_HISTORY_KEY;LAST_LOC_KEY=save.LAST_LOC_KEY;}}}
-async function startPrefetch(force){if(!force&&Date.now()-_pfAt<5*60000)return;_pfAt=Date.now();const tok=++_pfTok,t0=Date.now();
+/* Next POs shared data of ANY plant, without switching the open plant (Nov 24: switching plants in the background
+   could mix NJ and GA while the inventory was syncing — never again) */
+async function reoReadSharedFor(P){if(!PLAN_READ_URL)return;
+  const res=await fetch(PLAN_READ_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plant:P,from:REO_CFG_DAY,to:REO_SUBS_DAY})});
+  if(!res.ok)throw new Error('HTTP '+res.status);const js=await res.json(),rows=Array.isArray(js)?js:(js.value||[]);
+  let q=[];try{q=JSON.parse(localStorage.getItem('wms_reomarks_q_'+P)||'[]');}catch(e){}
+  rows.forEach(x=>{const k=x.Kind||x.kind;let o;try{o=JSON.parse(x.JsonData||x.jsonData||'null');}catch(e){o=null;}if(!o||o.plant!==P)return;
+    if(k==='reocfg'&&Array.isArray(o.days))localStorage.setItem('wms_reocfg_'+P,JSON.stringify(o));
+    if(k==='reomarks'&&o.marks)localStorage.setItem('wms_reomarks_'+P,JSON.stringify(q.length?reoApplyOps(o.marks,q):o.marks));
+    if(k==='subs'&&Array.isArray(o.rows))localStorage.setItem('wms_subs_'+P,JSON.stringify(o));});}
+async function startPrefetch(force){if(!force&&Date.now()-_pfAt<30*60000)return;_pfAt=Date.now();const tok=++_pfTok,t0=Date.now();
   const steps=[['Yooz',()=>yoozAutoRefresh()],['PO Tracker',()=>POTRACK_FLOW_URL?loadPoTrackFromFlow(false):null],['planner',()=>PLANNER_FLOW_URL?loadPlannerFromFlow(false):null],
     ['lead times',()=>{const l=loadLeadTime();return !l||Date.now()-new Date(l.loaded).getTime()>7*864e5?loadLeadTimeFromFlow(false):null;}]];
-  ['NJ','GA'].forEach(P=>{
-    steps.push([P+' Next POs',()=>withPlant(P,tok,async()=>{if(reoQueue().length)await reoFlushMarks();await reoReadShared();})]);
-    steps.push([P+' receiving',()=>withPlant(P,tok,()=>syncReceiptsFromSP(true))]);
-    steps.push([P+' morning copies',()=>withPlant(P,tok,()=>(cntHistOld()||!((loadCntHist()||{}).days||{})[ymd(new Date())])&&!cntFetch.busy?loadCntHistFromFlow():null)]);
-    steps.push([P+' batch',()=>pfBatchToday(P)]);});
-  let n=0;const bad=[],shared=steps.slice(0,4),per=steps.slice(4),run=new Set();
+  ['NJ','GA'].forEach(P=>{steps.push([P+' Next POs',()=>reoReadSharedFor(P)]);steps.push([P+' batch',()=>pfBatchToday(P)]);});
+  if(currentPlant){const P=currentPlant;   // the plant already open underneath: its receiving and morning copies too (no switching)
+    steps.push([P+' receiving',()=>currentPlant===P?syncReceiptsFromSP(false):null]);
+    steps.push([P+' morning copies',()=>currentPlant===P&&(cntHistOld()||!((loadCntHist()||{}).days||{})[ymd(new Date())])&&!cntFetch.busy?loadCntHistFromFlow():null]);}
+  let n=0;const bad=[],run=new Set();
   const show=()=>{if(tok===_pfTok)refreshChip(`⟳ Updating all areas ${n}/${steps.length} · <i>${[...run].slice(0,2).join(', ')}</i>`);};
-  const one=async([name,f])=>{run.add(name);show();try{await Promise.resolve(f());}catch(e){bad.push(name);}run.delete(name);n++;show();};
-  // the shared sources (Yooz, tracker, planner, lead times) all at once; the plant ones one by one (they switch plant)
-  await Promise.all([Promise.all(shared.map(one)),(async()=>{for(const x of per){if(tok!==_pfTok)return;await one(x);}})()]);
-  if(tok!==_pfTok)return;
+  await Promise.all(steps.map(async([name,f])=>{if(tok!==_pfTok)return;run.add(name);show();try{await Promise.resolve(f());}catch(e){bad.push(name);}run.delete(name);n++;show();}));
+  if(tok!==_pfTok){const c=document.getElementById('rf-chip');if(c)c.remove();return;}
   refreshChip(bad.length?`⚠ All areas updated · ${Math.round((Date.now()-t0)/1000)} s · <i>not reached: ${bad.join(', ')}</i>`:`✓ All areas up to date · ${Math.round((Date.now()-t0)/1000)} s`,true);
   if(!document.getElementById('plant-overlay').classList.contains('hidden'))plantSums();}
 /* today's batch sheets of a plant, only for the BATCH card's "Today: NJ n · GA n" (batch.html keeps its own data) */
@@ -4180,6 +4180,11 @@ function reorderRows(summary){
   const fixArrive=(ad,min)=>{if(canReceive(ad))return ad;for(let b=1;b<=6;b++)if(ad-b>=min&&canReceive(ad-b))return ad-b;for(let f=1;f<=14;f++)if(canReceive(ad+f))return ad+f;return ad;};
   // use from the morning counts (see loadCntHist): received in Yooz by day, so a delivery isn't read as "no use"
   const ch=loadCntHist(),rcvD={},RDUE=poRealDue();
+  // POs that Yooz / the planner really have, per box: {po, supplier, due, made = first day this device saw it}
+  const YZB={};try{const seen=JSON.parse(localStorage.getItem('wms_po_seen')||'{}'),t0s=ymd(new Date());let ch2=false;
+    poGroups(true).forEach(g=>{const P=String(g.po||'').toUpperCase();if(!P||/^PO to assign/i.test(P))return;if(!seen[P]){seen[P]=t0s;ch2=true;}
+      g.lines.forEach(l=>{const b=reoBase(l.code);(YZB[b]=YZB[b]||[]).push({po:P,v:potVendor(g.vendor),due:String(g.due||'').slice(0,10),made:seen[P]});});});
+    if(ch2){const cut=ymd(new Date(Date.now()-60*864e5));Object.keys(seen).forEach(k=>{if(seen[k]<cut)delete seen[k];});localStorage.setItem('wms_po_seen',JSON.stringify(seen));}}catch(e){}
   lines.forEach(l=>{if(l.recv&&l.received>0){const b=reoBase(l.code);(rcvD[b]=rcvD[b]||{})[l.recv]=((rcvD[b]||{})[l.recv]||0)+yzUnits(l.code,l.received);}});
   // Nov 21: a day Juan's plan has production counts as a work day, even a Saturday (Thanksgiving week, high season)
   const planWork=new Set();if(dm)Object.values(dm.codes||{}).forEach(v=>Object.entries(v.d||{}).forEach(([k,q])=>{if(+q>0)planWork.add(k);}));
@@ -4404,7 +4409,10 @@ function reorderRows(summary){
     Object.entries(marks).forEach(([k0,m0])=>{if(m0.base!==f.base)return;
       const rd=m0.po&&RDUE[String(m0.po).toUpperCase()];let m=m0,k=k0;
       if(rd)m=Object.assign({},m0,{dl:(m0.dl||[]).map(x=>Object.assign({},x,{d:rd})),realDue:rd});   // the PO's real date
-      const inYooz=m.done&&yzAt>new Date(m.at).getTime()+2*3600e3;
+      // Nov 24: a created mark keeps counting as coming until Yooz (or the planner) REALLY shows that PO with this box —
+      // not just "2 h after Yooz loaded": Databricks can be days late (28461, 28485), and then the boxes were suggested again.
+      const yb=YZB[f.base]||[],d0=(m.dl&&m.dl[0]?m.dl[0].d:m.ob),mv=potVendor(m.vendor||poVendorOfBase(m.base)||'');
+      const inYooz=m.done&&(m.po?yb.some(x=>x.po===String(m.po).toUpperCase()):yb.some(x=>(!mv||x.v===mv)&&x.due&&Math.abs(new Date(x.due+'T12:00:00')-new Date(d0+'T12:00:00'))<=4*864e5&&x.made>=String(m.at||'').slice(0,10)));
       const lastD=m.dl&&m.dl.length?m.dl[m.dl.length-1].d:m.ob;if(m.done&&new Date(lastD+'T00:00:00')<today)return;   // created and already delivered: done
       fixed.push(Object.assign({key:k,orderBy:new Date(m.ob<ymd(today)?ymd(today)+'T00:00:00':m.ob+'T00:00:00'),arrive:new Date((m.dl&&m.dl[0]?m.dl[0].d:m.ob)+'T00:00:00'),fixed:true,inYooz},m));
       // counted like the suggestion it replaces: from the day it could first arrive (order day + lead time),
@@ -5003,7 +5011,9 @@ async function bgRefreshFirst(){const t0=Date.now(),L=[];
   try{if(currentView==='plan')renderPlanView();else if(currentView==='items')renderItemsView();}catch(e){}}
 async function bgRefreshAll(first){
   if(RCV_ONLY)return;
-  if(first)return bgRefreshFirst();
+  if(first){const k='wms_full_'+currentPlant,t=ymd(new Date());let done=null;try{done=localStorage.getItem(k);}catch(e){}
+    if(done!==t){try{localStorage.setItem(k,t);}catch(e){}return bgRefreshFirst();}   // first time today on this device: everything, with the chip
+    first=false;}   // later the same day: quiet, only what is old
   const step=async f=>{try{await Promise.resolve(f());}catch(e){}};
   await step(()=>yoozAutoRefresh());await step(()=>plannerAutoRefresh());await step(()=>potAutoRefresh());
   if(reoQueue().length)await step(()=>reoFlushMarks());   // Next POs changes that couldn't be sent yet
@@ -8219,7 +8229,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24f';
+const APP_VERSION='2026.11.24g';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
