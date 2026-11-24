@@ -4091,6 +4091,8 @@ function reoSaveMark(key,mark,list){   // mark = {base,ob,qty,dl,done,edited,rus
     // only a PO # added (keepWho): the mark keeps who created it and when (Nov 24: "Created by JD 11:47 PM" hid Eleni's 10:07 AM)
     const m=Object.assign({},x.mark);if(m.keepWho&&m.by&&m.at){delete m.keepWho;m.poBy=planDevice();m.poAt=now;return {key:x.key,mark:m};}
     delete m.keepWho;return {key:x.key,mark:Object.assign(m,{by:planDevice(),at:now})};});
+  {const DEL=reoDeleted();ops.slice().forEach(o=>{const P=o.mark&&o.mark.done&&o.mark.po&&String(o.mark.po).toUpperCase();   // a new line for a PO deleted before → that PO is back
+    if(P&&DEL.has(P)&&!/^(DEL|DIS)\|/.test(o.key)&&!ops.some(x=>x.key==='DEL|'+P)){ops.push({key:'DEL|'+P,mark:null});DEL.delete(P);}});}
   const q=reoQueue().filter(x=>!ops.some(o=>o.key===x.key)).concat(ops);reoQueueSet(q);
   localStorage.setItem('wms_reomarks_'+currentPlant,JSON.stringify(reoApplyOps(loadReoMarks(),ops)));   // shows right away on this device
   return reoFlushMarks();}
@@ -6419,6 +6421,9 @@ function poGiveNumber(gkey){const g=poGroups().find(x=>x.key===gkey);if(!g||!g.m
   const list=[...new Set(keys)].filter(k=>m[k]).map(k=>({key:k,mark:Object.assign({},m[k],{po,keepWho:true})}));if(!list.length)return;
   reoSaveMark(null,null,list).then(()=>{showToast('PO # saved — '+po,'success');if(currentView==='po')renderPoView(true);}).catch(e=>showToast('Could not save: '+e.message,'error'));}
 let _rcvMarksAt=0;
+/* Nov 24: a PO marked in Next POs (another tab / the Next POs page) shows in Receiving right away, not only when searched */
+window.addEventListener('storage',e=>{if(!e.key||!/^wms_reomarks_/.test(e.key))return;clearTimeout(window._rcvStT);
+  window._rcvStT=setTimeout(()=>{try{if(currentView==='po'&&document.getElementById('po-overlay').classList.contains('hidden'))renderPoView(true);}catch(x){}},400);});
 function rcvMarksRefresh(){if(!PLAN_READ_URL||Date.now()-_rcvMarksAt<5*60000)return;_rcvMarksAt=Date.now();
   reoReadShared().then(()=>{if(currentView==='po'&&document.getElementById('po-overlay').classList.contains('hidden'))renderPoView(true);}).catch(()=>{});}
 /* ---------- Next POs extras (Nov 21) ----------
@@ -6742,8 +6747,8 @@ function poQResultsHtml(){
   const gk=new Set(poGroups().map(g=>g.key));
   const reps=Object.values(allReceipts()).filter(r=>!gk.has(baseKeyOf(r.key))&&!isGhost(r)&&((digits.length>=2&&String(r.po).replace(/\D/g,'').includes(digits))||String(r.po).toUpperCase().includes(q)||String(r.vendor).toUpperCase().includes(q))).slice(0,10);
   if(!gs.length&&!reps.length)return `<div class="po-empty" style="padding:14px">Nothing found for “${poEsc(poQ)}”. Try fewer numbers (e.g. the last 4) or the vendor name.</div>`;
-  const ST={ok:'✓ Received OK',diff:'⚠ Differences',bol:'⚠ BOL ≠ PO',late:'✕ Did not arrive',pend:'To check'};
-  return `<div class="po-sec">Found ${gs.length+reps.length}</div>`+gs.map(g=>{const s=groupStatus(g.key);
+  const ST={ok:'✓ Received OK',diff:'⚠ Differences',bol:'⚠ BOL ≠ PO',late:'✕ Did not arrive',pend:'To check'},DEL=reoDeleted();
+  return `<div class="po-sec">Found ${gs.length+reps.length}</div>`+gs.map(g=>{const s=DEL.has(String(g.po).toUpperCase())?'deleted':groupStatus(g.key);if(s==='deleted')ST.deleted='🗑 Deleted — restore in Earlier POs';
     return `<div class="po-card" onclick="poQ='';poDate='${g.due}';openPoGroup('${poEsc(g.key)}')"><div class="po-main"><div class="po-t">${poEsc(g.po)} <span class="po-due">· due ${fmtDay(g.due)}</span></div>
       <div class="po-v">${poEsc(g.vendor)} · ${g.lines.length} line(s)</div><div class="po-l">${g.lines.slice(0,6).map(l=>poEsc(l.code)).join(' · ')}${g.lines.length>6?' …':''}</div></div>
       <span class="po-st ${s==='late'?'miss':s}">${ST[s]||'To check'}</span></div>`;}).join('')+reps.map(r=>poReportCard(r)).join('');
@@ -8286,7 +8291,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24r';
+const APP_VERSION='2026.11.24s';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

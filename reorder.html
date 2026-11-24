@@ -293,7 +293,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24m</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24n</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -500,18 +500,13 @@ function joinExisting(vk){const M={};((data&&data.rows)||[]).forEach(r=>(r.order
   const t0=ymdL(new Date(Date.now()-3*864e5));return Object.values(M).filter(x=>!x.day||x.day>=t0).sort((a,b)=>String(b.po).localeCompare(String(a.po)));}
 /* Nov 24 (Julian): if Eleni joins POs, she is bringing them all at once — by default TODAY (Sonic delivers the same day;
    another supplier: the earliest day of the ones joined). She can pick the day it should arrive. */
-function joinDefDay(it){const t0=ymdL(new Date()),recv=((data.cfg||{}).days)||[2,3,4,5],vk=joinVk(it[0].r,it[0].o);
-  const first=it.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy)).sort()[0];
-  if(vk==='SONIC'){const d=new Date();for(let i=0;i<7;i++){if(recv.includes(d.getDay()))return ymdL(d);d.setDate(d.getDate()+1);}}   // today, or the next receiving day
-  return first<t0?t0:first;}
+function joinDefDay(it){return ymdL(new Date());}   // Nov 24 (Julian): joined = it comes TODAY; another day → the calendar
 function joinSave(){const it=joinItems();if(!it.length)return;
-  const d=joinDefDay(it),t0=ymdL(new Date()),add=n=>{const x=new Date();x.setDate(x.getDate()+n);return ymdL(x);};
-  const first=it.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy)).sort()[0];
-  const hol=new Set(((data.cfg||{}).holidays||[]).map(h=>h.d)),opts=[...new Set([d,t0,add(1),add(2),add(3),first<t0?t0:first])].filter(x=>x===d||!hol.has(x)).sort().slice(0,5);   // no holidays
+  const d=joinDefDay(it),t0=ymdL(new Date()),opts=[t0];   // only Today + the calendar
   window._joinDay=d;
   withPin(()=>sheet(`<h2>✅ ${it.length} POs → one PO · ${esc(vName(joinVk(it[0].r,it[0].o)).split(' ·')[0])}</h2>
     <div class="hint">When should it arrive? (all together)</div>
-    <div class="jd-row">${opts.map(x=>`<button class="st jd${x===d?' on':''}" data-d="${x}" onclick="joinPickDay('${x}')">${x===t0?'Today':x===add(1)?'Tomorrow':dShort(x)}</button>`).join('')}
+    <div class="jd-row">${opts.map(x=>`<button class="st jd${x===d?' on':''}" data-d="${x}" onclick="joinPickDay('${x}')">${x===t0?'Today':dShort(x)}</button>`).join('')}
       <input type="date" id="jd-other" value="${d}" min="${t0}" onchange="joinPickDay(this.value)" style="padding:8px;border-radius:10px;border:1px solid var(--border,#ccc)"></div>
     ${it.map(({r,o})=>`<div style="font-size:14px;margin:5px 0"><b>${esc((r.codes||[r.base])[0])}</b> ${qtyTxt(r,o.qty,o.pallets)}</div>`).join('')}
     ${(()=>{const ex=joinExisting(joinVk(it[0].r,it[0].o));window._joinEx=ex;return ex.length?`<div class="hint" style="margin-top:10px">Add them to a PO already created?</div><div class="jd-row">${ex.map((x,i)=>`<button class="st" onclick="joinUseEx(${i})">＋ ${esc(x.po)} <span class="mut">· ${x.n} line${x.n>1?'s':''}${x.day?' · '+dShort(x.day):''}</span></button>`).join('')}</div>`:'';})()}
@@ -889,7 +884,8 @@ function checkPin(){const v=document.getElementById('pin').value.trim();if(v!==P
 function sendSave(msg){if(!ready){ensureFrame();queue.push(msg);busy=true;render();toast('Saving…');return;}busy=true;reqId++;msg.id=reqId;frame.contentWindow.postMessage(msg,location.origin);render();}
 
 /* ---------- PO actions: created in Yooz / change quantity / undo ---------- */
-const ymdL=d=>{d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const ymdL=d=>{if(typeof d==='string'&&/^\d{4}-\d\d-\d\d$/.test(d))return d;   // a plain day stays that day (new Date('2026-11-24') is UTC → Nov 23 in NJ)
+  d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 function findPO(base,key){const r=(data.rows||[]).find(x=>x.base===base);if(!r)return {};const o=groupOrders(r.orders).find(x=>x.key===key);return {r,o};}
 function markOf(r,o,extra){return Object.assign({base:r.base,ob:ymdL(o.orderBy),qty:o.qty,dl:o.dl.map(x=>({d:ymdL(x.d),q:x.q})),rush:!!o.rush,early:!!o.early,fri:!!o.fri,edited:!!o.edited,done:!!o.done,pending:!!o.pending},o.vendor?{vendor:o.vendor}:{},o.po?{po:o.po}:{},o.manual?{manual:true}:{},extra);}
 /* "📝 We ordered…": write down what was really ordered (any amount, any delivery day). It counts as coming on every
