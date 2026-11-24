@@ -58,7 +58,14 @@
   .o-row{padding:6px 0;border-bottom:1px solid var(--border);}
   .o-row:last-child{border-bottom:none;}
   .o-row.done{opacity:.75;}
-  .o-acts{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;}
+  .o-acts{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;align-items:center}
+  .o-ck{width:34px;height:34px;border-radius:10px;border:2px solid var(--accent,#0a84ff);background:transparent;color:#fff;font-size:18px;font-weight:800;line-height:1;cursor:pointer;flex:none}
+  .o-ck.on{background:var(--accent,#0a84ff)}.o-ck.off{opacity:.3;border-color:var(--text3)}
+  .o-tip{font-size:12.5px;color:var(--text3);margin:8px 2px 2px;line-height:1.35}
+  .o-join{font-size:12px;font-weight:700;color:var(--accent,#0a84ff)}
+  .joinbar{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:60;display:flex;gap:8px;align-items:center;background:#16a34a;color:#fff;border-radius:18px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .joinbar b{font-size:16px}.joinbar i{display:block;font-style:normal;font-size:12px;opacity:.9}.joinbar .jb-t{flex:1;cursor:pointer}
+  .joinbar button{background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px}
   .o-btn{border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text);}
   .o-btn.ok{background:var(--success);border-color:var(--success);color:#fff;}
   .o-tag{font-size:12px;font-weight:700;color:var(--success);}
@@ -283,7 +290,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.23i</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24f</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -382,6 +389,10 @@ function statusLine(){
   if(data.err)p.push('<span class="bad">'+esc(data.err)+'</span>');
   if(data.ltAt)p.push('Lead times '+timeTxt(data.ltAt));
   if(data.potAt)p.push("Eleni's PO Tracker "+timeTxt(data.potAt));
+  // Nov 24: this device's fingerprint — if two devices show different numbers, compare these lines
+  if(data.fp){const f=data.fp,tt=x=>x?timeTxt(x):'—';
+    p.push('<b>This device</b>: WMS v '+esc(f.v)+' · Next POs '+((document.querySelector('.ver')||{}).textContent||'')+' · clock '+esc(f.clock.slice(0,24))+(f.tz?' ('+esc(f.tz)+')':''));
+    p.push('Plan '+esc(String(f.plan).slice(0,10))+' loaded '+tt(String(f.plan).slice(11))+' · morning copies '+tt(f.counts)+' (newest '+esc(f.am||'—')+')'+(f.turno?' · shift '+esc(f.turno):'')+' · marks '+f.marks+(f.q?' · <span class="bad">'+f.q+' not sent</span>':''));}
   // how long each source took (to find the slow one): app = loading the helper, then each flow
   if(data.times&&Object.keys(data.times).length){const f=x=>(x<10?x.toFixed(1):Math.round(x))+' s';
     const parts=Object.entries(data.times).map(([k,v])=>k+' '+(v.timeout?'>'+f(v.s)+' ⏱':f(v.s))+(v.ok?'':' ⚠'));
@@ -433,7 +444,55 @@ function subLine(r){
 const whenTxt=o=>o.fri?(new Date(o.orderBy).getDay()===5?'Friday order · ':'Order day (holiday Friday) · '):'Order by ';
 const ordTxt=['1st','2nd','3rd','4th','5th','6th'];
 const moreOpen=new Set();
+/* Nov 23 (Julian): join POs into ONE "Mark as created". Check ☐ the POs (any day, any item) of the SAME supplier;
+   from the 2nd check on, their own "Mark created" hides and one green bar marks them all together — one PO, arriving
+   on the earliest date of the ones joined (or today). Another supplier can't be checked while one is selected. */
+const JOIN=new Map();
+function joinVk(r,o){return vKey(o.vendor||r.vendor||'');}
+function joinTap(base,key){const {r,o}=findPO(base,key);if(!o)return;const id=base+'|'+key;
+  if(JOIN.has(id))JOIN.delete(id);
+  else{const vk=joinVk(r,o),first=[...JOIN.values()][0];
+    if(first&&first.vk!==vk){toast('Only POs of the same supplier can be joined ('+esc(first.vk)+')');return;}
+    JOIN.set(id,{base,key,vk});}
+  render();}
+function joinGroup(gi){const g=(window._sg||[])[gi];if(!g)return;const ls=g.lines.filter(x=>!x.o.done);if(!ls.length)return;
+  const all=ls.every(x=>JOIN.has(x.r.base+'|'+x.o.key));
+  if(all){ls.forEach(x=>JOIN.delete(x.r.base+'|'+x.o.key));render();return;}
+  const vk=joinVk(ls[0].r,ls[0].o),first=[...JOIN.values()][0];
+  if(first&&first.vk!==vk){toast('Only POs of the same supplier can be joined ('+first.vk+')');return;}
+  ls.forEach(x=>JOIN.set(x.r.base+'|'+x.o.key,{base:x.r.base,key:x.o.key,vk}));render();}
+/* Nov 24: nobody knows if a due PO came → hide it from the alerts until someone marks it arrived / cancelled (shared) */
+function poDismissR(po){withPin(()=>{if(!confirm('Dismiss '+po+'?\n\nIt leaves this alert until someone marks it arrived or cancelled in Receiving (where it can be restored).'))return;
+  sendSave({type:'wms-reorder-mark',key:'DIS|'+String(po).toUpperCase(),mark:{dismiss:true,po:String(po).toUpperCase()}});toast('Dismissed — '+po);});}
+function joinClear(){JOIN.clear();render();}
+function joinItems(){const out=[];JOIN.forEach((x,id)=>{const {r,o}=findPO(x.base,x.key);if(r&&o&&!o.done)out.push({r,o});else JOIN.delete(id);});return out;}
+function joinBar(){document.querySelectorAll('.joinbar').forEach(e=>e.remove());const it=joinItems();if(it.length<2)return;
+  const vk=joinVk(it[0].r,it[0].o),pal=it.reduce((a,{o})=>a+(+o.pallets||0),0);
+  const first=it.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy)).sort()[0],d=first<ymdL(new Date())?ymdL(new Date()):first;
+  // Nov 24: joined POs that were suggested for a later day arrive early → pallets to fit in the warehouse sooner
+  let early=0,eDays=0;it.forEach(({r,o})=>{const a=o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy);if(a>d){early+=+o.pallets||0;eDays=Math.max(eDays,Math.round((new Date(a+'T12:00:00')-new Date(d+'T12:00:00'))/864e5));}});
+  const sp=data.space,free=sp&&sp.rack?sp.rack.total-sp.rack.occ:null;
+  const spTxt=early>=0.5?`<i>⚠ ~${n1(early)} pallet${early>=1.5?'s':''} arrive ${eDays} day${eDays>1?'s':''} early${free!=null?' · ~'+n0(free)+' free rack spots':''} — check space in the warehouse</i>`:'';
+  const el=document.createElement('div');el.className='joinbar';
+  el.innerHTML=`<div class="jb-t" onclick="joinSave()"><b>✅ Mark ${it.length} as created</b><i>${esc(vk)} · one PO${pal>=0.5?' · ~'+n1(pal)+' pallets':''} · arrives ~${dShort(d)}</i>${spTxt}</div><button onclick="joinClear()">✕</button>`;
+  document.body.appendChild(el);}
+function joinSave(){const it=joinItems();if(it.length<2)return;
+  const first=it.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy)).sort()[0],d=first<ymdL(new Date())?ymdL(new Date()):first;
+  withPin(()=>sheet(`<h2>✅ ${it.length} POs → one PO · ${esc(joinVk(it[0].r,it[0].o))}</h2>
+    <div class="hint">All arrive together ~<b>${dShort(d)}</b>.</div>
+    ${it.map(({r,o})=>`<div style="font-size:14px;margin:5px 0"><b>${esc((r.codes||[r.base])[0])}</b> ${qtyTxt(r,o.qty,o.pallets)}</div>`).join('')}
+    <div class="hint" style="margin-top:10px">Yooz PO # (optional)</div><input type="text" id="po-j" placeholder="e.g. YZ-26-28700">
+    <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="joinDo('${d}')">Mark created</button></div>`));}
+function joinDo(d){const v=(document.getElementById('po-j')||{}).value||'';const t=v.trim().toUpperCase(),po=t?(/^\d+$/.test(t)?'YZ-26-'+t:t):'';
+  const it=joinItems(),list=it.map(({r,o})=>({key:o.key,mark:Object.assign(markOf(r,o,Object.assign({done:true,pending:false,joined:true},po?{po}:{})),{dl:[{d,q:o.qty}]})}));
+  sendSave({type:'wms-reorder-mark',list});closeSheet();JOIN.clear();toast('✅ '+list.length+' marked created as one PO'+(po?' — '+po:''));render();}
 function stateChips(r,o){const k=esc(o.key||'').replace(/'/g,''),b=esc(r.base);
+  if(!o.done){const id=r.base+'|'+o.key,on=JOIN.has(id),first=[...JOIN.values()][0],off=!on&&first&&first.vk!==joinVk(r,o);
+    const ck=`<button class="o-ck${on?' on':''}${off?' off':''}" onclick="joinTap('${b}','${k}')" title="Join with other POs of this supplier">${on?'✓':''}</button>`;
+    if(on&&JOIN.size>=2)return `<div class="o-acts">${ck}<span class="o-join">in the joined PO ↓</span></div>`;
+    return stateChipsBase(r,o,k,b).replace('<div class="o-acts">','<div class="o-acts">'+ck);}
+  return stateChipsBase(r,o,k,b);}
+function stateChipsBase(r,o,k,b){
   const st=o.done?'done':o.pending?'pend':'none',x=`<span class="o-more">${st!=='pend'?`<button class="st" onclick="setState('${b}','${k}','pend')">⏳ Pending</button>`:''}<button class="o-btn" onclick="editQty('${b}','${k}')">✏️ Change qty</button></span>`;
   const main=st==='done'?`<button class="st" onclick="setState('${b}','${k}','none')">↩ Undo</button>`
     :`<button class="st main" onclick="setState('${b}','${k}','done')">✅ Mark created</button>${st==='pend'?`<button class="st" onclick="setState('${b}','${k}','none')">↩ Not ordered</button>`:''}`;
@@ -448,7 +507,9 @@ function nextOrders(r){
     const dd=r.dbar?o.qty/r.dbar:0;
     return `<div class="o-row${o.done?' done':''}"><b>${ordTxt[i]||(i+1)+'th'} PO</b> · ${when} · ${qtyTxt(r,o.qty,o.pallets)}${dd>=0.5?' <span style="color:var(--text3)">(≈ '+n1(dd)+' days of use)</span>':''}${o.rush?' <span class="late">rush'+(o.via?' ('+esc(o.via)+')':'')+' — ask for the earliest delivery</span>':''} · ${dlTxt(o)} ${tag}${stateChips(r,o)}</div>`;}).join('');
   const more=os.length>2?`<button class="c-more" onclick="moreOpen.has('${esc(r.base)}')?moreOpen.delete('${esc(r.base)}'):moreOpen.add('${esc(r.base)}');render()">${moreOpen.has(r.base)?'Show fewer POs ▴':'Show '+(Math.min(os.length,6)-2)+' more PO(s) ahead ▾'}</button>`:'';
-  return '<div class="c-orders">'+rows+more+'</div>';
+  // Nov 24: tell her POs can be joined (only while nothing is joined yet and this item has a PO not created)
+  const tip=os.some(o=>!o.done)&&JOIN.size<2?`<div class="o-tip">☐ <b>Tip:</b> you can join POs into one — check the box of each PO (any day, any item of the same supplier) and use the green bar.</div>`:'';
+  return '<div class="c-orders">'+rows+more+tip+'</div>';
 }
 /* overdue POs (Eleni's PO Tracker: estimated day passed, no received date) */
 function lateTxt(r){const L=r.late||[];if(!L.length)return '';const u=esc(unitOf(r));   // on its own item, so no PO gets lost
@@ -663,7 +724,7 @@ function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
     (LP[k]=LP[k]||{po:x.po,sup:x.sup,eta:x.eta,ls:[]}).ls.push(esc((r.codes||[r.base])[0])+' '+(x.partial?(x.rec>0?n0(x.qty)+' of '+n0(x.ord)+' missing':n0(x.ord)+' never arrived'):n0(x.qty)));}));
   const lp=Object.values(LP).sort((a,b)=>a.eta.localeCompare(b.eta));
   const lpw=lp.length?`<div class="ob-w">🚚 <b>${lp.length} PO${lp.length>1?'s were':' was'} due and ${lp.length>1?'are':'is'} not verified</b> — we don't know if ${lp.length>1?'they are':'it is'} in the inventory. Verify before ordering.
-    <details class="ob-l" style="margin:6px 0 0"><summary>See which ▾</summary>${lp.map(x=>`<div class="ob-it" style="font-size:13px"><b>${esc(x.po)}</b>${x.sup?' · '+esc(x.sup):''} · due ${dShort(x.eta)}<br><span class="mut">${x.ls.join(' · ')}</span></div>`).join('')}</details></div>`:'';
+    <details class="ob-l" style="margin:6px 0 0"><summary>See which ▾</summary>${lp.map(x=>`<div class="ob-it" style="font-size:13px"><b>${esc(x.po)}</b>${x.sup?' · '+esc(x.sup):''} · due ${dShort(x.eta)} <button class="st" style="float:right;padding:3px 9px;font-size:12px" onclick="poDismissR('${esc(x.po)}')">🙈 Dismiss</button><br><span class="mut">${x.ls.join(' · ')}</span></div>`).join('')}</details></div>`:'';
   const warn=lpw+(!today?`<div class="ob-w">⚠ <b>Today's inventory count isn't in yet</b> — on hand is <b>📐 estimated</b> (last count + what was received − the use of the work days since then). See “No count today?” below. Order after the count, or check the numbers.${(()=>{const er=rows.filter(r=>r.est);const a=er.length?estAge(er):null;return a?'<br><b>'+a.t+'</b>':'';})()}</div>`:'');
   const grp=(g)=>{const gi=all.indexOf(g),ls=g.lines,open=ls.filter(x=>!x.o.done&&!x.o.pending),pend=ls.filter(x=>x.o.pending),pal=palSum(g);
     const pos=[...new Set(ls.map(x=>x.o.po).filter(Boolean))],po=pos[0]||'';
@@ -686,10 +747,17 @@ function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
     ${done?'<div class="ob-none">✓ All orders for today are done.</div>':gs.length?'<div class="ob-steps">Create the PO in Yooz first, then tap <b>Mark as created</b> → then put the Yooz PO in the PO Tracker.</div>':''}
     ${rc.length?`<button class="ob-c" onclick="setTab('cnt')">🔎 Check ${rc.length} count${rc.length>1?'s':''} before 9 AM (inventory) ›</button>`:''}</div>`;}
 /* a created PO without its Yooz number: add it (every line of that supplier, every device) */
-function addPoNum(gi){const g=(window._sg||[])[gi];if(!g)return;
+/* Nov 24: other created lines of the same supplier still without a PO # (other days she may have joined into this PO) */
+function poOthers(g){const mine=new Set(g.lines.map(x=>x.o.key)),out=[];
+  ((data&&data.rows)||[]).forEach(r=>(r.orders||[]).forEach(o=>{if(!o.done||o.po||mine.has(o.key))return;
+    if(vKey(o.vendor||r.vendor||'')!==g.k)return;out.push({r,o});}));return out;}
+function addPoNum(gi){const g=(window._sg||[])[gi];if(!g)return;const ot=poOthers(g);window._poOt=ot;
   withPin(()=>sheet(`<h2>＃ Yooz PO # — ${esc(vName(g.k,g.raw).split(' ·')[0])}</h2><input type="text" id="po-n2" placeholder="e.g. YZ-26-28700">
+    ${ot.length?`<div class="hint" style="margin-top:10px">Also in this PO? (other ${esc(vName(g.k,g.raw).split(' ·')[0])} lines created without a PO #)</div>
+      ${ot.map(({r,o},i)=>`<label style="display:flex;gap:8px;align-items:center;margin:6px 0;font-size:14px"><input type="checkbox" class="po-ot" data-i="${i}" checked> <b>${esc((r.codes||[r.base])[0])}</b> ${n0(o.qty)} <span class="mut">· ${dlTxt(o)}</span></label>`).join('')}`:''}
     <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="(()=>{const v=document.getElementById('po-n2').value.trim().toUpperCase();if(!v)return;
       const po=/^\\d+$/.test(v)?'YZ-26-'+v:v;const list=g.lines.filter(x=>x.o.done).map(({r,o})=>({key:o.key,mark:markOf(r,o,{po})}));
+      document.querySelectorAll('.po-ot:checked').forEach(c=>{const x=(window._poOt||[])[+c.dataset.i];if(x)list.push({key:x.o.key,mark:markOf(x.r,x.o,{po})});});
       if(list.length)sendSave({type:'wms-reorder-mark',list});closeSheet();toast('PO # saved — '+po);})()">Save</button></div>`));}
 function morningBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const rc=rows.filter(r=>r.recount),tw=rows.filter(truckWait),td=sumOrders(rows,o=>new Date(o.orderBy)<=addDays(0));
@@ -1094,7 +1162,7 @@ function row(r){const key=r.base,k=esc(key).replace(/'/g,''),u=esc(unitOf(r)||''
   const act2=tab==='cnt'&&r.recount?(()=>{const c=r.recount,sh=Math.round(c.qa-c.exp+c.got),df=c.qc-sh;return `<b style="color:var(--warn)">${df>0?'+':''}${n0(df)}</b><i>vs expected</i>`;})():act;
   return `<div class="row${isOpen?' open':''}"><div class="rh" onclick="openRow=openRow==='${k}'?'':'${k}';render();if(openRow)setTimeout(()=>{const e=document.querySelector('.row.open');if(e)e.scrollIntoView({block:'nearest',behavior:'smooth'})},30)">
     <div class="rb" style="background:${col}"></div>
-    <div class="rm"><div class="rt"><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span>${truckWait(r)||(r.late||[]).length?' <span class="rw">⚠ verify</span>':''}</div>
+    <div class="rm"><div class="rt"><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span>${truckWait(r)||(r.late||[]).length?' <span class="rw">⚠ verify</span>':''}${[...JOIN.values()].some(x=>x.base===r.base)?' <span class="o-join">✓ joined</span>':''}</div>
       ${d!=null?`<div class="gg" title="days of stock vs days the supplier takes"><div style="width:${w}%;background:${col}"></div><span style="left:${mk}%"></span></div>`:''}
       ${tab==='cnt'?`<div class="rs" style="color:var(--accent)">📍 ${locOf(r)?esc(locOf(r).l)+(locOf(r).n>1?' (+'+(locOf(r).n-1)+' more spot'+(locOf(r).n>2?'s':'')+')':''):'no spot on the map'}</div>`:''}
       <div class="rs">${r.est?'📐 ~':''}${n0(r.stock)} ${u}${d!=null?' · '+(d<10?n1(d):n0(d))+' days':''} · supplier ${L} day${L>1?'s':''} · <span class="cf ${cf[0]}" title="how sure the daily use is">●</span> ${cf[1]}</div></div>
@@ -1270,17 +1338,19 @@ function supHtml(){if(!data||!data.rows)return '';
     const lines=g.lines.map(({r,o},li)=>{const alt=altOf(r,g.k),u=unitOf(r);
       const st=o.done?'<span class="o-tag">✅ Created</span>':o.pending?'<span class="o-tag pe">⏳ Pending</span>':o.edited?'<span class="o-tag ed">✏️ changed</span>':'';
       const hint=alt==='SONIC'&&o.rush?`<div class="s" style="color:var(--warn)">💡 Rush: Sonic is faster than PCA — consider sending it to Sonic.</div>`:'';
-      return `<div class="o-row${o.done?' done':''}"><b>${esc((r.codes||[r.base]).join(' + '))}</b> <span class="mut">${esc(r.name||'')}</span><br>
+      const jid=r.base+'|'+o.key,jon=JOIN.has(jid),jf=[...JOIN.values()][0],joff=!jon&&jf&&jf.vk!==joinVk(r,o);
+      const ck=o.done?'':`<button class="o-ck${jon?' on':''}${joff?' off':''}" style="width:28px;height:28px;font-size:15px;vertical-align:middle;margin-right:6px" onclick="joinTap('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')" title="Join into one PO">${jon?'✓':''}</button>`;
+      return `<div class="o-row${o.done?' done':''}">${ck}<b>${esc((r.codes||[r.base]).join(' + '))}</b> <span class="mut">${esc(r.name||'')}</span>${jon&&JOIN.size>=2?' <span class="o-join">in the joined PO ↓</span>':''}<br>
         ${qtyTxt(r,o.qty,palOf(r,o,g.k))}${o.rush?' <span class="late">rush</span>':''} · ${dlTxt(o)} ${st}${hint}
         ${now&&!o.done?`<div class="o-acts"><button class="st" onclick="editQty('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">✏️ Qty</button>${alt?`<button class="st" onclick="switchSup('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}','${alt}')">⇄ Send to ${alt==='PCA'?'PCA':'Sonic'}</button>`:''}</div>`:''}</div>`;}).join('');
     return `<div class="card ${now?(nN?'red':'ok'):''}" style="border-left-color:${now?'':'var(--border)'}"><div class="c-top"><span class="c-code">${esc(vName(g.k,g.raw))}</span></div>
       <div class="c-main">${now?'Order today':'Preview · order '+dShort(g.day)} · ${g.lines.length} item${g.lines.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallets':''}</div>
       <div class="c-sub">${nD?'<b style="color:var(--success)">'+nD+' created</b> · ':''}${nP?'<b style="color:var(--warn)">'+nP+' pending</b> · ':''}${nN?nN+' not ordered':''}${pos.length?' · PO '+pos.map(esc).join(', '):''}${now?'':' · recalculated every morning'}</div>
       <div class="c-orders">${lines}</div>
-      <div class="o-acts" style="margin-top:8px">${now&&nN+nP?`<button class="st" onclick="poAll(${gi},'pend')">⏳ All pending</button><button class="st on done" onclick="poAll(${gi},'done')">✅ Mark as created</button>`:''}${now&&(nD||nP)?`<button class="st" onclick="poAll(${gi},'none')">↩ Undo PO</button>`:''}<button class="st" onclick="poExcel(${gi})">⬇ Excel</button></div></div>`;};
+      <div class="o-acts" style="margin-top:8px">${nN+nP?`<button class="st" onclick="joinGroup(${gi})">${g.lines.filter(x=>!x.o.done).every(x=>JOIN.has(x.r.base+'|'+x.o.key))?'☑ Unselect all':'☐ Select all'}</button>`:''}${now&&nN+nP&&!(JOIN.size>=2&&g.lines.some(x=>JOIN.has(x.r.base+'|'+x.o.key)))?`<button class="st" onclick="poAll(${gi},'pend')">⏳ All pending</button><button class="st on done" onclick="poAll(${gi},'done')">✅ Mark as created</button>`:''}${now&&(nD||nP)?`<button class="st" onclick="poAll(${gi},'none')">↩ Undo PO</button>`:''}<button class="st" onclick="poExcel(${gi})">⬇ Excel</button></div></div>`;};
   const td=gs.filter(g=>g.day===t0),nx=gs.filter(g=>g.day>t0);
   return supSpace()+
-    `<div class="fri"><b>🧾 POs by supplier</b> — one PO per supplier, like in Yooz. Mark the whole PO at once with its PO #. Boxes that Sonic and PCA both make can be sent to the other (⇄); Sonic is the faster one.</div>`+
+    `<div class="fri"><b>🧾 POs by supplier</b> — one PO per supplier, like in Yooz. Mark the whole PO at once with its PO #. <b>☐ Join:</b> check lines (or "Select all") of today and the next days of the same supplier → one PO with the green bar. Boxes that Sonic and PCA both make can be sent to the other (⇄); Sonic is the faster one.</div>`+
     (td.length?td.map(g=>card(g,gs.indexOf(g))).join(''):'<div class="empty"><b>✓</b>Nothing to order today.</div>')+
     (nx.length?`<div class="blk-h" style="margin:14px 4px 6px">Next order days — preview</div>`+nx.map(g=>card(g,gs.indexOf(g))).join(''):'');
 }
@@ -1346,6 +1416,9 @@ try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');i
 if(stale())ask(false);
 render();
 askChg();chgBadge();   // plan changes in the background → 🔔 number on the tab
+
+/* join bar follows every render */
+{const _r0=render;render=function(k){_r0(k);try{joinBar();}catch(e){}};}
 </script>
 </body>
 </html>
