@@ -63,6 +63,8 @@
   .o-ck.on{background:var(--accent,#0a84ff)}.o-ck.off{opacity:.3;border-color:var(--text3)}
   .o-tip{font-size:12.5px;color:var(--text3);margin:8px 2px 2px;line-height:1.35}
   .o-join{font-size:12px;font-weight:700;color:var(--accent,#0a84ff)}
+  @media (min-width:760px){.joinbar{left:50%!important;right:auto!important;transform:translateX(-50%);width:min(720px,calc(100% - 24px));box-sizing:border-box}}
+  body.has-join{padding-bottom:110px}
   .joinbar{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:60;display:flex;gap:8px;align-items:center;background:#16a34a;color:#fff;border-radius:18px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
   .joinbar b{font-size:16px}.joinbar i{display:block;font-style:normal;font-size:12px;opacity:.9}.joinbar .jb-t{flex:1;cursor:pointer}
   .joinbar button{background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px}
@@ -290,7 +292,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24i</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24j</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -448,7 +450,7 @@ const moreOpen=new Set();
    from the 2nd check on, their own "Mark created" hides and one green bar marks them all together — one PO, arriving
    on the earliest date of the ones joined (or today). Another supplier can't be checked while one is selected. */
 const JOIN=new Map();
-function joinVk(r,o){return vKey(o.vendor||r.vendor||'');}
+function joinVk(r,o){return vKey(o.vendor||(o.rush&&o.via)||(r.main||{}).vendor||r.vendor||'');}
 function joinTap(base,key){const {r,o}=findPO(base,key);if(!o)return;const id=base+'|'+key;
   if(JOIN.has(id))JOIN.delete(id);
   else{const vk=joinVk(r,o),first=[...JOIN.values()][0];
@@ -466,19 +468,19 @@ function poDismissR(po){withPin(()=>{if(!confirm('Dismiss '+po+'?\n\nIt leaves t
   sendSave({type:'wms-reorder-mark',key:'DIS|'+String(po).toUpperCase(),mark:{dismiss:true,po:String(po).toUpperCase()}});toast('Dismissed — '+po);});}
 function joinClear(){JOIN.clear();render();}
 function joinItems(){const out=[];JOIN.forEach((x,id)=>{const {r,o}=findPO(x.base,x.key);if(r&&o&&!o.done)out.push({r,o});else JOIN.delete(id);});return out;}
-function joinBar(){document.querySelectorAll('.joinbar').forEach(e=>e.remove());const it=joinItems();if(it.length<2)return;
+function joinBar(){document.querySelectorAll('.joinbar').forEach(e=>e.remove());const it=joinItems();document.body.classList.toggle('has-join',it.length>=2);if(it.length<2)return;
   const vk=joinVk(it[0].r,it[0].o),pal=it.reduce((a,{o})=>a+(+o.pallets||0),0);
   const first=it.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy)).sort()[0],d=first<ymdL(new Date())?ymdL(new Date()):first;
   // Nov 24: joined POs that were suggested for a later day arrive early → pallets to fit in the warehouse sooner
   let early=0,eDays=0;it.forEach(({r,o})=>{const a=o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy);if(a>d){early+=+o.pallets||0;eDays=Math.max(eDays,Math.round((new Date(a+'T12:00:00')-new Date(d+'T12:00:00'))/864e5));}});
-  const sp=data.space,free=sp&&sp.rack?sp.rack.total-sp.rack.occ:null;
-  const spTxt=early>=0.5?`<i>⚠ ~${n1(early)} pallet${early>=1.5?'s':''} arrive ${eDays} day${eDays>1?'s':''} early${free!=null?' · ~'+n0(free)+' free rack spots':''} — check space in the warehouse</i>`:'';
+  const sp=data.space,fr=x=>x?Math.max(0,x.total-x.occ):0,free=sp&&(sp.rack||sp.floor)?fr(sp.rack)+fr(sp.floor):null;   // racks + floor
+  const spTxt=early>=0.5?`<i>⚠ ~${n1(early)} pallet${early>=1.5?'s':''} arrive ${eDays} day${eDays>1?'s':''} early${free!=null?' · ~'+n0(free)+' free spots (racks + floor)':''} — check space in the warehouse</i>`:'';
   const el=document.createElement('div');el.className='joinbar';
-  el.innerHTML=`<div class="jb-t" onclick="joinSave()"><b>✅ Mark ${it.length} as created</b><i>${esc(vk)} · one PO${pal>=0.5?' · ~'+n1(pal)+' pallets':''} · arrives ~${dShort(d)}</i>${spTxt}</div><button onclick="joinClear()">✕</button>`;
+  el.innerHTML=`<div class="jb-t" onclick="joinSave()"><b>✅ Mark ${it.length} as created</b><i>${esc(vName(vk).split(' ·')[0])} · one PO${pal>=0.5?' · ~'+n1(pal)+' pallets':''} · arrives ~${dShort(d)}</i>${spTxt}</div><button onclick="joinClear()">✕</button>`;
   document.body.appendChild(el);}
 function joinSave(){const it=joinItems();if(it.length<2)return;
   const first=it.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):ymdL(o.orderBy)).sort()[0],d=first<ymdL(new Date())?ymdL(new Date()):first;
-  withPin(()=>sheet(`<h2>✅ ${it.length} POs → one PO · ${esc(joinVk(it[0].r,it[0].o))}</h2>
+  withPin(()=>sheet(`<h2>✅ ${it.length} POs → one PO · ${esc(vName(joinVk(it[0].r,it[0].o)).split(' ·')[0])}</h2>
     <div class="hint">All arrive together ~<b>${dShort(d)}</b>.</div>
     ${it.map(({r,o})=>`<div style="font-size:14px;margin:5px 0"><b>${esc((r.codes||[r.base])[0])}</b> ${qtyTxt(r,o.qty,o.pallets)}</div>`).join('')}
     <div class="hint" style="margin-top:10px">Yooz PO # (optional)</div><input type="text" id="po-j" placeholder="e.g. YZ-26-28700">
@@ -750,7 +752,7 @@ function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
 /* Nov 24: other created lines of the same supplier still without a PO # (other days she may have joined into this PO) */
 function poOthers(g){const mine=new Set(g.lines.map(x=>x.o.key)),out=[];
   ((data&&data.rows)||[]).forEach(r=>(r.orders||[]).forEach(o=>{if(!o.done||o.po||mine.has(o.key))return;
-    if(vKey(o.vendor||r.vendor||'')!==g.k)return;out.push({r,o});}));return out;}
+    if(vKey(o.vendor||(o.rush&&o.via)||(r.main||{}).vendor||r.vendor||'')!==g.k)return;out.push({r,o});}));return out;}
 function addPoNum(gi){const g=(window._sg||[])[gi];if(!g)return;const ot=poOthers(g);window._poOt=ot;
   withPin(()=>sheet(`<h2>＃ Yooz PO # — ${esc(vName(g.k,g.raw).split(' ·')[0])}</h2><input type="text" id="po-n2" placeholder="e.g. YZ-26-28700">
     ${ot.length?`<div class="hint" style="margin-top:10px">Also in this PO? (other ${esc(vName(g.k,g.raw).split(' ·')[0])} lines created without a PO #)</div>
