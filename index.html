@@ -1051,6 +1051,7 @@
   .po-bar .po-src{font-size:12px;color:var(--text2);flex:1 1 220px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
   .src-pill{display:inline-flex;align-items:center;gap:4px;background:var(--fill,#eee);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--text2);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
   .src-pill b{color:var(--text);font-weight:600;}
+  .po-xdel{margin-left:8px;border:0;background:rgba(255,59,48,.12);color:var(--danger);border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;}
   .src-pill a{color:inherit;font-weight:600;text-decoration:underline;}
   #po-sync{display:contents;}
   .src-pill.bad{background:rgba(255,59,48,.12);color:var(--danger);}
@@ -6604,6 +6605,7 @@ function allReceipts(){
     if(a&&!b)out[k]=a;else if(b&&!a)out[k]=b;
     else out[k]=isPending(a)||String(a.ts)>=String(b.ts)?a:b;
   });
+  Object.keys(out).forEach(k=>{if(out[k]&&out[k].cleared)delete out[k];});   // Nov 25: put back to "not checked"
   return out;
 }
 function poGetR(key){return allReceipts()[key]||null;}
@@ -6624,9 +6626,13 @@ function poRowsToReceipts(rows){
     const ts=get('CheckedAt')||get('Created')||new Date().toISOString();
     const r=g[key]||(g[key]={key,po:get('Title')||'',vendor:get('Vendor')||'',plant,due:get('DueDate')?toYmd(new Date(get('DueDate'))):'',
       ts,by:get('ReceivedBy')||'',notes:get('Notes')||'',notArrived:/not arrived/i.test(get('Status')||''),lines:[],remote:true,spAt:ts});
+    if(/cleared/i.test(get('Status')||'')&&String(ts)>=String(r._clr||'')){r._clr=String(ts);}   // "back to not checked" row
+    if(String(ts)>String(r.ts)){r.ts=ts;r.spAt=ts;}
+    if(/cleared/i.test(get('Status')||''))return;
     const n=v=>v===null||v===undefined||v===''?null:+v;
     r.lines.push({code:get('Item')||'',desc:get('Description')||'',ordered:n(get('Ordered')),bol:n(get('BOL')),counted:n(get('Counted')),extra:/not on po/i.test(get('LineStatus')||'')});
   });
+  Object.values(g).forEach(r=>{if(r._clr&&r._clr>=String(r.ts))r.cleared=true;delete r._clr;});
   return Object.values(g);
 }
 async function poQuerySP(body){
@@ -6689,7 +6695,8 @@ function renderPoView(noSync){try{poAutoAssign();}catch(e){}
   <div class="po-qbox"><input id="po-q" type="search" placeholder="🔎 Find a PO — type part of the number (28175), the vendor or the item" value="${poEsc(poQ)}" oninput="poQ=this.value;poQRender()" autocomplete="off">${poQ?`<button class="po-btn" onclick="poQ='';renderPoView(true)">✕</button>`:''}</div>
   <div id="po-q-res">${poQResultsHtml()}</div>`;
   if(poCalOpen){h+=poCalendarHtml();el.innerHTML=h;if(!noSync)syncReceiptsFromSP(false);return;}
-  if(pend.length)h+=`<div class="po-pending">⏳ <b>${pend.length}</b> report(s) not shared yet — they go out by themselves as soon as there is internet.</div>`;
+  if(pend.length){let ue=null;try{ue=JSON.parse(localStorage.getItem('wms_po_uperr')||'null');}catch(e){}
+    h+=`<div class="po-pending">⏳ <b>${pend.length}</b> report(s) not shared yet: ${pend.slice(0,3).map(r=>poEsc(r.po)).join(', ')}${pend.length>3?'…':''} — they go out by themselves.${ue?`<br><span style="font-size:12px">Last try ${new Date(ue.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}: ${poEsc(ue.msg)}</span>`:''} <a href="#" onclick="uploadPendingPo();return false">Send now</a></div>`;}
   if(!data){
     h+=`<div class="po-empty">Load the Yooz export to see the POs expected each day.<br>Past receiving reports can still be found below.</div>`;
   }else{
@@ -6810,6 +6817,15 @@ function isGhost(r){
   const L=loadReceipts()[r.key],S=(_spRec||{})[r.key],x=L||S;
   return !!x&&!isPending(x)&&String(x.ts)>=_spSync.from;
 }
+/* Nov 25 (Julian): put a PO back to "To check" (no report) — on every device, through SharePoint */
+function poClearReceipt(key){const r=allReceipts()[key];if(!r)return;
+  const p=prompt('PIN to put '+r.po+' back to "To check":','');if(p==null)return;if(p!==getPin()){showToast('Wrong PIN','error');return;}
+  if(!confirm('Put '+r.po+' ('+r.vendor+') back to "To check"?\n\nThis receiving report is removed on every device. You can check the truck again.'))return;
+  const t={key,po:r.po,vendor:r.vendor,due:r.due,plant:r.plant||currentPlant,ts:new Date().toISOString(),by:(localStorage.getItem('wms_receiver_name')||''),notes:'',notArrived:false,cleared:true,lines:[]};
+  const all=loadReceipts();all[key]=t;saveReceipts(all);
+  addLog('RECEIVE','PO '+r.po+' · '+r.vendor+' — put back to not checked');
+  closePoModal();renderPoView(true);showToast(r.po+' is back to To check','success');
+  if(RECEIVING_FLOW_URL)poUpload(t).then(()=>{if(currentView==='po')renderPoView(true);}).catch(e=>poUpErr(e));}
 function discardLocalReceipt(key){
   const r=allReceipts()[key];if(!r)return;
   if(!confirm('Discard this report from this device?\n\n'+r.po+' · '+r.vendor+'\n\nIt is not in SharePoint, so it is only deleted here.'))return;
@@ -6989,7 +7005,7 @@ function poRowHtml(l,i,p0){
   p0=p0||{};const it=ITEMS.find(x=>x.code===l.code);const pu=l.extra?0:palletUnits(l.code);
   const inp=(kind,v,ph)=>`<input type="text" class="po-cnt po-${kind}" id="po-${kind}-${i}" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="${ph}" value="${v!=null?v:''}" oninput="this.classList.remove('po-missing');poUpdDiff(${i})">`;
   const bef=_poForm.before[l.code];
-  const item=l.extra?`<input type="text" class="po-xcode" id="po-code-${i}" list="po-items-dl" placeholder="Item code" value="${poEsc(l.code||'')}" autocomplete="off" oninput="_poForm.lines[${i}].code=this.value.trim().toUpperCase()"><span class="po-nm">Not on the PO</span>`
+  const item=l.extra?`<input type="text" class="po-xcode" id="po-code-${i}" list="po-items-dl" placeholder="Item code" value="${poEsc(l.code||'')}" autocomplete="off" oninput="_poForm.lines[${i}].code=this.value.trim().toUpperCase()"><span class="po-nm">Not on the PO <button type="button" class="po-xdel" title="Remove this extra line" onclick="poDelExtra(${i})">✕ Remove</button></span>`
     :`<span class="po-code">${poEsc(l.code)}</span><span class="po-nm">${poEsc(it?it.name:l.desc)}</span>`;
   return `<tr${l.extra?' class="po-extra"':''}><td>${item}</td>
     <td data-l="Ordered"><b>${l.ordered!=null?l.ordered.toLocaleString():'—'}</b>${pu&&l.ordered!=null?`<span class="po-bef" style="color:var(--accent)">= ${poPalletsTxt(l.code,l.ordered)}</span>`:''}${bef?`<span class="po-bef">already rec. ${bef.toLocaleString()}</span>`:''}</td>
@@ -6997,6 +7013,8 @@ function poRowHtml(l,i,p0){
     <td data-l="Counted" style="white-space:nowrap">${inp('cnt',p0.counted,'Count')}<button type="button" class="po-eq" title="Counted = BOL" onclick="poSetEq(${i})">=</button>${pu?`<div class="po-pal">or <input type="text" id="po-pal-${i}" inputmode="decimal" placeholder="pallets" value="${p0.counted!=null?(p0.counted/pu):''}" oninput="poFromPallets(${i})"> pallets × ${pu.toLocaleString()}</div>`:''}</td>
     <td><span class="po-d" id="po-d-${i}"></span></td></tr>`;
 }
+function poDelExtra(i){const l=_poForm&&_poForm.lines[i];if(!l||!l.extra)return;l.removed=true;   // Nov 25: an extra line added by mistake
+  const c=document.getElementById('po-code-'+i),tr=c&&c.closest('tr');if(tr)tr.remove();}
 function poAddExtra(){
   const i=_poForm.lines.length;_poForm.lines.push({code:'',desc:'',ordered:null,extra:true});
   document.getElementById('po-lines-body').insertAdjacentHTML('beforeend',poRowHtml(_poForm.lines[i],i,null));
@@ -7036,6 +7054,7 @@ function savePoReceipt(notArrived){
     const l=f.lines[i];
     const bi=document.getElementById('po-bol-'+i),ci=document.getElementById('po-cnt-'+i);
     let bol=poVal('po-bol-'+i),c=notArrived?0:poVal('po-cnt-'+i);
+    if(l.removed)continue;
     if(l.extra){
       const code=((document.getElementById('po-code-'+i)||{}).value||'').trim().toUpperCase();
       if(!code&&bol==null&&c==null)continue;                    // empty extra row → ignore
@@ -7064,7 +7083,7 @@ function savePoReceipt(notArrived){
   // Nov 24 (Julian): sent to SharePoint right away, so every device (and Next POs) sees it. No internet → it stays
   // "only on this device" and goes out by itself with the next background update (every 10 min) or when back online.
   if(RECEIVING_FLOW_URL)poUpload(r).then(()=>{showToast('Saved and shared ✓','success');if(_poKey===f.key)openPoReport(f.key);if(currentView==='po')renderPoView(true);})
-    .catch(()=>showToast('Saved on this device — it will be shared when there is internet','error'));
+    .catch(e=>showToast('Saved on this device — not shared yet ('+e.message+'). It goes out by itself.','error'));
 }
 /* receiving reports still only on this device → send them quietly (background update / back online) */
 let _poAutoBusy=false;
@@ -7128,7 +7147,7 @@ function openPoReport(key){
     <label style="margin-top:8px">Send to <span style="color:var(--text3);font-size:10px">(email of the Procurement team · separate several with commas)</span></label>
     <input type="email" id="po-sendto" value="${poEsc(poSendTo())}" placeholder="name@schweidandsons.com" autocomplete="email" onchange="poSaveSendTo(this.value)">
     <div class="po-quick" style="margin-top:8px"><button class="po-btn pri" onclick="emailPoReport()">✉ Email</button><button class="po-btn pri" style="background:#5059c9" onclick="teamsPoReport()">💬 Teams</button><button class="po-btn" onclick="downloadPoReport()">⬇ Save PDF</button><button class="po-btn" onclick="printPoReport()">🖨 Print</button></div>
-    <div class="modal-actions"><button class="btn-clear" onclick="openPoReceive('${poEsc(key)}',{edit:true})">✎ Edit count</button>${r.notArrived?'':`<button class="po-btn" onclick="openPoReceive('${poEsc(base)}|d${nextD}',{edit:true})">＋ Another delivery</button>`}<button class="btn-cancel" onclick="closePoModal()">Close</button></div>`;
+    <div class="modal-actions"><button class="btn-clear" onclick="openPoReceive('${poEsc(key)}',{edit:true})">✎ Edit count</button><button class="po-btn" onclick="poClearReceipt('${poEsc(key)}')" title="Remove this report: the PO is back to To check">↺ Not checked</button>${r.notArrived?'':`<button class="po-btn" onclick="openPoReceive('${poEsc(base)}|d${nextD}',{edit:true})">＋ Another delivery</button>`}<button class="btn-cancel" onclick="closePoModal()">Close</button></div>`;
   document.getElementById('po-overlay').classList.remove('hidden');
 }
 async function buildPoPDF(r){
@@ -7155,6 +7174,9 @@ const poFileName=r=>'Receiving_'+r.plant+'_'+r.po.replace(/[^A-Za-z0-9-]/g,'')+'
 let RECEIVING_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/ccb1eddbbb424c5f821e4ce6f2503d91/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=YLZZMbe_BndakJ4N2tIHomhDbsdtLtohnv7ArE6HnS0';
 function poDevice(){const u=navigator.userAgent;return /iPad|Macintosh/.test(u)&&navigator.maxTouchPoints>1?'iPad':/iPhone/.test(u)?'iPhone':/Android/.test(u)?'Android':/Windows/.test(u)?'Windows PC':/Mac/.test(u)?'Mac':'Other';}
 function poPayload(r){
+  if(r.cleared)return {receiptKey:r.plant+'|'+r.key,plant:r.plant,po:r.po,vendor:r.vendor,due:r.due?r.due+'T12:00:00Z':null,checkedAt:r.ts,receivedBy:r.by||'',
+    status:'Cleared — not checked',notes:'Put back to not checked',device:poDevice(),notArrived:false,
+    lines:[{item:'CLEARED',description:'Report put back to not checked',ordered:0,bol:0,counted:0,bolVsPo:0,countVsBol:0,lineStatus:'Cleared'}]};
   const st=receiptStatus(r);
   return {receiptKey:r.plant+'|'+r.key,plant:r.plant,po:r.po,vendor:r.vendor,due:r.due?r.due+'T12:00:00Z':null,checkedAt:r.ts,receivedBy:r.by||'',
     status:ST_LABEL[st].replace(/^[^A-Za-z]+/,''),notes:r.notes||'',device:poDevice(),notArrived:!!r.notArrived,
@@ -7163,9 +7185,12 @@ function poPayload(r){
       bolVsPo:l.bol!=null&&l.ordered!=null?l.bol-l.ordered:null,countVsBol:l.bol!=null&&l.counted!=null?l.counted-l.bol:null,
       lineStatus:LINE_TXT[lineStatus(l)]==='✓'?'OK':LINE_TXT[lineStatus(l)]};})};
 }
+function poUpErr(e){try{localStorage.setItem('wms_po_uperr',JSON.stringify({at:new Date().toISOString(),msg:String(e&&e.message||e)}));}catch(x){}}
 async function poUpload(r){
-  const res=await fetch(RECEIVING_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(poPayload(r))});
-  if(!res.ok)throw new Error('HTTP '+res.status);
+  let res;try{res=await fetch(RECEIVING_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(poPayload(r))});}
+  catch(e){const x=new Error(navigator.onLine?'could not reach SharePoint':'no internet');poUpErr(x);throw x;}
+  if(!res.ok){let t='';try{t=(await res.text()).slice(0,160);}catch(e){}const x=new Error('HTTP '+res.status+(t?' — '+t.replace(/\s+/g,' '):''));poUpErr(x);throw x;}
+  try{localStorage.removeItem('wms_po_uperr');}catch(e){}
   const all=loadReceipts();const now=new Date().toISOString();
   if(all[r.key]){all[r.key].spAt=now;delete all[r.key].spPrev;saveReceipts(all);}
   loadSpCache();_spRec[r.key]=Object.assign({},r,{spAt:now,remote:true});saveSpCache();
@@ -8300,7 +8325,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.25d';
+const APP_VERSION='2026.11.25e';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
