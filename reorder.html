@@ -297,7 +297,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25c</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25d</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -515,7 +515,11 @@ function joinSave(){const it=joinItems();if(!it.length)return;
     ${it.map(({r,o})=>`<div style="font-size:14px;margin:5px 0"><b>${esc((r.codes||[r.base])[0])}</b> ${qtyTxt(r,o.qty,o.pallets)}</div>`).join('')}
     ${(()=>{const ex=joinExisting(joinVk(it[0].r,it[0].o));window._joinEx=ex;return ex.length?`<div class="hint" style="margin-top:10px">Add them to a PO already created?</div><div class="jd-row">${ex.map((x,i)=>`<button class="st" onclick="joinUseEx(${i})">＋ ${esc(x.po)} <span class="mut">· ${x.n} line${x.n>1?'s':''}${x.day?' · '+dShort(x.day):''}</span></button>`).join('')}</div>`:'';})()}
     <div class="hint" style="margin-top:10px">Yooz PO # (optional)</div><input type="text" id="po-j" placeholder="${esc(poPh())}" oninput="poHint('po-j')"><div class="mut" id="po-j-h" style="font-size:12px;margin-top:4px"></div>
+    <button class="big gray" style="margin-top:10px" onclick="joinExcel()">⬇ Excel of these ${it.length} lines (for Yooz)</button>
     <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="joinDo(window._joinDay)">Mark created</button></div>`));}
+/* Nov 25 (Julian): the lines checked ☐ (one PO) as an Excel, to type the PO in Yooz — they arrive together on the day picked */
+function joinExcel(){const it=joinItems();if(!it.length)return;const k=joinVk(it[0].r,it[0].o);
+  poExcelG({k,raw:String(it[0].o.vendor||(it[0].r.main||{}).vendor||k),day:ymdL(new Date()),lines:it},window._joinDay||ymdL(new Date()));}
 function joinUseEx(i){const x=(window._joinEx||[])[i];if(!x)return;const el=document.getElementById('po-j');if(el)el.value=x.po;poHint('po-j');if(x.day)joinPickDay(x.day);toast('Added to '+x.po+' — same arrival day');}
 function joinPickDay(x){if(!x)return;window._joinDay=x;document.querySelectorAll('.jd').forEach(b=>b.classList.toggle('on',b.dataset.d===x));const i=document.getElementById('jd-other');if(i&&i.value!==x)i.value=x;}
 function joinDo(d){const po=poNorm((document.getElementById('po-j')||{}).value||'');
@@ -1425,10 +1429,11 @@ function switchSup(base,key,to){const {r,o}=findPO(base,key);if(!o)return;
   withPin(()=>{const prev=o.done||o.pending||o.edited?markOf(r,o,{}):null;
     sendSave({type:'wms-reorder-mark',key,mark:markOf(r,o,{edited:true,vendor:to,qty:q,dl:o.dl.map((x,i)=>({d:ymdL(x.d),q:i===0?x.q+(q-o.qty):x.q}))})});
     undoToast('⇄ '+esc((r.codes||[r.base])[0])+' → '+(to==='PCA'?'PCA':'Sonic')+(q!==o.qty?' · '+n0(q)+' (full pallets)':''),()=>sendSave({type:'wms-reorder-mark',key,mark:prev}));});}
-async function poExcel(gi){const g=(window._sg||[])[gi];if(!g)return;try{await loadXlsx();}catch(e){toast('Could not load Excel');return;}
+async function poExcel(gi){return poExcelG((window._sg||[])[gi]);}
+async function poExcelG(g,arr){if(!g)return;try{await loadXlsx();}catch(e){toast('Could not load Excel');return;}
   const head=['Code','Description','Quantity','Unit','Pallets','Arrives','Status','PO #'];
-  const rows=g.lines.map(({r,o})=>[(r.codes||[r.base]).join(' + '),r.name||'',Math.round(o.qty),unitOf(r)||'',Math.round(palOf(r,o,g.k)*10)/10,o.dl.map(x=>ymdL(x.d)+(o.dl.length>1?' '+Math.round(x.q):'')).join(' | '),o.done?'Created':o.pending?'Pending':'Not ordered',o.po||'']);
-  const ws=XLSX.utils.aoa_to_sheet([['PO — '+vName(g.k,g.raw)+' — order '+g.day+' — '+PLANT],['Guide only — the official PO is made in Yooz.'],[],head].concat(rows));
+  const rows=g.lines.map(({r,o})=>[(r.codes||[r.base]).join(' + '),r.name||'',Math.round(o.qty),unitOf(r)||'',Math.round(palOf(r,o,g.k)*10)/10,arr||o.dl.map(x=>ymdL(x.d)+(o.dl.length>1?' '+Math.round(x.q):'')).join(' | '),o.done?'Created':o.pending?'Pending':'Not ordered',o.po||'']);
+  const ws=XLSX.utils.aoa_to_sheet([['PO — '+vName(g.k,g.raw)+' — order '+g.day+(arr?' — arrives '+arr:'')+' — '+PLANT],['Guide only — the official PO is made in Yooz.'],[],head].concat(rows));
   ws['!cols']=[{wch:22},{wch:30},{wch:10},{wch:7},{wch:8},{wch:24},{wch:12},{wch:14}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'PO');XLSX.writeFile(wb,'PO_'+g.k.replace(/\W+/g,'_')+'_'+PLANT+'_'+g.day+'.xlsx');toast('⬇ Excel downloaded');}
 

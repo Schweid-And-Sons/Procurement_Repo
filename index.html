@@ -6630,7 +6630,8 @@ function poRowsToReceipts(rows){
     if(String(ts)>String(r.ts)){r.ts=ts;r.spAt=ts;}
     if(/cleared/i.test(get('Status')||''))return;
     const n=v=>v===null||v===undefined||v===''?null:+v;
-    r.lines.push({code:get('Item')||'',desc:get('Description')||'',ordered:n(get('Ordered')),bol:n(get('BOL')),counted:n(get('Counted')),extra:/not on po/i.test(get('LineStatus')||'')});
+    const xl=/not on po/i.test(get('LineStatus')||'');
+    r.lines.push({code:get('Item')||'',desc:get('Description')||'',ordered:xl?null:n(get('Ordered')),bol:n(get('BOL')),counted:n(get('Counted')),extra:/not on po/i.test(get('LineStatus')||'')});
   });
   Object.values(g).forEach(r=>{if(r._clr&&r._clr>=String(r.ts))r.cleared=true;delete r._clr;});
   return Object.values(g);
@@ -6884,7 +6885,7 @@ function openPoReceive(key,opt){
   if(!src){showToast('PO not found — load the Yooz file first.','error');return;}
   const isManual=!g&&!!(opt.manual||(src.lines||[]).every(l=>l.extra));
   const lines=(g?g.lines:(src.lines||[]).filter(l=>!l.extra)).map(l=>({code:l.code,raw:l.raw,desc:l.desc,ordered:l.ordered}));
-  if(prev)prev.lines.filter(l=>l.extra&&!lines.some(x=>x.code===l.code)).forEach(l=>lines.push({code:l.code,desc:l.desc,ordered:null,extra:true}));
+  if(prev)prev.lines.filter(l=>!lines.some(x=>x.code===l.code)).forEach(l=>lines.push({code:l.code,desc:l.desc,ordered:null,ordX:l.extra?null:l.ordered,extra:true}));   // extra / added lines come back on Edit
   const before={};deliveriesFor(base).filter(r=>deliveryOf(r.key)<dn&&!r.notArrived).forEach(r=>r.lines.forEach(l=>{before[l.code]=(before[l.code]||0)+(l.counted||0);}));
   _poKey=key;_poForm={key,base,dn,po:src.po,vendor:src.vendor,due:src.due,lines,before,prev};
   let by='';try{by=localStorage.getItem('wms_receiver_name')||'';}catch(e){}
@@ -6894,7 +6895,7 @@ function openPoReceive(key,opt){
     <h3>Receive · ${poEsc(src.po)}${dn>1?' · delivery '+dn:''}</h3>
     <div class="modal-loc">${poEsc(src.vendor)} · ${currentPlant} · due ${fmtDay(src.due)}</div>
     ${isManual?`<div class="po-hint">This truck is <b>not in the Yooz list</b>. Add each item that came: tap the item box, pick the code, then type the <b>BOL</b> qty (what the paper says) and what you <b>counted</b>.</div>`:''}
-    <div class="po-hint"${isManual?' style="display:none"':''}><b>Ordered</b> comes from Yooz. Type the <b>BOL</b> qty (what the supplier says it sent) and what you <b>counted</b>. <b>=</b> copies the BOL into the count.${dn>1?' <b>Already received</b> shows what earlier deliveries brought.':''}</div>
+    <div class="po-hint"${isManual?' style="display:none"':''}><b>Ordered</b> comes from Yooz. Type the <b>BOL</b> qty (what the supplier says it sent) and what you <b>counted</b>. <b>=</b> copies the BOL into the count.${dn>1?' <b>Already received</b> shows what earlier deliveries brought.':''}</div>${poYoozOther(src.po,lines)}
     <div class="po-quick"${isManual?' style="display:none"':''}><button type="button" class="po-btn ok" onclick="poAllEq()">✓ BOL = ${dn>1?'remaining':'PO'} and count = BOL</button><button type="button" class="po-btn bad" onclick="poNotArrived()">✕ Truck did not arrive</button></div>
     <div style="overflow-x:auto"><table class="po-lines"><thead><tr><th>Item</th><th>Ordered</th><th>BOL</th><th>Counted</th><th></th></tr></thead><tbody id="po-lines-body">${lines.map((l,i)=>poRowHtml(l,i,pl[l.code])).join('')}</tbody></table></div>
     <button type="button" class="po-btn" style="margin:4px 0 10px" onclick="poAddExtra()">${isManual?'＋ Add another item':'＋ Item not on the PO'}</button>${dl}
@@ -7008,13 +7009,20 @@ function poRowHtml(l,i,p0){
   const item=l.extra?`<input type="text" class="po-xcode" id="po-code-${i}" list="po-items-dl" placeholder="Item code" value="${poEsc(l.code||'')}" autocomplete="off" oninput="_poForm.lines[${i}].code=this.value.trim().toUpperCase()"><span class="po-nm">Not on the PO <button type="button" class="po-xdel" title="Remove this extra line" onclick="poDelExtra(${i})">✕ Remove</button></span>`
     :`<span class="po-code">${poEsc(l.code)}</span><span class="po-nm">${poEsc(it?it.name:l.desc)}</span>`;
   return `<tr${l.extra?' class="po-extra"':''}><td>${item}</td>
-    <td data-l="Ordered"><b>${l.ordered!=null?l.ordered.toLocaleString():'—'}</b>${pu&&l.ordered!=null?`<span class="po-bef" style="color:var(--accent)">= ${poPalletsTxt(l.code,l.ordered)}</span>`:''}${bef?`<span class="po-bef">already rec. ${bef.toLocaleString()}</span>`:''}</td>
+    <td data-l="Ordered">${l.extra?`<input type="text" class="po-cnt po-ord" id="po-ord-${i}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Ordered?" value="${l.ordX!=null?l.ordX:''}" oninput="poUpdDiff(${i})" title="If it IS on the PO, type what was ordered (optional)">`:`<b>${l.ordered!=null?l.ordered.toLocaleString():'—'}</b>`}${pu&&l.ordered!=null?`<span class="po-bef" style="color:var(--accent)">= ${poPalletsTxt(l.code,l.ordered)}</span>`:''}${bef?`<span class="po-bef">already rec. ${bef.toLocaleString()}</span>`:''}</td>
     <td data-l="BOL">${inp('bol',p0.bol,'BOL')}</td>
     <td data-l="Counted" style="white-space:nowrap">${inp('cnt',p0.counted,'Count')}<button type="button" class="po-eq" title="Counted = BOL" onclick="poSetEq(${i})">=</button>${pu?`<div class="po-pal">or <input type="text" id="po-pal-${i}" inputmode="decimal" placeholder="pallets" value="${p0.counted!=null?(p0.counted/pu):''}" oninput="poFromPallets(${i})"> pallets × ${pu.toLocaleString()}</div>`:''}</td>
     <td><span class="po-d" id="po-d-${i}"></span></td></tr>`;
 }
 function poDelExtra(i){const l=_poForm&&_poForm.lines[i];if(!l||!l.extra)return;l.removed=true;   // Nov 25: an extra line added by mistake
   const c=document.getElementById('po-code-'+i),tr=c&&c.closest('tr');if(tr)tr.remove();}
+/* Nov 25 (Julian): SL1050-1 was on PO 28483 but not in the form → show the PO lines Yooz has that the WMS couldn't use
+   (code not in this plant's catalog, other plant, written differently), so the dock knows it is really on the PO */
+function poYoozOther(po,lines){try{const P=String(po||'').toUpperCase();if(!P)return '';
+  const have=new Set((lines||[]).map(l=>String(l.code).replace(/\//g,'')));
+  const nz=c=>String(c).replace(/\//g,''),cat=new Set(ITEMS.map(i=>nz(i.code)));
+  const xs=((loadYooz()||{}).lines||[]).filter(l=>String(l.po).toUpperCase()===P&&!have.has(nz(l.code)));if(!xs.length)return '';
+  return `<div class="po-hint" style="background:rgba(255,149,0,.12)">⚠ Yooz also has on this PO: ${xs.map(l=>`<b>${poEsc(l.raw||l.code)}</b> ${l.ordered!=null?l.ordered.toLocaleString():''}${l.plant&&l.plant!==currentPlant?' ('+l.plant+')':!cat.has(nz(l.code))?' (code not in the WMS)':''}`).join(' · ')} — if it came, add it with <b>＋ Item not on the PO</b> and type its <b>Ordered</b> qty.</div>`;}catch(e){return '';}}
 function poAddExtra(){
   const i=_poForm.lines.length;_poForm.lines.push({code:'',desc:'',ordered:null,extra:true});
   document.getElementById('po-lines-body').insertAdjacentHTML('beforeend',poRowHtml(_poForm.lines[i],i,null));
@@ -7026,8 +7034,9 @@ const poRemaining=l=>l.ordered==null?null:Math.max(0,l.ordered-(_poForm.before[l
 function poUpdDiff(i){
   const f=_poForm;if(!f)return;const l=f.lines[i];
   const d=document.getElementById('po-d-'+i);if(!d)return;
-  const exp=f.dn>1?poRemaining(l):l.ordered;
-  const x={ordered:exp,extra:l.extra,bol:poVal('po-bol-'+i),counted:poVal('po-cnt-'+i)};
+  const ox=l.extra?poVal('po-ord-'+i):null;
+  const exp=l.extra?ox:f.dn>1?poRemaining(l):l.ordered;
+  const x={ordered:exp,extra:l.extra&&ox==null,bol:poVal('po-bol-'+i),counted:poVal('po-cnt-'+i)};
   const s=x.counted==null?'pend':lineStatus(x);
   d.className='po-d '+(s==='bol'||s==='extra'?'diff':s);
   const pTxt=q=>palletUnits(l.code)?' ('+poPalletsTxt(l.code,Math.abs(q))+')':'';
@@ -7062,7 +7071,9 @@ function savePoReceipt(notArrived){
       if(!code){showToast('Type the item code of the extra line (or leave the whole row empty).','error');document.getElementById('po-code-'+i).focus();return;}
       if(bol==null)bol=0;
       if(c==null||isNaN(c)||c<0){showToast('Enter the counted qty for '+code+'.','error');ci.classList.add('po-missing');ci.focus();return;}
-      const it=ITEMS.find(x=>x.code===code);
+      const it=ITEMS.find(x=>x.code===code),ord=poVal('po-ord-'+i);
+      // Nov 25 (Julian): it may really be on the PO (Yooz didn't bring the line) → with "Ordered" it is a normal PO line
+      if(ord!=null&&!isNaN(ord)&&ord>=0){lines.push({code,desc:it?it.name:'',ordered:ord,bol,counted:c,added:true});continue;}
       lines.push({code,desc:it?it.name:'',ordered:null,bol,counted:c,extra:true});continue;
     }
     if(notArrived)bol=bol==null?0:bol;
@@ -7174,15 +7185,17 @@ const poFileName=r=>'Receiving_'+r.plant+'_'+r.po.replace(/[^A-Za-z0-9-]/g,'')+'
 let RECEIVING_FLOW_URL='https://defaultd0d1844c28494508898ecaf141a34f.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/ccb1eddbbb424c5f821e4ce6f2503d91/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=YLZZMbe_BndakJ4N2tIHomhDbsdtLtohnv7ArE6HnS0';
 function poDevice(){const u=navigator.userAgent;return /iPad|Macintosh/.test(u)&&navigator.maxTouchPoints>1?'iPad':/iPhone/.test(u)?'iPhone':/Android/.test(u)?'Android':/Windows/.test(u)?'Windows PC':/Mac/.test(u)?'Mac':'Other';}
 function poPayload(r){
-  if(r.cleared)return {receiptKey:r.plant+'|'+r.key,plant:r.plant,po:r.po,vendor:r.vendor,due:r.due?r.due+'T12:00:00Z':null,checkedAt:r.ts,receivedBy:r.by||'',
+  if(r.cleared)return {receiptKey:r.plant+'|'+r.key,plant:r.plant,po:r.po,vendor:r.vendor,due:(r.due||String(r.ts).slice(0,10))+'T12:00:00Z',checkedAt:r.ts,receivedBy:r.by||'',
     status:'Cleared — not checked',notes:'Put back to not checked',device:poDevice(),notArrived:false,
     lines:[{item:'CLEARED',description:'Report put back to not checked',ordered:0,bol:0,counted:0,bolVsPo:0,countVsBol:0,lineStatus:'Cleared'}]};
   const st=receiptStatus(r);
-  return {receiptKey:r.plant+'|'+r.key,plant:r.plant,po:r.po,vendor:r.vendor,due:r.due?r.due+'T12:00:00Z':null,checkedAt:r.ts,receivedBy:r.by||'',
+  return {receiptKey:r.plant+'|'+r.key,plant:r.plant,po:r.po,vendor:r.vendor,due:(r.due||String(r.ts).slice(0,10))+'T12:00:00Z',checkedAt:r.ts,receivedBy:r.by||'',
     status:ST_LABEL[st].replace(/^[^A-Za-z]+/,''),notes:r.notes||'',device:poDevice(),notArrived:!!r.notArrived,
     lines:r.lines.map(l=>{const it=ITEMS.find(x=>x.code===l.code);return {item:l.code,description:it?it.name:(l.desc||''),
-      ordered:l.ordered,bol:l.bol,counted:l.counted,
-      bolVsPo:l.bol!=null&&l.ordered!=null?l.bol-l.ordered:null,countVsBol:l.bol!=null&&l.counted!=null?l.counted-l.bol:null,
+      // Nov 25: the flow's schema wants numbers — an empty value (extra line: nothing ordered) went as null → HTTP 400
+      // TriggerInputSchemaMismatch. Send 0; "Not on PO" in lineStatus tells it was an extra line.
+      ordered:l.ordered==null?0:l.ordered,bol:l.bol==null?0:l.bol,counted:l.counted==null?0:l.counted,
+      bolVsPo:l.bol!=null&&l.ordered!=null?l.bol-l.ordered:0,countVsBol:l.bol!=null&&l.counted!=null?l.counted-l.bol:0,
       lineStatus:LINE_TXT[lineStatus(l)]==='✓'?'OK':LINE_TXT[lineStatus(l)]};})};
 }
 function poUpErr(e){try{localStorage.setItem('wms_po_uperr',JSON.stringify({at:new Date().toISOString(),msg:String(e&&e.message||e)}));}catch(x){}}
@@ -8325,7 +8338,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.25e';
+const APP_VERSION='2026.11.25h';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
