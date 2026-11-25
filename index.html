@@ -4046,10 +4046,13 @@ function reoNotNeeded(b,cfg){cfg=cfg||{};if((cfg.noNeed||{})[b])return true;if((
   return (REO_NONEED_DEFAULT[currentPlant]||[]).some(x=>x.test(b));}   // days, when nothing better is known (Settings → Lead time)
 /* shown on the card instead of an order (Julian, Nov 19) */
 const REO_NO_ORDER=[[/^(H134L|H134\/S)-\d$/,"Don't order — we only order XL. People wear up to 2 cotton gloves under the blue gloves because of the cold, so only XL fits."]];
-function reoCfgDefault(){return {days:[false,false,true,true,true,true,false],holidays:REO_HOLIDAYS.map(([d,n])=>({d,n})),extra:{},ss:Object.assign({},REO_SS_DAYS),by:'',at:''};}
+function reoCfgDefault(){const nj=currentPlant==='NJ';return {days:[false,nj,true,true,true,true,false],holidays:REO_HOLIDAYS.filter(([d])=>!(nj&&d==='2026-11-27')).map(([d,n])=>({d,n})),mgV:3,extra:{},ss:Object.assign({},REO_SS_DAYS),by:'',at:''};}
 function loadReoCfg(){try{const o=JSON.parse(localStorage.getItem('wms_reocfg_'+currentPlant)||'null');if(o&&Array.isArray(o.days)){
   // the old default (A3 · B2 · C1) saved with the receiving days → the new, lower default; a value someone changed stays
   if(!o.ssV){if(!o.ss||(+o.ss.A===3&&+o.ss.B===2&&+o.ss.C===1))o.ss=Object.assign({},REO_SS_DAYS);o.ssV=2;}
+  // Nov 25 (Julian): NJ works and receives Fri 11/27, and from now on NJ also receives on MONDAYS — applied once;
+  // a later change in Settings (saved with mgV 3) stays as the team leaves it
+  if(!(o.mgV>=3)){if(currentPlant==='NJ'){o.holidays=(o.holidays||[]).filter(h=>h.d!=='2026-11-27');o.days=o.days.slice();o.days[1]=true;}o.mgV=3;}
   return o;}}catch(e){}return Object.assign(reoCfgDefault(),{ssV:2});}
 function loadReoMarks(){try{return JSON.parse(localStorage.getItem('wms_reomarks_'+currentPlant)||'null')||{};}catch(e){return {};}}
 /* ---------- shared Next POs data: save WITHOUT stepping on another device (Nov 24) ----------
@@ -8338,7 +8341,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.25i';
+const APP_VERSION='2026.11.25j';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

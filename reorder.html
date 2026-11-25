@@ -312,7 +312,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25j</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25l</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -348,6 +348,8 @@ document.getElementById('plant-name').textContent=PLANT==='NJ'?'NEW JERSEY':'GEO
 document.documentElement.style.setProperty('--plant',PLANT==='NJ'?'#1d4ed8':'#15803d');
 (o=>{const a=document.getElementById('plant-switch');a.textContent='⇄ '+o;a.href='reorder.html?plant='+o;})(PLANT==='NJ'?'GA':'NJ');
 
+/* Nov 25 (Julian): show the Sonic code first (BX7500-1 + BX7500PCA-1) — Sonic is the one we recommend; PCA-only items (BX7700PCA) stay as they are */
+function sonicFirst(d){try{(d&&d.rows||[]).forEach(r=>{if(Array.isArray(r.codes)&&r.codes.length>1)r.codes.sort((a,b)=>(/PCA/i.test(a)?1:0)-(/PCA/i.test(b)?1:0));});}catch(e){}}
 let data=null,tab=null,cat='ALL',q='',open=new Set(),reqId=0,busy=false,ready=false,pendingAsk=null;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n0=n=>Math.round(+n||0).toLocaleString('en-US');
@@ -366,7 +368,7 @@ window.addEventListener('message',ev=>{
   if(ev.source!==frame.contentWindow)return;const m=ev.data||{};
   if(m.type==='wms-reorder-ready'){ready=true;bootS=(Date.now()-bootT)/1000;if(chg.want){chg.want=false;askChg();}if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
   if(m.type==='wms-reorder-changes-data'&&m.id===chg.id){chg.busy=false;chg.at=Date.now();if(m.ok)chg.h=m.hist;chg.err=m.ok?'':m.err;chgBadge();if(view==='chg')renderChg();else if(view==='pos')render();return;}
-  if(m.type==='wms-reorder-data'&&m.id===reqId){busy=!!m.partial;data=m;
+  if(m.type==='wms-reorder-data'&&m.id===reqId){busy=!!m.partial;data=m;sonicFirst(data);
     if(m.saveErr)toast('⚠ '+m.saveErr);else if(m.saved)toast(m.saved==='cfg'?'✓ Settings saved for every device':'✓ Saved for every device');
     if(!tab)tab='all';   // Nov 23: open on All — urgent first, then this week (Urgent alone repeated To order today)
     if(!m.partial){lastAt=Date.now();try{localStorage.setItem('reorder_last_'+PLANT,JSON.stringify({at:lastAt,data:m}));}catch(e){}}
@@ -707,6 +709,9 @@ function weekData(r){const days=weekDays(),plan={},arr={},wk=new Set(days);let p
   if(r.kind!=='inv'&&r.plan&&r.ptot){planRow=true;
     r.plan.forEach(x=>{const s=x.src||{};let used=false;Object.entries(s).forEach(([k,v])=>{if(/^\d{4}-/.test(k)){plan[k]=(plan[k]||0)+(+v||0);used=true;}});
       if(!used&&x.need>0)plan[x.d]=(plan[x.d]||0)+x.need;});}
+  // Nov 25 (Julian): a Saturday / day off that HAS plan (or a truck) shows too — the strip used to show Mon–Fri only
+  {const last=days[days.length-1];Object.keys(plan).forEach(k=>{if(k>=days[0]&&k<=last&&plan[k]>0&&!wk.has(k)){days.push(k);wk.add(k);}});
+   (r.coming||[]).map(x=>String(x.date).slice(0,10)).concat(createdDl(r).map(x=>x.d)).forEach(k=>{if(k>=days[0]&&k<=last&&!wk.has(k)){days.push(k);wk.add(k);}});days.sort();}
   (r.coming||[]).forEach(x=>{const k=String(x.date).slice(0,10);if(wk.has(k))arr[k]=(arr[k]||0)+(+x.qty||0);});
   createdDl(r).forEach(x=>{if(wk.has(x.d))arr[x.d]=(arr[x.d]||0)+x.q;});
   const need=planRow?days.reduce((a,k)=>a+(plan[k]||0),0):(r.dbar>0?r.dbar*5:0);
@@ -1582,7 +1587,7 @@ function toggleThemeMini(ev){if(ev)ev.stopPropagation();const d=!themeIsDark();d
 paintThemeMini();
 // start (at the end, once every function above exists): show the last result right away;
 // only load again if it is older than 10 minutes
-try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<72*3600e3){data=last.data;lastAt=last.at;tab='all';}}catch(e){}
+try{const last=JSON.parse(localStorage.getItem('reorder_last_'+PLANT)||'null');if(last&&last.data&&Date.now()-last.at<72*3600e3){data=last.data;sonicFirst(data);lastAt=last.at;tab='all';}}catch(e){}
 if(stale())ask(false);
 render();
 askChg();chgBadge();   // plan changes in the background → 🔔 number on the tab
