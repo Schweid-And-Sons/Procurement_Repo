@@ -92,6 +92,17 @@
   .sheet .row2>*{flex:1;}
   .big{width:100%;border:none;border-radius:14px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px;background:var(--accent);color:#fff;}
   .big.gray{background:var(--surface2);color:var(--text);}
+  .mo-btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;margin:0 0 12px;padding:12px 16px;border:none;border-radius:16px;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;color:var(--text);font:inherit;text-align:left}
+  .mo-btn b{font-size:16px}.mo-btn span{font-size:12.5px;color:var(--text3)}
+  .mo-od{display:flex;align-items:center;gap:10px;margin:0 0 10px}.mo-od span{font-size:14px;color:var(--text3);white-space:nowrap}.sheet .mo-od input{margin:0}
+  .mo-r{background:var(--surface2);border-radius:16px;padding:10px 12px;margin:0 0 10px}
+  .mo-t{display:flex;gap:8px;align-items:center}.sheet .mo-t input{margin:0;background:var(--surface);font-size:17px;font-weight:600}
+  .mo-x{border:none;background:rgba(255,59,48,.12);color:var(--danger);border-radius:10px;width:40px;height:44px;font-size:16px;cursor:pointer;flex:none}
+  .mo-n{font-size:12.5px;color:var(--text2,#555);margin:6px 2px 4px;line-height:1.35;min-height:2px}
+  .mo-g{display:grid;grid-template-columns:1fr 1.35fr .9fr;gap:8px}.mo-g label{display:block}.mo-g i{display:block;font-style:normal;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin:0 0 2px 4px}
+  .sheet .mo-g input{margin:0;padding:10px;font-size:16px;background:var(--surface)}
+  .sheet textarea{width:100%;border:1px solid var(--border);background:var(--surface2);border-radius:12px;padding:12px;font:inherit;font-size:14px;margin-top:10px;color:var(--text)}
+  .mo-sum{text-align:center;font-size:14px;margin:12px 0 0;color:var(--text2,#444)}
   .days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:8px 0 14px;}
   .day{border:2px solid var(--border);background:var(--surface2);border-radius:12px;padding:10px 0;font-weight:700;cursor:pointer;text-align:center;font-size:14px;}
   .day.on{background:var(--success);border-color:var(--success);color:#fff;}
@@ -300,7 +311,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25f</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25g</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -935,6 +946,67 @@ function ioSave(){const e=window._io;const q=+document.getElementById('io-q').va
   if(!(q>0)||!d){toast('Type the quantity and the day');return;}
   const t=ymdL(addDays(0)),key=e.r.base+'|'+t+'|M'+Date.now();
   closeSheet();sendSave({type:'wms-reorder-mark',key,mark:{base:e.r.base,ob:t,qty:q,dl:[{d,q}],done:true,manual:true,po}});}
+/* ---------- 📝 Manual orders (Nov 25, Julian): POs made by hand — like filling a little sheet: item · qty · arrival · PO #.
+   Each line is saved like "We ordered…" (counts as coming on every device, the next orders are recalculated from it);
+   the app groups them by supplier and PO by itself (Today's orders, Receiving). ---------- */
+function moItems(){return (data&&data.rows||[]).filter(r=>!r.notNeeded||true);}
+function moFind(t){t=String(t||'').toUpperCase().replace(/\s+/g,'');if(!t)return null;const rows=moItems();
+  const ex=rows.find(r=>r.base.toUpperCase()===t||(r.codes||[]).some(c=>String(c).toUpperCase()===t));if(ex)return ex;
+  const t2=t.replace(/-\d$/,'');const ex2=rows.find(r=>(r.codes||[r.base]).some(c=>String(c).toUpperCase().replace(/-\d$/,'')===t2));if(ex2)return ex2;
+  const num=t.replace(/^[A-Z]+/,'').replace(/-\d$/,'');if(!num)return null;
+  const c=rows.filter(r=>(r.codes||[r.base]).some(x=>String(x).toUpperCase().replace(/-\d$/,'').replace(/^[A-Z]+/,'')===num));return c.length===1?c[0]:null;}
+function moSup(r){return r?vName(vKey((r.main||{}).vendor||r.vendor||''),(r.main||{}).vendor||'').split(' ·')[0]:'';}
+function openManual(){const t=ymdL(new Date());window._mo=window._mo&&window._mo.keep?window._mo:{od:t,rows:[{c:'',q:'',d:t,po:''}]};
+  const dl=moItems().map(r=>`<option value="${esc((r.codes||[r.base])[0])}">${esc(r.name||'')} · ${esc(moSup(r))}</option>`).join('');
+  sheet(`<h2>📝 Manual orders</h2><div class="hint">POs made by hand. Type each item, how many and the day it arrives — the app groups them by supplier and PO, counts them as coming on every device and recalculates the next orders.</div>
+    <div class="mo-od"><span>Ordered on</span><input type="date" id="mo-od" value="${window._mo.od}" onchange="window._mo.od=this.value"></div>
+    <datalist id="mo-dl">${dl}</datalist><div id="mo-rows"></div>
+    <div class="row2"><button class="big gray" onclick="moAdd()">＋ Add item</button><button class="big gray" onclick="moPasteOpen()">📋 Paste from Excel</button></div>
+    <div id="mo-paste" style="display:none"><textarea id="mo-pt" rows="5" placeholder="Copy the columns from Excel and paste here:&#10;Item   Qty   Arrives   PO #&#10;BX1850-1   3375   11/25   501"></textarea><button class="big gray" onclick="moPaste()">Fill the list</button></div>
+    <div class="mo-sum" id="mo-sum"></div>
+    <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="moSave()">Save</button></div>`);
+  moDraw();}
+function moDraw(){const m=window._mo,el=document.getElementById('mo-rows');if(!el)return;
+  el.innerHTML=m.rows.map((x,i)=>`<div class="mo-r"><div class="mo-t"><input type="text" list="mo-dl" class="mo-c" placeholder="Item — BX1850, 1850…" value="${esc(x.c)}" oninput="moSet(${i},'c',this.value)" autocapitalize="characters" autocomplete="off"><button class="mo-x" title="Remove" onclick="moDel(${i})">✕</button></div>
+    <div class="mo-n" id="mo-n${i}"></div>
+    <div class="mo-g"><label><i>Qty</i><input type="text" inputmode="numeric" value="${esc(x.q)}" oninput="moSet(${i},'q',this.value)" placeholder="0"></label>
+      <label><i>Arrives</i><input type="date" value="${esc(x.d)}" onchange="moSet(${i},'d',this.value)"></label>
+      <label><i>PO #</i><input type="text" inputmode="numeric" value="${esc(x.po)}" oninput="moSet(${i},'po',this.value)" placeholder="${esc(data&&data.lastPo?String(data.lastPo).slice(-3):'501')}"></label></div></div>`).join('');
+  m.rows.forEach((x,i)=>moHint(i));moTotal();}
+function moHint(i){const x=window._mo.rows[i],el=document.getElementById('mo-n'+i);if(!el)return;const r=moFind(x.c);x.r=r;
+  if(!x.c){el.innerHTML='';return;}
+  if(!r){el.innerHTML='<span style="color:var(--danger)">Not found — check the code</span>';return;}
+  const q=+String(x.q).replace(/[^\d.]/g,'')||0,per=r.per||0;
+  el.innerHTML=`<b>${esc((r.codes||[r.base]).join(' + '))}</b> · ${esc(r.name||'')} · <span class="mut">${esc(moSup(r))}</span>${q&&per>1?' · <b>'+n1(q/per)+' pallet'+(q/per>=1.5?'s':'')+'</b>':''}${x.po?' · PO '+esc(poNorm(x.po)):''}`;}
+function moSet(i,k,v){const m=window._mo;m.rows[i][k]=v;if(k==='d'&&i===m.rows.length-1)m.lastD=v;if(k==='po'&&i===m.rows.length-1)m.lastPo=v;moHint(i);moTotal();}
+function moAdd(){const m=window._mo,l=m.rows[m.rows.length-1]||{};m.rows.push({c:'',q:'',d:l.d||ymdL(new Date()),po:l.po||''});moDraw();
+  const cs=document.querySelectorAll('.mo-c');if(cs.length)cs[cs.length-1].focus();}
+function moDel(i){const m=window._mo;m.rows.splice(i,1);if(!m.rows.length)m.rows.push({c:'',q:'',d:ymdL(new Date()),po:''});moDraw();}
+function moTotal(){const m=window._mo,el=document.getElementById('mo-sum');if(!el)return;
+  const ok=m.rows.filter(x=>x.r&&+String(x.q).replace(/[^\d.]/g,'')>0&&x.d);
+  const g=new Set(ok.map(x=>vKey((x.r.main||{}).vendor||'')+'|'+(x.po?poNorm(x.po):'')+'|'+x.d));
+  const pal=ok.reduce((a,x)=>a+((x.r.per||0)>1?(+String(x.q).replace(/[^\d.]/g,''))/x.r.per:0),0);
+  el.innerHTML=ok.length?`<b>${ok.length}</b> item${ok.length>1?'s':''} · <b>${g.size}</b> PO${g.size>1?'s':''}${pal>=0.5?' · ~'+n1(pal)+' pallets':''}`:'';}
+function moPasteOpen(){const p=document.getElementById('mo-paste');p.style.display=p.style.display==='none'?'block':'none';if(p.style.display==='block')document.getElementById('mo-pt').focus();}
+function moDate(s,def){s=String(s||'').trim();if(!s)return def;let m=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=s.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);if(m){const y=m[3]?(m[3].length===2?'20'+m[3]:m[3]):String(new Date().getFullYear());return y+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');}return def;}
+function moPaste(){const m=window._mo,t=document.getElementById('mo-pt').value;let n=0;const l0=m.rows[m.rows.length-1]||{};let d=l0.d||ymdL(new Date()),po=l0.po||'';
+  m.rows=m.rows.filter(x=>x.c||x.q);
+  t.split(/\r?\n/).forEach(line=>{const c=line.split(/\t|;|,(?=\s*\S)|\s{2,}/).map(s=>s.trim()).filter(s=>s!=='');if(c.length<2)return;
+    const r=moFind(c[0]);const q=String(c[1]).replace(/[^\d.]/g,'');if(!r||!q)return;   // headers / totals are skipped
+    d=moDate(c[2],d);if(c[3])po=c[3];m.rows.push({c:(r.codes||[r.base])[0],q,d,po});n++;});
+  if(!m.rows.length)m.rows.push({c:'',q:'',d,po});
+  document.getElementById('mo-pt').value='';document.getElementById('mo-paste').style.display='none';moDraw();toast(n?n+' line(s) filled':'Nothing recognized — Item and Qty columns are needed');}
+function moSave(){const m=window._mo;m.rows.forEach((x,i)=>moHint(i));
+  const ok=m.rows.filter(x=>x.r&&+String(x.q).replace(/[^\d.]/g,'')>0&&x.d),bad=m.rows.filter(x=>(x.c||x.q)&&!ok.includes(x));
+  if(!ok.length){toast('Type at least one item with its quantity');return;}
+  if(bad.length&&!confirm(bad.length+' line(s) are incomplete or not found and will be skipped. Save the other '+ok.length+'?'))return;
+  const od=m.od||ymdL(new Date()),ts=Date.now();
+  withPin(()=>{const list=ok.map((x,i)=>{const q=+String(x.q).replace(/[^\d.]/g,''),po=x.po?poNorm(x.po):'';
+      return {key:x.r.base+'|'+od+'|M'+ts+'-'+i,mark:Object.assign({base:x.r.base,ob:od,qty:q,dl:[{d:x.d,q}],done:true,manual:true},po?{po}:{},(x.r.main||{}).vendor?{vendor:(x.r.main||{}).vendor}:{})};});
+    closeSheet();window._mo=null;sendSave({type:'wms-reorder-mark',list});
+    undoToast('📝 '+list.length+' line(s) saved as ordered — they count as coming',()=>sendSave({type:'wms-reorder-mark',list:list.map(x=>({key:x.key,mark:null}))}));});}
+
 /* what was already ordered today (written down) vs. what the app still suggests */
 function orderedToday(r){const t=ymdL(addDays(0));
   const mine=(r.orders||[]).filter(o=>o.fixed&&o.done&&String(o.key||'').includes('|'+t+'|')||(o.fixed&&o.done&&o.at&&ymdL(o.at)===t));
@@ -1164,7 +1236,7 @@ function render(keepFocus){
   // open/closed is kept while the page is open (a refresh doesn't close what you opened), never across visits
   const SO=window._secOpen=window._secOpen||{I:false,S:false};try{if(localStorage.getItem('reo_secS')==='1'){SO.S=true;localStorage.removeItem('reo_secS');}}catch(e){}
   const oI=SO.I||!!q,oS=SO.S;
-  body.innerHTML=ordersBox()+bands
+  body.innerHTML=`<button class="mo-btn" onclick="openManual()"><b>📝 Manual orders</b><span>POs made by hand — item, quantity, arrival day</span></button>`+ordersBox()+bands
     +`<details class="xs" id="secI"${oI?' open':''} ontoggle="(window._secOpen||{}).I=this.open"><summary><b>📦 Next POs by item</b><span>${c.red} urgent · ${c.amber} this week · on hand, days, plan</span></summary>
       ${tabs}<div class="stick">${cats}<input class="search" type="search" placeholder="🔎 Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"></div><div id="list">${list}</div></details>`
     +`<details class="xs" id="secS"${oS?' open':''} ontoggle="(window._secOpen||{}).S=this.open;if(this.open&&!this.dataset.f){this.dataset.f=1;}"><summary><b>🧾 Next POs by supplier</b><span>today and the next order days · pallets arriving</span></summary>${oS?supHtml():'<div id="supLazy"></div>'}</details>`
