@@ -312,7 +312,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25i</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25j</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -972,7 +972,7 @@ function openManual(){const t=ymdL(new Date());window._mo=window._mo&&window._mo
     <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="moSave()">Save</button></div>`);
   moDraw();}
 function moDraw(){const m=window._mo,el=document.getElementById('mo-rows');if(!el)return;
-  el.innerHTML=m.rows.map((x,i)=>`<div class="mo-r"><div class="mo-t"><input type="text" list="mo-dl" class="mo-c" placeholder="Item — BX1850, 1850…" value="${esc(x.c)}" oninput="moSet(${i},'c',this.value)" autocapitalize="characters" autocomplete="off"><button class="mo-x" title="Remove" onclick="moDel(${i})">✕</button></div>
+  el.innerHTML=m.rows.map((x,i)=>`<div class="mo-r"><div class="mo-t"><input type="text" list="mo-dl" class="mo-c" placeholder="Item — BX1850, 1850…" value="${esc(x.c)}" oninput="moSet(${i},'c',this.value)" onchange="moDup(${i})" autocapitalize="characters" autocomplete="off"><button class="mo-x" title="Remove" onclick="moDel(${i})">✕</button></div>
     <div class="mo-n" id="mo-n${i}"></div>
     <div class="mo-g2"><label><i>Qty</i><input type="text" id="mo-q${i}" inputmode="numeric" value="${esc(x.q)}" oninput="moSet(${i},'q',this.value);moPalFromQ(${i})" placeholder="0"></label>
       <label><i>Pallets</i><input type="text" id="mo-p${i}" inputmode="decimal" value="" oninput="moQFromPal(${i},this.value)" placeholder="0"></label></div>
@@ -983,13 +983,18 @@ function moHint(i){const x=window._mo.rows[i],el=document.getElementById('mo-n'+
   if(!x.c){el.innerHTML='';return;}
   if(!r){el.innerHTML='<span style="color:var(--danger)">Not found — check the code</span>';return;}
   const q=+String(x.q).replace(/[^\d.]/g,'')||0,per=r.per||0;
-  el.innerHTML=`<b>${esc((r.codes||[r.base]).join(' + '))}</b> · ${esc(r.name||'')} · <span class="mut">${esc(moSup(r))}</span>${q&&per>1?' · <b>'+n1(q/per)+' pallet'+(q/per>=1.5?'s':'')+'</b>':''}${moPo(x)?' · PO '+esc(poNorm(moPo(x)))+(x.po?'':' <span class="mut">(for all)</span>'):''}`;}
+  const dj=moDupOf(i);
+  el.innerHTML=(dj>=0?`<span style="color:var(--warn);font-weight:700">⚠ Also on line ${dj+1}</span> · `:'')+`<b>${esc((r.codes||[r.base]).join(' + '))}</b> · ${esc(r.name||'')} · <span class="mut">${esc(moSup(r))}</span>${q&&per>1?' · <b>'+n1(q/per)+' pallet'+(q/per>=1.5?'s':'')+'</b>':''}${moPo(x)?' · PO '+esc(poNorm(moPo(x)))+(x.po?'':' <span class="mut">(for all)</span>'):''}`;}
 /* Qty ⇄ Pallets (Nov 25): type pallets → boxes = pallets × per pallet; type boxes → pallets */
 function moPer(i){const x=window._mo.rows[i];const r=x.r||moFind(x.c);return r&&r.per>1?r.per:0;}
 function moPalFromQ(i){const p=moPer(i),el=document.getElementById('mo-p'+i);if(!el||document.activeElement===el)return;const q=+String(window._mo.rows[i].q).replace(/[^\d.]/g,'')||0;
   el.value=p&&q?String(Math.round(q/p*10)/10):'';el.disabled=!p;el.placeholder=p?'0':'—';}
 function moQFromPal(i,v){const p=moPer(i);if(!p)return;const n=+String(v).replace(',','.').replace(/[^\d.]/g,'');const q=n?Math.round(n*p):'';
   window._mo.rows[i].q=String(q);const qe=document.getElementById('mo-q'+i);if(qe)qe.value=q;moHint(i);moTotal();}
+/* Nov 25: the same item twice → just a heads-up (OK), it doesn't stop the list */
+function moDupOf(i){const m=window._mo,x=m.rows[i],r=x&&(x.r||moFind(x.c));if(!r)return -1;return m.rows.findIndex((y,j)=>j!==i&&(y.r||moFind(y.c))===r);}
+function moDup(i){const j=moDupOf(i);if(j<0)return;const r=window._mo.rows[i].r||moFind(window._mo.rows[i].c);
+  alert('Heads-up: '+(r.codes||[r.base])[0]+' is already in this list (line '+(j+1)+').\n\nIf it is a second delivery or another PO, that is fine — both lines will be saved.');}
 function moSet(i,k,v){const m=window._mo;m.rows[i][k]=v;if(k==='c')setTimeout(()=>moPalFromQ(i),0);if(k==='d'&&i===m.rows.length-1)m.lastD=v;if(k==='po'&&i===m.rows.length-1)m.lastPo=v;moHint(i);moTotal();}
 function moAdd(){const m=window._mo,l=m.rows[m.rows.length-1]||{};m.rows.push({c:'',q:'',d:l.d||ymdL(new Date()),po:m.gpo?'':(l.po||'')});moDraw();
   const cs=document.querySelectorAll('.mo-c');if(cs.length)cs[cs.length-1].focus();}
@@ -1008,7 +1013,10 @@ function moPaste(){const m=window._mo,t=document.getElementById('mo-pt').value;l
     const r=moFind(c[0]);const q=String(c[1]).replace(/[^\d.]/g,'');if(!r||!q)return;   // headers / totals are skipped
     d=moDate(c[2],d);if(c[3])po=c[3];m.rows.push({c:(r.codes||[r.base])[0],q,d,po});n++;});
   if(!m.rows.length)m.rows.push({c:'',q:'',d,po});
-  document.getElementById('mo-pt').value='';document.getElementById('mo-paste').style.display='none';moDraw();toast(n?n+' line(s) filled':'Nothing recognized — Item and Qty columns are needed');}
+  document.getElementById('mo-pt').value='';document.getElementById('mo-paste').style.display='none';moDraw();
+  {const seen={},dup=[];m.rows.forEach(x=>{const r=moFind(x.c);if(!r)return;if(seen[r.base])dup.push((r.codes||[r.base])[0]);seen[r.base]=1;});
+   if(dup.length)setTimeout(()=>alert('Heads-up: these items are in the list more than once: '+[...new Set(dup)].join(', ')+'.\n\nIf they are different deliveries or POs, that is fine.'),50);}
+  toast(n?n+' line(s) filled':'Nothing recognized — Item and Qty columns are needed');}
 function moSave(){const m=window._mo;m.rows.forEach((x,i)=>moHint(i));
   const ok=m.rows.filter(x=>x.r&&+String(x.q).replace(/[^\d.]/g,'')>0&&x.d),bad=m.rows.filter(x=>(x.c||x.q)&&!ok.includes(x));
   if(!ok.length){toast('Type at least one item with its quantity');return;}
