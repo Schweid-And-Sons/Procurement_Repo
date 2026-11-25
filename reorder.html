@@ -196,6 +196,8 @@
   .ob-l{margin:6px 0 0 36px;}.ob-l>summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:600;list-style:none;}
   .ob-it{border-top:1px solid var(--border);padding:7px 0;}.ob-it summary{cursor:pointer;list-style:none;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;}
   .ob-q{margin-left:auto;font-size:13px;}.ob-x{font-size:12.5px;color:var(--text2);padding-top:4px;}
+  .td-l{margin:6px 0 2px}.td-r{display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);padding:6px 0;font-size:14px}.td-r>span:first-child{flex:1;min-width:0}
+  .td-q{font-size:13px;white-space:nowrap}.td-u{border:0;background:rgba(128,128,128,.12);border-radius:8px;padding:4px 9px;cursor:pointer;color:inherit}
   .ob-none{padding:10px 12px;color:var(--success);font-weight:700;}
   .ob-sup{font-size:16px;font-weight:800;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}.ob-sup span{font-size:12.5px;font-weight:500;color:var(--text3);}
   .ob-d{margin:8px 0 0;padding:8px 10px;border-radius:12px;background:rgba(128,128,128,.07);}.ob-dh{display:flex;align-items:center;gap:10px;}
@@ -298,8 +300,8 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25e</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
-  <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25f</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
   <details class="how"><summary>How does it work? (short version)</summary><ul>
@@ -1451,14 +1453,27 @@ function renderToday(){
   const t0=ymdL(new Date()),L=[];
   data.rows.forEach(r=>groupOrders(r.orders).forEach(o=>{if((o.done||o.pending||o.edited)&&o.at&&ymdL(o.at)===t0)L.push({r,o});}));
   L.sort((a,b)=>String(b.o.at).localeCompare(String(a.o.at)));
-  const st=o=>o.done?'✅ Created':o.pending?'⏳ Pending':'✏️ Qty changed';
-  body.innerHTML=`<div class="fri"><b>📝 Today</b> — POs marked today on any device (${L.length}). Tap ↩ Undo if one was marked by mistake.</div>`+
-    (L.length?L.map(({r,o})=>`<div class="card"><div class="c-top"><span class="c-code">${esc((r.codes||[r.base]).join(' + '))}</span><span class="c-name">${esc(r.name||'')}</span></div>
-      <div class="c-main">${st(o)} · ${qtyTxt(r,o.qty,o.pallets)}</div>
-      <div class="c-sub">${o.dl&&o.dl.length?'arrives '+o.dl.map(x=>dayTxt(x.d)+(o.dl.length>1?' ~'+n0(x.q):'')).join(' · '):''}${o.po?' · PO '+esc(o.po):''}${o.manual?' · written with "We ordered…"':''} · ${o.by?esc(o.by)+' · ':''}${timeTxt(o.at)}</div>
-      <div class="o-acts"><button class="st" onclick="undoMark('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">↩ Undo</button></div></div>`).join('')
+  // Nov 25 (Julian): grouped like the POs she makes — one card per supplier and PO # (or arrival day while it has no number),
+  // with ↩ Undo the whole PO in one tap and ⬇ Excel for that PO. Each line keeps its own small ↩.
+  const st=o=>o.done?'✅':o.pending?'⏳':'✏️';
+  const G={};L.forEach(x=>{const k=vKey(x.o.vendor||(x.o.rush&&x.o.via)||(x.r.main||{}).vendor||x.r.vendor||'');
+    const arr=x.o.dl&&x.o.dl[0]?ymdL(x.o.dl[0].d):'',gk=k+'|'+(x.o.po?String(x.o.po).toUpperCase():'arr '+arr);
+    const g=G[gk]||(G[gk]={k,raw:String(x.o.vendor||(x.r.main||{}).vendor||k),po:x.o.po||'',arr,day:t0,lines:[],at:x.o.at});g.lines.push(x);if(String(x.o.at)>String(g.at))g.at=x.o.at;});
+  const gs=Object.values(G).sort((a,b)=>a.k.localeCompare(b.k)||String(b.at).localeCompare(String(a.at)));window._tdG=gs;
+  body.innerHTML=`<div class="fri"><b>📝 Today's orders</b> — marked today on any device: <b>${gs.length}</b> PO${gs.length!==1?'s':''} · ${L.length} line${L.length!==1?'s':''}. ↩ Undo a whole PO or one line if it was marked by mistake.</div>`+
+    (gs.length?gs.map((g,gi)=>{const pal=g.lines.reduce((a,{r,o})=>a+palOf(r,o,g.k),0),arrs=[...new Set(g.lines.map(x=>x.o.dl&&x.o.dl[0]?ymdL(x.o.dl[0].d):'').filter(Boolean))].sort();
+      const who=[...new Set(g.lines.map(x=>x.o.by).filter(Boolean))].join(', ');
+      return `<div class="card"><div class="c-top"><span class="c-code">${esc(vName(g.k,g.raw).split(' ·')[0])}</span><span class="c-name">${g.po?'PO '+esc(g.po):'<span style="color:var(--warn)">no PO # yet</span>'}</span></div>
+      <div class="c-sub">${arrs.length?'arrives '+arrs.map(a=>dShort(a)).join(' · ')+' · ':''}${g.lines.length} item${g.lines.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallet'+(pal>=1.5?'s':''):''}${who?' · '+esc(who):''} · ${timeTxt(g.at)}</div>
+      <div class="td-l">${g.lines.map(({r,o})=>`<div class="td-r"><span>${st(o)} <b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span></span><span class="td-q">${qtyTxt(r,o.qty,o.pallets)}${o.manual?' · <i>We ordered…</i>':''}</span><button class="td-u" title="Undo this line" onclick="undoMark('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">↩</button></div>`).join('')}</div>
+      <div class="o-acts"><button class="st" onclick="undoGroup(${gi})">↩ Undo this PO</button><button class="st" onclick="poExcelG(window._tdG[${gi}])">⬇ Excel</button></div></div>`;}).join('')
       :'<div class="empty"><b>—</b>Nothing marked today yet.</div>');
 }
+/* ↩ the whole PO (every line of that card) back to the suggestion — one tap, with Undo in the toast */
+function undoGroup(gi){const g=(window._tdG||[])[gi];if(!g)return;
+  withPin(()=>{const prev=g.lines.map(({r,o})=>({key:o.key,mark:markOf(r,o,{})})),list=g.lines.map(({o})=>({key:o.key,mark:null}));
+    sendSave({type:'wms-reorder-mark',list});
+    undoToast('↩ Undone · '+vName(g.k,g.raw).split(' ·')[0]+(g.po?' · '+g.po:'')+' · '+list.length+' line(s) back to the suggestion',()=>sendSave({type:'wms-reorder-mark',list:prev}));});}
 /* refresh when coming back to the page */
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!busy&&stale())ask(false);});
 // Nov 24: while the screen stays open, bring the new numbers by itself (stock, copies, Yooz…) — every 3 min if anything is old or changed
