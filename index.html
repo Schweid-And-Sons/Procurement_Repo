@@ -4000,7 +4000,7 @@ const PACK_NJ={
   BX1850:{p:375,d:750},BX1875:{p:1000,d:1000}/* arrives 1,100–1,120; we ask Sonic for 1,000 */,BX1850PCA:{p:375,d:750},BX1900:{p:750,d:750},BX2003:{p:375,d:750},BX2050:{p:550,d:1100},
   BX2075:{p:750,d:750},BX2300:{p:500,d:500},BX3000:{p:500,d:1000},BX3050:{p:500,d:1000},BX3100:{p:750,d:750},
   BX3125:{p:375,d:750},BX3150:{p:500,d:1000},BX3200:{p:500,d:1000},BX3300:{p:500,d:500},BX6550:{p:500,d:500},
-  BX7500:{p:375,d:750},BX7600:{p:375,d:750},BX7700PCA:{p:360,d:720},BX7800:{p:250,d:250},BX7900:{p:160,d:160},BX8200:{p:500,d:500},
+  BX7500:{p:375,d:750},BX7600:{p:375,d:750},BX7700PCA:{p:360,d:720},BX7700:{p:360,d:720}/* only PCA makes it now: 360 per pallet, often double-stacked 720 (Julian, Nov 25) */,BX7800:{p:250,d:250},BX7900:{p:160,d:160},BX8200:{p:500,d:500},
   T2000:{p:2640,u:'trays'},T2100:{p:2640,u:'trays'},
   F1000:{p:18,d:18,u:'rolls'},F1400:{p:27,d:27,u:'rolls'},F1750:{p:27,d:27,u:'rolls'},F1900:{p:27,d:27,u:'rolls'},F1060:{p:10,d:30,u:'rolls'},
   P2000:{p:50,d:100,u:'cases'},P3100:{p:45,d:45,u:'cases'},P4100:{p:35,d:35,u:'cases'},
@@ -4140,7 +4140,7 @@ async function subsSave(rows,quiet){const at=new Date().toISOString(),by=planDev
     await planPost({key:p+'|subs',plant:p,kind:'subs',day:REO_SUBS_DAY,status:'',batchNo:'',meatBlock:'',updatedAt:at,updatedBy:by,json:JSON.stringify(o)});}
   if(!quiet)showToast('Substitutions saved for NJ and GA','success');}
 function packFor(code,vendor){const k=String(code).toUpperCase().replace(/-\d+$/,'').replace(/-(B|P)$/,'');   // GA uses the same standard as NJ
-  const pca=/PCA/i.test(vendor||'');return (pca&&PACK_NJ[k+'PCA'])||PACK_NJ[k]||(/^F1\d{3}(ABX)?$/.test(k)?{p:27,d:27,u:'rolls'}:null);}   // any other film (F1xxx): 27 rolls per pallet — not seasonings F0xxxx
+  const pca=/PCA|PACKAGING CORP/i.test(vendor||'');return (pca&&PACK_NJ[k+'PCA'])||PACK_NJ[k]||(/^F1\d{3}(ABX)?$/.test(k)?{p:27,d:27,u:'rolls'}:null);}   // any other film (F1xxx): 27 rolls per pallet — not seasonings F0xxxx
 /* ---------- use from the MORNING COUNTS (Julian, Nov 19) ----------
    Boxes: Juan's plan + Boxes Total + daily use (unchanged). Trays: Juan's plan, then what goes down in the counts.
    Everything else (sleeves, patty paper, films, bags, tape, labels, misc): ONLY what goes down in the counts —
@@ -8338,7 +8338,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.25h';
+const APP_VERSION='2026.11.25i';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

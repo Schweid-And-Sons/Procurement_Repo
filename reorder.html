@@ -99,7 +99,7 @@
   .mo-t{display:flex;gap:8px;align-items:center}.sheet .mo-t input{margin:0;background:var(--surface);font-size:17px;font-weight:600}
   .mo-x{border:none;background:rgba(255,59,48,.12);color:var(--danger);border-radius:10px;width:40px;height:44px;font-size:16px;cursor:pointer;flex:none}
   .mo-n{font-size:12.5px;color:var(--text2,#555);margin:6px 2px 4px;line-height:1.35;min-height:2px}
-  .mo-g{display:grid;grid-template-columns:1fr 1.35fr .9fr;gap:8px}.mo-g label{display:block}.mo-g i{display:block;font-style:normal;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin:0 0 2px 4px}
+  .mo-g{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}.mo-g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}.mo-g2 label{display:block}.mo-g2 i{display:block;font-style:normal;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin:0 0 2px 4px}.sheet .mo-g2 input{margin:0;padding:10px;font-size:16px;background:var(--surface)}.mo-g label{display:block}.mo-g i{display:block;font-style:normal;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin:0 0 2px 4px}
   .sheet .mo-g input{margin:0;padding:10px;font-size:16px;background:var(--surface)}
   .sheet textarea{width:100%;border:1px solid var(--border);background:var(--surface2);border-radius:12px;padding:12px;font:inherit;font-size:14px;margin-top:10px;color:var(--text)}
   .mo-sum{text-align:center;font-size:14px;margin:12px 0 0;color:var(--text2,#444)}
@@ -207,6 +207,7 @@
   .ob-l{margin:6px 0 0 36px;}.ob-l>summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:600;list-style:none;}
   .ob-it{border-top:1px solid var(--border);padding:7px 0;}.ob-it summary{cursor:pointer;list-style:none;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;}
   .ob-q{margin-left:auto;font-size:13px;}.ob-x{font-size:12.5px;color:var(--text2);padding-top:4px;}
+  .td-sps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.td-sp{background:var(--surface2);border-radius:999px;padding:4px 10px;font-size:13px}
   .td-l{margin:6px 0 2px}.td-r{display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);padding:6px 0;font-size:14px}.td-r>span:first-child{flex:1;min-width:0}
   .td-q{font-size:13px;white-space:nowrap}.td-u{border:0;background:rgba(128,128,128,.12);border-radius:8px;padding:4px 9px;cursor:pointer;color:inherit}
   .ob-none{padding:10px 12px;color:var(--success);font-weight:700;}
@@ -311,7 +312,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25h</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25i</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -954,7 +955,8 @@ function moFind(t){t=String(t||'').toUpperCase().replace(/\s+/g,'');if(!t)return
   const ex=rows.find(r=>r.base.toUpperCase()===t||(r.codes||[]).some(c=>String(c).toUpperCase()===t));if(ex)return ex;
   const t2=t.replace(/-\d$/,'');const ex2=rows.find(r=>(r.codes||[r.base]).some(c=>String(c).toUpperCase().replace(/-\d$/,'')===t2));if(ex2)return ex2;
   const num=t.replace(/^[A-Z]+/,'').replace(/-\d$/,'');if(!num)return null;
-  const c=rows.filter(r=>(r.codes||[r.base]).some(x=>String(x).toUpperCase().replace(/-\d$/,'').replace(/^[A-Z]+/,'')===num));return c.length===1?c[0]:null;}
+  const core=x=>String(x).toUpperCase().replace(/-\d$/,'').replace(/^[A-Z]+/,'').replace(/[A-Z]+$/,'');   // 7700 → BX7700PCA-1 too
+  const c=rows.filter(r=>[r.base].concat(r.codes||[]).some(x=>core(x)===num));return c.length===1?c[0]:null;}
 const moPo=x=>(x.po||(window._mo&&window._mo.gpo)||'').trim();
 function moPoPh(){document.querySelectorAll('.mo-po').forEach(e=>e.placeholder=(window._mo.gpo||'').trim()||(data&&data.lastPo?String(data.lastPo).slice(-3):'501'));}
 function moSup(r){return r?vName(vKey((r.main||{}).vendor||r.vendor||''),(r.main||{}).vendor||'').split(' ·')[0]:'';}
@@ -972,16 +974,23 @@ function openManual(){const t=ymdL(new Date());window._mo=window._mo&&window._mo
 function moDraw(){const m=window._mo,el=document.getElementById('mo-rows');if(!el)return;
   el.innerHTML=m.rows.map((x,i)=>`<div class="mo-r"><div class="mo-t"><input type="text" list="mo-dl" class="mo-c" placeholder="Item — BX1850, 1850…" value="${esc(x.c)}" oninput="moSet(${i},'c',this.value)" autocapitalize="characters" autocomplete="off"><button class="mo-x" title="Remove" onclick="moDel(${i})">✕</button></div>
     <div class="mo-n" id="mo-n${i}"></div>
-    <div class="mo-g"><label><i>Qty</i><input type="text" inputmode="numeric" value="${esc(x.q)}" oninput="moSet(${i},'q',this.value)" placeholder="0"></label>
-      <label><i>Arrives</i><input type="date" value="${esc(x.d)}" onchange="moSet(${i},'d',this.value)"></label>
+    <div class="mo-g2"><label><i>Qty</i><input type="text" id="mo-q${i}" inputmode="numeric" value="${esc(x.q)}" oninput="moSet(${i},'q',this.value);moPalFromQ(${i})" placeholder="0"></label>
+      <label><i>Pallets</i><input type="text" id="mo-p${i}" inputmode="decimal" value="" oninput="moQFromPal(${i},this.value)" placeholder="0"></label></div>
+    <div class="mo-g"><label><i>Arrives</i><input type="date" value="${esc(x.d)}" onchange="moSet(${i},'d',this.value)"></label>
       <label><i>PO #</i><input type="text" class="mo-po" inputmode="numeric" value="${esc(x.po)}" oninput="moSet(${i},'po',this.value)" placeholder="${esc(data&&data.lastPo?String(data.lastPo).slice(-3):'501')}"></label></div></div>`).join('');
-  m.rows.forEach((x,i)=>moHint(i));moTotal();moPoPh();}
+  m.rows.forEach((x,i)=>{moHint(i);moPalFromQ(i);});moTotal();moPoPh();}
 function moHint(i){const x=window._mo.rows[i],el=document.getElementById('mo-n'+i);if(!el)return;const r=moFind(x.c);x.r=r;
   if(!x.c){el.innerHTML='';return;}
   if(!r){el.innerHTML='<span style="color:var(--danger)">Not found — check the code</span>';return;}
   const q=+String(x.q).replace(/[^\d.]/g,'')||0,per=r.per||0;
   el.innerHTML=`<b>${esc((r.codes||[r.base]).join(' + '))}</b> · ${esc(r.name||'')} · <span class="mut">${esc(moSup(r))}</span>${q&&per>1?' · <b>'+n1(q/per)+' pallet'+(q/per>=1.5?'s':'')+'</b>':''}${moPo(x)?' · PO '+esc(poNorm(moPo(x)))+(x.po?'':' <span class="mut">(for all)</span>'):''}`;}
-function moSet(i,k,v){const m=window._mo;m.rows[i][k]=v;if(k==='d'&&i===m.rows.length-1)m.lastD=v;if(k==='po'&&i===m.rows.length-1)m.lastPo=v;moHint(i);moTotal();}
+/* Qty ⇄ Pallets (Nov 25): type pallets → boxes = pallets × per pallet; type boxes → pallets */
+function moPer(i){const x=window._mo.rows[i];const r=x.r||moFind(x.c);return r&&r.per>1?r.per:0;}
+function moPalFromQ(i){const p=moPer(i),el=document.getElementById('mo-p'+i);if(!el||document.activeElement===el)return;const q=+String(window._mo.rows[i].q).replace(/[^\d.]/g,'')||0;
+  el.value=p&&q?String(Math.round(q/p*10)/10):'';el.disabled=!p;el.placeholder=p?'0':'—';}
+function moQFromPal(i,v){const p=moPer(i);if(!p)return;const n=+String(v).replace(',','.').replace(/[^\d.]/g,'');const q=n?Math.round(n*p):'';
+  window._mo.rows[i].q=String(q);const qe=document.getElementById('mo-q'+i);if(qe)qe.value=q;moHint(i);moTotal();}
+function moSet(i,k,v){const m=window._mo;m.rows[i][k]=v;if(k==='c')setTimeout(()=>moPalFromQ(i),0);if(k==='d'&&i===m.rows.length-1)m.lastD=v;if(k==='po'&&i===m.rows.length-1)m.lastPo=v;moHint(i);moTotal();}
 function moAdd(){const m=window._mo,l=m.rows[m.rows.length-1]||{};m.rows.push({c:'',q:'',d:l.d||ymdL(new Date()),po:m.gpo?'':(l.po||'')});moDraw();
   const cs=document.querySelectorAll('.mo-c');if(cs.length)cs[cs.length-1].focus();}
 function moDel(i){const m=window._mo;m.rows.splice(i,1);if(!m.rows.length)m.rows.push({c:'',q:'',d:ymdL(new Date()),po:''});moDraw();}
@@ -1535,7 +1544,9 @@ function renderToday(){
     const arr=x.o.dl&&x.o.dl[0]?ymdL(x.o.dl[0].d):'',gk=k+'|'+(x.o.po?String(x.o.po).toUpperCase():'arr '+arr);
     const g=G[gk]||(G[gk]={k,raw:String(x.o.vendor||(x.r.main||{}).vendor||k),po:x.o.po||'',arr,day:t0,lines:[],at:x.o.at});g.lines.push(x);if(String(x.o.at)>String(g.at))g.at=x.o.at;});
   const gs=Object.values(G).sort((a,b)=>a.k.localeCompare(b.k)||String(b.at).localeCompare(String(a.at)));window._tdG=gs;
-  body.innerHTML=`<div class="fri"><b>📝 Today's orders</b> — marked today on any device: <b>${gs.length}</b> PO${gs.length!==1?'s':''} · ${L.length} line${L.length!==1?'s':''}. ↩ Undo a whole PO or one line if it was marked by mistake.</div>`+
+  const SP={};gs.forEach(g=>{const n=vName(g.k,g.raw).split(' ·')[0],p=g.lines.reduce((a,{r,o})=>a+palOf(r,o,g.k),0);const x=SP[n]||(SP[n]={p:0,n:0});x.p+=p;x.n++;});
+  const spTxt=Object.entries(SP).map(([n,x])=>`<span class="td-sp"><b>${esc(n)}</b> ${x.p>=0.5?'~'+n0(x.p)+' pallet'+(x.p>=1.5?'s':''):'—'}${x.n>1?' · '+x.n+' POs':''}</span>`).join('');
+  body.innerHTML=`<div class="fri"><b>📝 Today's orders</b> — marked today on any device: <b>${gs.length}</b> PO${gs.length!==1?'s':''} · ${L.length} line${L.length!==1?'s':''}. ↩ Undo a whole PO or one line if it was marked by mistake.${spTxt?'<div class="td-sps">'+spTxt+'</div>':''}</div>`+
     (gs.length?gs.map((g,gi)=>{const pal=g.lines.reduce((a,{r,o})=>a+palOf(r,o,g.k),0),arrs=[...new Set(g.lines.map(x=>x.o.dl&&x.o.dl[0]?ymdL(x.o.dl[0].d):'').filter(Boolean))].sort();
       const who=[...new Set(g.lines.map(x=>x.o.by).filter(Boolean))].join(', ');
       return `<div class="card"><div class="c-top"><span class="c-code">${esc(vName(g.k,g.raw).split(' ·')[0])}</span><span class="c-name">${g.po?'PO '+esc(g.po):'<span style="color:var(--warn)">no PO # yet</span>'}</span></div>
