@@ -1051,6 +1051,8 @@
   .po-bar .po-src{font-size:12px;color:var(--text2);flex:1 1 220px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
   .src-pill{display:inline-flex;align-items:center;gap:4px;background:var(--fill,#eee);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--text2);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
   .src-pill b{color:var(--text);font-weight:600;}
+  .src-pill a{color:inherit;font-weight:600;text-decoration:underline;}
+  #po-sync{display:contents;}
   .src-pill.bad{background:rgba(255,59,48,.12);color:var(--danger);}
   .src-pill.none{white-space:normal;border-radius:12px;}
   .po-btn{border:none;background:var(--fill,#eee);color:var(--text);border-radius:10px;padding:8px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;}
@@ -3929,7 +3931,8 @@ const potVendor=v=>{v=String(v||'').toUpperCase().trim();
   return /PACKAGING CORP|^PCA/.test(v)?'PCA':/SONIC/.test(v)?'SONIC':/CRYOVAC|SEALED AIR/.test(v)?'CRYOVAC':/PACKAGED/.test(v)?'PACKAGED':
     /IMPERIAL|BRADY/.test(v)?'IMPERIAL BRADY':/PROVISUR/.test(v)?'PROVISUR':/BUNZL/.test(v)?'BUNZL':v.split(/[\s,.]+/)[0]||v;};
 function potParse(wb){
-  const out=[];const ymdD=d=>d instanceof Date&&!isNaN(d)?d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'):'';
+  const out=[];const ymdD=d=>{if(!(d instanceof Date)||isNaN(d))return '';d=new Date(d.getTime()+12*36e5);   // Nov 25: Excel dates can come as UTC midnight (= 7 PM the day before in NJ) or 23:59:xx — +12 h lands on the right day
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   wb.SheetNames.forEach(sn=>{const plant=/^\s*NJ/i.test(sn)?'NJ':/^\s*GA/i.test(sn)?'GA':'';if(!plant)return;
     const a=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
     const hi=a.findIndex(r=>r&&String(r[0]||'').trim().toUpperCase()==='SUPPLIER');if(hi<0)return;
@@ -3937,7 +3940,7 @@ function potParse(wb){
     const col=re=>H.findIndex(h=>re.test(h));
     const cPo=col(/YZ PO/),cOd=col(/ORDER DATE/),cEta=col(/ESTIMATED/),cRc=col(/RECEIVED DATE/),cTot=col(/ORDER TOTAL/),cN=col(/NOTES/);
     a.slice(hi+1).forEach(r=>{if(!r||!r[0]||!r[cPo])return;
-      const dd=x=>x instanceof Date?ymdD(x):typeof x==='number'?ymdD(new Date(Math.round((x-25569)*864e5)+new Date().getTimezoneOffset()*6e4)):'';
+      const dd=x=>x instanceof Date?ymdD(x):typeof x==='number'?ymdD(new Date(Math.round((x-25569)*864e5)+new Date().getTimezoneOffset()*6e4)):typeof x==='string'&&/^\d{4}-\d\d-\d\d/.test(x)?x.slice(0,10):'';
       const notes=cN>=0&&r[cN]?String(r[cN]):'';
       out.push({plant,sup:potVendor(r[0]),po:String(r[cPo]).trim().toUpperCase(),od:dd(r[cOd]),eta:dd(r[cEta]),rcv:dd(r[cRc]),
         total:+r[cTot]||0,notes,short:/SHORT|REC'?D|RECEIVED \d|MISSING/i.test(notes)});});});
@@ -4294,6 +4297,10 @@ function reorderRows(summary){
     const v=reoSupplier(f.base);if(!v)continue;
     f.lt.push({code:f.base,plant:currentPlant,vendor:v,lt:0,ltAvg:0,pos:0,onTime:null,last:'',manual:true});}
   const ltSup=cfg.ltSup||{},ltItem=cfg.ltItem||{};
+  // Nov 25 (Julian): suppliers that deliver WHEN WE ASK (just-in-time POs) — days from the order to our dock, shared in
+  // Settings (every device). Defaults: NJ Sonic same day, PCA next day; GA both next day. Empty = not on request.
+  const ltFast=Object.assign({},currentPlant==='NJ'?{SONIC:0,PCA:1}:{SONIC:1,PCA:1},cfg.ltFast||{});
+  const fdOf=v=>{const x=ltFast[reoVendorKey(v)];return x===''||x==null||+x<0||isNaN(+x)?null:+x;};
   const rows=Object.values(fam).filter(f=>f.lt.length&&!REO_SKIP.test(f.base)).map(f=>{
     // active supplier = the one with the most recent PO (not the one with most POs: trays left Bunzl / Packaged)
     // supplier: among the ones used in the last 3 months, the one we order from the most (Sonic over PCA for BX1850);
@@ -4460,8 +4467,9 @@ left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left,src:psrc[ymd(dOf(i))]||n
       const L=Math.round(Lavg),Lr=Math.max(1,Math.round(fast.ltAvg||fast.lt||Lavg)),orders=[];
       // suppliers that deliver next day when asked (Sonic, PCA): before the next Friday order can arrive, order
       // JUST IN TIME — one PO per delivery day, placed the day before (Nov 18: not one big rush until Monday)
-      const nextDay=/SONIC|PACKAGING CORP|\bPCA\b/i.test(String(main.vendor)+' '+String(fast.vendor));
-      const Lj=nextDay?1:L;
+      const fdM=fdOf(main.vendor),fdF=fdOf(fast.vendor),nextDay=fdM!=null||fdF!=null;
+      const Lj=nextDay?Math.max(1,fdM!=null?fdM:fdF):L;
+      const sameDay=fdM===0;
       const inA=i=>(arr[i]||0)+(arrM[i]||0);
       av=f.stock;let gap=0;
       const L1=Math.max(Lj,fixArrive(Lj,Lj));   // first day a PO ordered TODAY can be received (no Mon / weekend / holiday)
@@ -4484,7 +4492,7 @@ left+=inc-need;r.plan.push({d:ymd(dOf(i)),need,inc,left,src:psrc[ymd(dOf(i))]||n
             // Friday is too late: deliver on the last receiving day on or before the day it's needed, ordered the day before
             jit=true;ad=-1;for(let b=0;b<=6&&i-b>=Lj;b++)if(canReceive(i-b)){ad=i-b;break;}
             if(ad<0)ad=fixArrive(Math.max(i,Lj),Lj);
-            ob=ad-Lj;while(ob>0&&!workDay(ob))ob--;if(ob<0)ob=0;
+            ob=ad-(sameDay?0:Lj);while(ob>0&&!workDay(ob))ob--;if(ob<0)ob=0;   // Nov 25 (Julian): NJ Sonic → ordered the SAME morning it arrives (Friday's boxes are ordered Friday, not today)
           }else{ob=0;early=true;ad=fixArrive(Math.max(i,L),L);}
           // a PO that can't wait for Friday only has to keep us running (half the cushion); the Friday POs rebuild the full cushion
           const tgt=early||jit?ss*0.5:ss;
@@ -6655,10 +6663,10 @@ function poRefreshAll(){   // Yooz only if a new Yooz update came out since the 
   syncReceiptsFromSP(true);}
 function poSyncLineHtml(){
   if(!RECEIVING_SEARCH_URL)return '';
-  if(_spSync.busy)return '☁ Updating from SharePoint…';
-  if(_spSync.err)return `⚠ SharePoint not reachable — showing the last saved copy · <a href="#" onclick="syncReceiptsFromSP(true);return false">Retry</a>`;
-  if(_spSync.at)return `✓ SharePoint reports · ${new Date(_spSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
-  return '';
+  if(_spSync.busy)return '<span class="src-pill" title="Receiving reports saved in SharePoint">⏳ SharePoint · updating…</span>';
+  if(_spSync.err)return `<span class="src-pill bad" title="Showing the last saved copy">⚠ SharePoint not reachable · <a href="#" onclick="syncReceiptsFromSP(true);return false">Retry</a></span>`;
+  if(_spSync.at)return `<span class="src-pill" title="Receiving reports saved in SharePoint (shared by every device)">✓ SharePoint · <b>${new Date(_spSync.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`;
+  return '<span class="src-pill" title="Receiving reports saved in SharePoint">SharePoint · not read yet</span>';
 }
 function renderPoSyncLine(){const el=document.getElementById('po-sync');if(el)el.innerHTML=poSyncLineHtml();}
 
@@ -6675,9 +6683,9 @@ function renderPoView(noSync){try{poAutoAssign();}catch(e){}
     ${YOOZ_FLOW_URL?`<button class="po-btn pri" onclick="poRefreshAll()" ${yoozFetch.busy?'disabled':''} title="Gets the latest POs from Yooz and the latest receiving reports from SharePoint">${yoozFetch.busy?'⏳ Updating…':'⟳ Refresh'}</button>
     <button class="po-btn" onclick="document.getElementById('po-file-input').click()" title="Use a Yooz export instead">⬆ Yooz file</button>`
     :`<button class="po-btn pri" onclick="document.getElementById('po-file-input').click()">⬆ Load Yooz file</button>`}
-    <span class="po-src">${PLANNER_FLOW_URL?(()=>{const pd=loadPlanner();return plannerFetch.err?`<span class="src-pill bad" title="${poEsc(plannerFetch.err)}">⚠ Planner not updated</span>`:pd?`<span class="src-pill" title="Jonathan's planning sheet — expected deliveries">✓ Planner · <b>${new Date(pd.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${POTRACK_FLOW_URL?(()=>{const t=loadPoTrack();return t?`<span class="src-pill" title="Eleni's PO Tracker — her ETA and received dates">✓ PO Tracker · <b>${new Date(t.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${yoozFetch.err?`<span class="src-pill bad" title="${poEsc(yoozFetch.err)}">⚠ Yooz not updated</span>`:''}${data?`<span class="src-pill" title="${poEsc(data.file)} — purchase orders. Yooz updates ~7–7:30 AM and PM; read again after 8:00">✓ Yooz · <b>${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</b> · ${poLines(data).length} lines</span>`:'<span class="src-pill none">No Yooz data on this device yet — tap ⟳ Refresh or load the Yooz file.</span>'}</span>
+    <span class="po-src">${PLANNER_FLOW_URL?(()=>{const pd=loadPlanner();return plannerFetch.err?`<span class="src-pill bad" title="${poEsc(plannerFetch.err)}">⚠ Planner not updated</span>`:pd?`<span class="src-pill" title="Jonathan's planning sheet — expected deliveries">✓ Planner · <b>${new Date(pd.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${POTRACK_FLOW_URL?(()=>{const t=loadPoTrack();return t?`<span class="src-pill" title="Eleni's PO Tracker — her ETA and received dates">✓ PO Tracker · <b>${new Date(t.loaded).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</b></span>`:'';})():''}${yoozFetch.err?`<span class="src-pill bad" title="${poEsc(yoozFetch.err)}">⚠ Yooz not updated</span>`:''}${data?`<span class="src-pill" title="${poEsc(data.file)} — purchase orders. Yooz updates ~7–7:30 AM and PM; read again after 8:00">✓ Yooz · <b>${new Date(data.loaded).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</b> · ${poLines(data).length} lines</span>`:'<span class="src-pill none">No Yooz data on this device yet — tap ⟳ Refresh or load the Yooz file.</span>'}<span id="po-sync">${poSyncLineHtml()}</span></span>
   </div>
-  <div class="po-sync" id="po-sync">${poSyncLineHtml()}</div>
+
   <div class="po-qbox"><input id="po-q" type="search" placeholder="🔎 Find a PO — type part of the number (28175), the vendor or the item" value="${poEsc(poQ)}" oninput="poQ=this.value;poQRender()" autocomplete="off">${poQ?`<button class="po-btn" onclick="poQ='';renderPoView(true)">✕</button>`:''}</div>
   <div id="po-q-res">${poQResultsHtml()}</div>`;
   if(poCalOpen){h+=poCalendarHtml();el.innerHTML=h;if(!noSync)syncReceiptsFromSP(false);return;}
@@ -8292,7 +8300,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.24t';
+const APP_VERSION='2026.11.25d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

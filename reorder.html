@@ -196,6 +196,10 @@
   .ob-it{border-top:1px solid var(--border);padding:7px 0;}.ob-it summary{cursor:pointer;list-style:none;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;}
   .ob-q{margin-left:auto;font-size:13px;}.ob-x{font-size:12.5px;color:var(--text2);padding-top:4px;}
   .ob-none{padding:10px 12px;color:var(--success);font-weight:700;}
+  .ob-sup{font-size:16px;font-weight:800;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}.ob-sup span{font-size:12.5px;font-weight:500;color:var(--text3);}
+  .ob-d{margin:8px 0 0;padding:8px 10px;border-radius:12px;background:rgba(128,128,128,.07);}.ob-dh{display:flex;align-items:center;gap:10px;}
+  .ob-d .ob-n b{font-size:14.5px;}.ob-d .ob-l{margin-left:36px;}
+  .ob-d.done .mb-c{background:var(--success);border-color:var(--success);color:#fff;}.ob-d.nopo .mb-c,.ob-d.notrk .mb-c{border-color:var(--warn);color:var(--warn);}
   .ob-steps{font-size:12px;color:var(--text3);padding:4px 12px 6px;}
   .ob-c{display:block;width:100%;text-align:left;border:none;background:transparent;color:var(--accent);font-size:13px;font-weight:600;padding:8px 12px;border-top:1px solid var(--border);cursor:pointer;}
   .cc{padding:8px 6px;}.cc-w{font-size:15px;font-weight:700;color:var(--warn);margin-bottom:6px;}
@@ -293,7 +297,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.24n</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25c</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -758,32 +762,39 @@ function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const lpw=lp.length?`<div class="ob-w">🚚 <b>${lp.length} PO${lp.length>1?'s were':' was'} due and ${lp.length>1?'are':'is'} not verified</b> — we don't know if ${lp.length>1?'they are':'it is'} in the inventory. Verify before ordering.
     <details class="ob-l" style="margin:6px 0 0"><summary>See which ▾</summary>${lp.map(x=>`<div class="ob-it" style="font-size:13px"><b>${esc(x.po)}</b>${x.sup?' · '+esc(x.sup):''} · due ${dShort(x.eta)} <button class="st" style="float:right;padding:3px 9px;font-size:12px" onclick="poDismissR('${esc(x.po)}')">🙈 Dismiss</button><br><span class="mut">${x.ls.join(' · ')}</span></div>`).join('')}</details></div>`:'';
   const warn=lpw+(!today?`<div class="ob-w">⚠ <b>Today's inventory count isn't in yet</b> — on hand is <b>📐 estimated</b> (last count + what was received − the use of the work days since then). See “No count today?” below. Order after the count, or check the numbers.${(()=>{const er=rows.filter(r=>r.est);const a=er.length?estAge(er):null;return a?'<br><b>'+a.t+'</b>':'';})()}</div>`:'');
-  const grp=(g)=>{const gi=all.indexOf(g),ls=g.lines,open=ls.filter(x=>!x.o.done&&!x.o.pending),pend=ls.filter(x=>x.o.pending),pal=palSum(g);
-    const pos=[...new Set(ls.map(x=>x.o.po).filter(Boolean))],po=pos[0]||'';
-    const st=open.length||pend.length?'todo':!po?'nopo':!trk.has(po.toUpperCase())?'notrk':'done';
-    const btn=st==='todo'?`<button class="ob-b" onclick="event.stopPropagation();poAll(${gi},'done')">✅ Mark as created</button>`
-      :st==='nopo'?`<button class="ob-b2" onclick="event.stopPropagation();addPoNum(${gi})">＃ Add Yooz PO #</button>`
-      :st==='notrk'?`<span class="ob-s">📋 Put <b>${esc(po)}</b> in the PO Tracker</span>`:`<span class="ob-s ok">✓ ${esc(po)} · in the tracker</span>`;
-    // Nov 23 (Julian): only what to order now — one line per item (rush + normal together). Everything else (on hand,
-    // delivery days, the week) opens on tap; trucks to verify stay in the alert at the top and in By item.
-    const OH={};ls.forEach(({r,o})=>{const x=OH[r.base]||(OH[r.base]={r,q:0,rq:0,pal:0,os:[]});x.q+=+o.qty||0;if(o.rush)x.rq+=+o.qty||0;x.pal+=+o.pallets||0;x.os.push(o);});const ohL=Object.values(OH);
-    const items=ohL.map(({r,q,rq,pal,os})=>{const d=r.dbar>0?r.stock/r.dbar:null;
-      return `<details class="ob-it"><summary><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span><span class="ob-q">${qtyTxt(r,q,pal||undefined)}${rq?' · <b style="color:var(--danger)">rush</b>':''}${os.every(o=>o.done)?' ✅':os.some(o=>o.pending)?' ⏳':''}</span></summary>
-      <div class="ob-x">On hand <b>${n0(r.stock)}</b>${d!=null?' ('+n1(d)+' days)':''}.${os.map(o=>'<br>'+(os.length>1?n0(o.qty)+': ':'')+dlTxt(o)+(o.rush?' — ask for the earliest delivery':'')).join('')}${truckTxt(r)}${weekStrip(r)}</div></details>`;}).join('');
-    return `<div class="ob-g ${st}"><div class="ob-h"><span class="mb-c">${st==='done'?'✓':st==='todo'?'○':'◐'}</span>
-      <div class="ob-n"><b>${esc(vName(g.k,g.raw).split(' ·')[0])}</b><i>${ohL.length} item${ohL.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallets':''}</i></div>${btn}</div>
-      <div class="ob-l">${items}</div></div>`;};
+  // Nov 25 (Julian): the old box added up every PO of the day per supplier (Sonic "149 pallets") and looked like ONE order.
+  // Now: one block per supplier and, inside, one PO per ARRIVAL DAY (what she really types in Yooz) with its own button.
+  window._obG=[];
+  const grp=(g)=>{const D={};g.lines.forEach(x=>{const a=x.o.dl&&x.o.dl[0]?ymdL(x.o.dl[0].d):ymdL(x.o.orderBy);(D[a]=D[a]||[]).push(x);});
+    const days=Object.keys(D).sort();
+    const sub=days.map(a=>{const ls=D[a],sg={k:g.k,raw:g.raw,day:g.day,arr:a,lines:ls},i=window._obG.push(sg)-1;
+      const open=ls.filter(x=>!x.o.done&&!x.o.pending),pend=ls.filter(x=>x.o.pending),pal=palSum(sg);
+      const pos=[...new Set(ls.map(x=>x.o.po).filter(Boolean))],po=pos[0]||'';
+      const st=open.length||pend.length?'todo':!po?'nopo':!trk.has(po.toUpperCase())?'notrk':'done';
+      const btn=st==='todo'?`<button class="ob-b" onclick="event.stopPropagation();poAllG(window._obG[${i}],'done')">✅ Mark as created</button>`
+        :st==='nopo'?`<button class="ob-b2" onclick="event.stopPropagation();addPoNumG(window._obG[${i}])">＃ Add Yooz PO #</button>`
+        :st==='notrk'?`<span class="ob-s">📋 Put <b>${esc(po)}</b> in the PO Tracker</span>`:`<span class="ob-s ok">✓ ${esc(po)} · in the tracker</span>`;
+      const rush=ls.some(x=>x.o.rush);
+      const M={};ls.forEach(({r,o})=>{const x=M[r.base]||(M[r.base]={r,q:0,pal:0,os:[]});x.q+=+o.qty||0;x.pal+=+o.pallets||0;x.os.push(o);});   // same item twice in one PO → one line
+      const items=Object.values(M).map(({r,q,pal,os})=>{const d=r.dbar>0?r.stock/r.dbar:null,rs=os.some(o=>o.rush);
+        return `<details class="ob-it"><summary><b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span><span class="ob-q">${qtyTxt(r,q,pal||undefined)}${rs?' · <b style="color:var(--danger)">rush</b>':''}${os.every(o=>o.done)?' ✅':os.some(o=>o.pending)?' ⏳':''}</span></summary>
+        <div class="ob-x">On hand <b>${n0(r.stock)}</b>${d!=null?' ('+n1(d)+' days)':''}.${os.map(o=>'<br>'+(os.length>1?n0(o.qty)+': ':'')+dlTxt(o)+(o.rush?' — ask for the earliest delivery':'')).join('')}${truckTxt(r)}${weekStrip(r)}</div></details>`;}).join('');
+      return `<div class="ob-d ${st}"><div class="ob-dh"><span class="mb-c">${st==='done'?'✓':st==='todo'?'○':'◐'}</span>
+        <div class="ob-n"><b>${a<=t0?'Arrives today':'Arrives '+dShort(a)}</b>${rush&&a<=t0?' <b style="color:var(--danger)">· rush</b>':''}<i>${ls.length} item${ls.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallet'+(pal>=1.5?'s':''):''}</i></div>${btn}</div>
+        <div class="ob-l">${items}</div></div>`;}).join('');
+    const allDone=g.lines.every(x=>x.o.done);
+    return `<div class="ob-g${allDone?' done':''}"><div class="ob-sup">${esc(vName(g.k,g.raw).split(' ·')[0])}<span>${days.length>1?days.length+' POs — one per arrival day':'1 PO'}</span></div>${sub}</div>`;};
   const done=gs.length&&gs.every(g=>g.lines.every(x=>x.o.done)&&g.lines.some(x=>x.o.po)&&g.lines.filter(x=>x.o.po).every(x=>trk.has(String(x.o.po).toUpperCase())));
-  return `<div class="mb"><div class="mb-h">🛒 To order today${gs.length?' · '+gs.length+' supplier'+(gs.length>1?'s':''):''}</div>${warn}
-    ${gs.length?gs.map(grp).join(''):'<div class="ob-none">✓ Nothing to order today.</div>'}
-    ${done?'<div class="ob-none">✓ All orders for today are done.</div>':gs.length?'<div class="ob-steps">Create the PO in Yooz first, then tap <b>Mark as created</b> → then put the Yooz PO in the PO Tracker.</div>':''}
-    ${rc.length?`<button class="ob-c" onclick="setTab('cnt')">🔎 Check ${rc.length} count${rc.length>1?'s':''} before 9 AM (inventory) ›</button>`:''}</div>`;}
+  // Nov 25 (Julian): the "To order today" list is gone (it looked like one huge order) — only By item / By supplier.
+  // The alerts stay: trucks that were due and are not verified, and today's count not in yet.
+  return warn?`<div class="mb">${warn}</div>`:'';}
 /* a created PO without its Yooz number: add it (every line of that supplier, every device) */
 /* Nov 24: other created lines of the same supplier still without a PO # (other days she may have joined into this PO) */
 function poOthers(g){const mine=new Set(g.lines.map(x=>x.o.key)),out=[];
   ((data&&data.rows)||[]).forEach(r=>(r.orders||[]).forEach(o=>{if(!o.done||o.po||mine.has(o.key))return;
     if(vKey(o.vendor||(o.rush&&o.via)||(r.main||{}).vendor||r.vendor||'')!==g.k)return;out.push({r,o});}));return out;}
-function addPoNum(gi){const g=(window._sg||[])[gi];if(!g)return;const ot=poOthers(g);window._poOt=ot;
+function addPoNum(gi){addPoNumG((window._sg||[])[gi]);}
+function addPoNumG(g){if(!g)return;const ot=poOthers(g);window._poOt=ot;
   withPin(()=>sheet(`<h2>＃ Yooz PO # — ${esc(vName(g.k,g.raw).split(' ·')[0])}</h2><input type="text" id="po-n2" placeholder="${esc(poPh())}" oninput="poHint('po-n2')"><div class="mut" id="po-n2-h" style="font-size:12px;margin-top:4px"></div>
     ${ot.length?`<div class="hint" style="margin-top:10px">Also in this PO? (other ${esc(vName(g.k,g.raw).split(' ·')[0])} lines created without a PO #)</div>
       ${ot.map(({r,o},i)=>`<label style="display:flex;gap:8px;align-items:center;margin:6px 0;font-size:14px"><input type="checkbox" class="po-ot" data-i="${i}" checked> <b>${esc((r.codes||[r.base])[0])}</b> ${n0(o.qty)} <span class="mut">· ${dlTxt(o)}</span></label>`).join('')}`:''}
@@ -959,7 +970,7 @@ function saveQty(){const e=window._edit;let v=+document.getElementById('nq').val
 
 /* ---------- receiving days (shared) ---------- */
 let cfgEdit=null;
-function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:2,B:1,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};cfgEdit.ltSup=cfgEdit.ltSup||{};cfgEdit.ltItem=cfgEdit.ltItem||{};drawDays();}
+function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:2,B:1,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};cfgEdit.ltSup=cfgEdit.ltSup||{};cfgEdit.ltFast=cfgEdit.ltFast||{};cfgEdit.ltItem=cfgEdit.ltItem||{};drawDays();}
 function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
   const hol=(c.holidays||[]).slice().sort((a,b)=>a.d.localeCompare(b.d));
   const ex=Object.entries(c.extra).sort((a,b)=>a[0].localeCompare(b[0]));
@@ -989,7 +1000,14 @@ function ltSection(c){const sup={};(data&&data.rows||[]).forEach(r=>{const k=r.v
     const med=v.days.length?v.days.slice().sort((a,b)=>a-b)[Math.floor(v.days.length/2)]:0;
     return `<div><span><b>${esc(k)}</b> <span style="color:var(--text3)">${v.yooz?'from Yooz ~'+n0(med)+' d':''}${v.yooz&&v.man?' · ':''}${v.man?v.man+' item(s) set by hand':''}</span></span>${v.man?`<input type="number" inputmode="numeric" min="1" max="90" style="width:70px" value="${(c.ltSup||{})[k]||''}" placeholder="7" onchange="cfgEdit.ltSup['${esc(k)}']=+this.value||undefined">`:''}</div>`;}).join('');
   const it=Object.entries(c.ltItem||{});
-  return `<div class="sec" style="margin-top:16px">🚚 Lead time (days)</div>
+  // ⚡ suppliers that deliver when we ask (Nov 25) — saved for every device
+  const FD=PLANT==='NJ'?{SONIC:0,PCA:1}:{SONIC:1,PCA:1},fk=[...new Set(Object.keys(FD).concat(Object.keys(c.ltFast||{})))];
+  const fv=k=>{const x=(c.ltFast||{})[k];return x===undefined?FD[k]:x;};
+  const opt=(k,v,t)=>`<option value="${v}"${String(fv(k)??'')===String(v)?' selected':''}>${t}</option>`;
+  const fastS=`<div class="sec" style="margin-top:16px">⚡ Deliver when we ask</div>
+    <div class="hint">Suppliers that bring a PO when we need it (one PO per delivery day). How long from the order to our dock? Change it here if a supplier tells us it can't anymore.</div>
+    <div class="lst">${fk.map(k=>`<div><span><b>${esc(k)}</b></span><select style="padding:7px 10px;border-radius:10px;border:1px solid var(--border,#ccc);font-size:14px;background:var(--card,#fff);color:inherit" onchange="cfgEdit.ltFast['${esc(k)}']=this.value===''?'':+this.value">${opt(k,0,'Same day')}${opt(k,1,'Next day')}${opt(k,2,'2 days')}${opt(k,3,'3 days')}${opt(k,'','Not on request')}</select></div>`).join('')}</div>`;
+  return fastS+`<div class="sec" style="margin-top:16px">🚚 Lead time (days)</div>
     <div class="hint">From the PO to our dock. Suppliers with Yooz data use their real days. The others use what you type here (7 until set). An item set below wins over everything.</div>
     <div class="lst">${rowsS||'<div>—</div>'}</div>
     <div class="hint" style="margin-top:8px">Items with their own lead time: ${it.length?it.map(([k,v])=>esc(k)+' '+v+' d <a href="#" onclick="delete cfgEdit.ltItem[\''+esc(k)+'\'];drawDays();return false">✕</a>').join(' · '):'none'}</div>
@@ -1388,7 +1406,8 @@ function supHtml(){if(!data||!data.rows)return '';
     (nx.length?`<div class="blk-h" style="margin:14px 4px 6px">Next order days — preview</div>`+nx.map(g=>card(g,gs.indexOf(g))).join(''):'');
 }
 /* the whole PO at once: one save for every line (marks are one shared record) */
-function poAll(gi,v){const g=(window._sg||[])[gi];if(!g)return;
+function poAll(gi,v){poAllG((window._sg||[])[gi],v);}
+function poAllG(g,v){if(!g)return;
   const go=po=>{const list=[],prev=[];g.lines.forEach(({r,o})=>{
       if(v!=='none'&&o.done)return;                                  // already created: leave it
       prev.push({key:o.key,mark:o.done||o.pending||o.edited?markOf(r,o,{}):null});
