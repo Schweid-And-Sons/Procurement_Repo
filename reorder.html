@@ -67,6 +67,7 @@
   @media (min-width:760px){.joinbar{left:50%!important;right:auto!important;transform:translateX(-50%);width:min(720px,calc(100% - 24px));box-sizing:border-box}}
   body.has-join{padding-bottom:110px}
   .joinbar{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:60;display:flex;gap:8px;align-items:center;background:#16a34a;color:#fff;border-radius:18px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .joinbar .jb-p{background:rgba(255,255,255,.22);border-radius:8px;padding:1px 7px}
   .joinbar b{font-size:16px}.joinbar i{display:block;font-style:normal;font-size:12px;opacity:.9}.joinbar .jb-t{flex:1;cursor:pointer}
   .joinbar button{background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px}
   .o-btn{border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text);}
@@ -297,7 +298,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25d</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25e</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -481,7 +482,7 @@ function joinClear(){JOIN.clear();render();}
 function joinItems(){const out=[];JOIN.forEach((x,id)=>{const {r,o}=findPO(x.base,x.key);if(r&&o&&!o.done)out.push({r,o});else JOIN.delete(id);});return out;}
 function joinBar(){document.querySelectorAll('.joinbar').forEach(e=>e.remove());const it=joinItems();
   const one=it.length===1&&joinExisting(joinVk(it[0].r,it[0].o)).length>0;   // 1 line + a PO already created → can be added to it
-  document.body.classList.toggle('has-join',it.length>=2||one);if(it.length<2&&!one)return;
+  document.body.classList.toggle('has-join',it.length>=1);if(!it.length)return;   // Nov 25 (Julian): the bar shows from the 1st check → pallets add up as she checks
   const vk=joinVk(it[0].r,it[0].o),pal=it.reduce((a,{o})=>a+(+o.pallets||0),0);
   const d=joinDefDay(it);
   // Nov 24: joined POs that were suggested for a later day arrive early → pallets to fit in the warehouse sooner
@@ -489,7 +490,8 @@ function joinBar(){document.querySelectorAll('.joinbar').forEach(e=>e.remove());
   const sp=data.space,fr=x=>x?Math.max(0,x.total-x.occ):0,free=sp&&(sp.rack||sp.floor)?fr(sp.rack)+fr(sp.floor):null;   // racks + floor
   const spTxt=early>=0.5?`<i>⚠ ~${n1(early)} pallet${early>=1.5?'s':''} arrive ${eDays} day${eDays>1?'s':''} early${free!=null?' · ~'+n0(free)+' free spots (racks + floor)':''} — check space in the warehouse</i>`:'';
   const el=document.createElement('div');el.className='joinbar';
-  el.innerHTML=`<div class="jb-t" onclick="joinSave()"><b>✅ Mark ${it.length} as created</b><i>${esc(vName(vk).split(' ·')[0])} · one PO${pal>=0.5?' · ~'+n1(pal)+' pallets':''} · arrives ~${dShort(d)}</i>${spTxt}</div><button onclick="joinClear()">✕</button>`;
+  const lone=it.length===1&&!one;
+  el.innerHTML=`<div class="jb-t" onclick="joinSave()"><b>${lone?'☑ 1 line':'✅ Mark '+it.length+' as created'} · <span class="jb-p">~${n1(pal)} pallet${pal>=1.5||pal<0.5?'s':''}</span></b><i>${esc(vName(vk).split(' ·')[0])} · ${lone?'check more lines of this supplier to make one PO — or tap to mark this one':'one PO · arrives ~'+dShort(d)}</i>${spTxt}</div><button onclick="joinClear()">✕</button>`;
   document.body.appendChild(el);}
 /* Nov 24 (Julian): type only the last 3 digits of the PO — the rest comes from the newest PO number the app knows */
 function poNorm(v){v=String(v||'').trim().toUpperCase();if(!v)return '';const yy=new Date().getFullYear()%100,last=+((data&&data.lastPo)||0);
