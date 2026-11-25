@@ -311,7 +311,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25g</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25h</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -955,11 +955,14 @@ function moFind(t){t=String(t||'').toUpperCase().replace(/\s+/g,'');if(!t)return
   const t2=t.replace(/-\d$/,'');const ex2=rows.find(r=>(r.codes||[r.base]).some(c=>String(c).toUpperCase().replace(/-\d$/,'')===t2));if(ex2)return ex2;
   const num=t.replace(/^[A-Z]+/,'').replace(/-\d$/,'');if(!num)return null;
   const c=rows.filter(r=>(r.codes||[r.base]).some(x=>String(x).toUpperCase().replace(/-\d$/,'').replace(/^[A-Z]+/,'')===num));return c.length===1?c[0]:null;}
+const moPo=x=>(x.po||(window._mo&&window._mo.gpo)||'').trim();
+function moPoPh(){document.querySelectorAll('.mo-po').forEach(e=>e.placeholder=(window._mo.gpo||'').trim()||(data&&data.lastPo?String(data.lastPo).slice(-3):'501'));}
 function moSup(r){return r?vName(vKey((r.main||{}).vendor||r.vendor||''),(r.main||{}).vendor||'').split(' ·')[0]:'';}
 function openManual(){const t=ymdL(new Date());window._mo=window._mo&&window._mo.keep?window._mo:{od:t,rows:[{c:'',q:'',d:t,po:''}]};
   const dl=moItems().map(r=>`<option value="${esc((r.codes||[r.base])[0])}">${esc(r.name||'')} · ${esc(moSup(r))}</option>`).join('');
   sheet(`<h2>📝 Manual orders</h2><div class="hint">POs made by hand. Type each item, how many and the day it arrives — the app groups them by supplier and PO, counts them as coming on every device and recalculates the next orders.</div>
     <div class="mo-od"><span>Ordered on</span><input type="date" id="mo-od" value="${window._mo.od}" onchange="window._mo.od=this.value"></div>
+    <div class="mo-od"><span>PO # for all</span><input type="text" id="mo-gpo" inputmode="numeric" value="${esc(window._mo.gpo||'')}" placeholder="optional — e.g. ${esc(data&&data.lastPo?String(data.lastPo).slice(-3):'501')}" oninput="window._mo.gpo=this.value;window._mo.rows.forEach((x,i)=>moHint(i));moTotal();moPoPh()"></div>
     <datalist id="mo-dl">${dl}</datalist><div id="mo-rows"></div>
     <div class="row2"><button class="big gray" onclick="moAdd()">＋ Add item</button><button class="big gray" onclick="moPasteOpen()">📋 Paste from Excel</button></div>
     <div id="mo-paste" style="display:none"><textarea id="mo-pt" rows="5" placeholder="Copy the columns from Excel and paste here:&#10;Item   Qty   Arrives   PO #&#10;BX1850-1   3375   11/25   501"></textarea><button class="big gray" onclick="moPaste()">Fill the list</button></div>
@@ -971,20 +974,20 @@ function moDraw(){const m=window._mo,el=document.getElementById('mo-rows');if(!e
     <div class="mo-n" id="mo-n${i}"></div>
     <div class="mo-g"><label><i>Qty</i><input type="text" inputmode="numeric" value="${esc(x.q)}" oninput="moSet(${i},'q',this.value)" placeholder="0"></label>
       <label><i>Arrives</i><input type="date" value="${esc(x.d)}" onchange="moSet(${i},'d',this.value)"></label>
-      <label><i>PO #</i><input type="text" inputmode="numeric" value="${esc(x.po)}" oninput="moSet(${i},'po',this.value)" placeholder="${esc(data&&data.lastPo?String(data.lastPo).slice(-3):'501')}"></label></div></div>`).join('');
-  m.rows.forEach((x,i)=>moHint(i));moTotal();}
+      <label><i>PO #</i><input type="text" class="mo-po" inputmode="numeric" value="${esc(x.po)}" oninput="moSet(${i},'po',this.value)" placeholder="${esc(data&&data.lastPo?String(data.lastPo).slice(-3):'501')}"></label></div></div>`).join('');
+  m.rows.forEach((x,i)=>moHint(i));moTotal();moPoPh();}
 function moHint(i){const x=window._mo.rows[i],el=document.getElementById('mo-n'+i);if(!el)return;const r=moFind(x.c);x.r=r;
   if(!x.c){el.innerHTML='';return;}
   if(!r){el.innerHTML='<span style="color:var(--danger)">Not found — check the code</span>';return;}
   const q=+String(x.q).replace(/[^\d.]/g,'')||0,per=r.per||0;
-  el.innerHTML=`<b>${esc((r.codes||[r.base]).join(' + '))}</b> · ${esc(r.name||'')} · <span class="mut">${esc(moSup(r))}</span>${q&&per>1?' · <b>'+n1(q/per)+' pallet'+(q/per>=1.5?'s':'')+'</b>':''}${x.po?' · PO '+esc(poNorm(x.po)):''}`;}
+  el.innerHTML=`<b>${esc((r.codes||[r.base]).join(' + '))}</b> · ${esc(r.name||'')} · <span class="mut">${esc(moSup(r))}</span>${q&&per>1?' · <b>'+n1(q/per)+' pallet'+(q/per>=1.5?'s':'')+'</b>':''}${moPo(x)?' · PO '+esc(poNorm(moPo(x)))+(x.po?'':' <span class="mut">(for all)</span>'):''}`;}
 function moSet(i,k,v){const m=window._mo;m.rows[i][k]=v;if(k==='d'&&i===m.rows.length-1)m.lastD=v;if(k==='po'&&i===m.rows.length-1)m.lastPo=v;moHint(i);moTotal();}
-function moAdd(){const m=window._mo,l=m.rows[m.rows.length-1]||{};m.rows.push({c:'',q:'',d:l.d||ymdL(new Date()),po:l.po||''});moDraw();
+function moAdd(){const m=window._mo,l=m.rows[m.rows.length-1]||{};m.rows.push({c:'',q:'',d:l.d||ymdL(new Date()),po:m.gpo?'':(l.po||'')});moDraw();
   const cs=document.querySelectorAll('.mo-c');if(cs.length)cs[cs.length-1].focus();}
 function moDel(i){const m=window._mo;m.rows.splice(i,1);if(!m.rows.length)m.rows.push({c:'',q:'',d:ymdL(new Date()),po:''});moDraw();}
 function moTotal(){const m=window._mo,el=document.getElementById('mo-sum');if(!el)return;
   const ok=m.rows.filter(x=>x.r&&+String(x.q).replace(/[^\d.]/g,'')>0&&x.d);
-  const g=new Set(ok.map(x=>vKey((x.r.main||{}).vendor||'')+'|'+(x.po?poNorm(x.po):'')+'|'+x.d));
+  const g=new Set(ok.map(x=>vKey((x.r.main||{}).vendor||'')+'|'+(moPo(x)?poNorm(moPo(x)):'')+'|'+x.d));
   const pal=ok.reduce((a,x)=>a+((x.r.per||0)>1?(+String(x.q).replace(/[^\d.]/g,''))/x.r.per:0),0);
   el.innerHTML=ok.length?`<b>${ok.length}</b> item${ok.length>1?'s':''} · <b>${g.size}</b> PO${g.size>1?'s':''}${pal>=0.5?' · ~'+n1(pal)+' pallets':''}`:'';}
 function moPasteOpen(){const p=document.getElementById('mo-paste');p.style.display=p.style.display==='none'?'block':'none';if(p.style.display==='block')document.getElementById('mo-pt').focus();}
@@ -1002,7 +1005,7 @@ function moSave(){const m=window._mo;m.rows.forEach((x,i)=>moHint(i));
   if(!ok.length){toast('Type at least one item with its quantity');return;}
   if(bad.length&&!confirm(bad.length+' line(s) are incomplete or not found and will be skipped. Save the other '+ok.length+'?'))return;
   const od=m.od||ymdL(new Date()),ts=Date.now();
-  withPin(()=>{const list=ok.map((x,i)=>{const q=+String(x.q).replace(/[^\d.]/g,''),po=x.po?poNorm(x.po):'';
+  withPin(()=>{const list=ok.map((x,i)=>{const q=+String(x.q).replace(/[^\d.]/g,''),po=moPo(x)?poNorm(moPo(x)):'';
       return {key:x.r.base+'|'+od+'|M'+ts+'-'+i,mark:Object.assign({base:x.r.base,ob:od,qty:q,dl:[{d:x.d,q}],done:true,manual:true},po?{po}:{},(x.r.main||{}).vendor?{vendor:(x.r.main||{}).vendor}:{})};});
     closeSheet();window._mo=null;sendSave({type:'wms-reorder-mark',list});
     undoToast('📝 '+list.length+' line(s) saved as ordered — they count as coming',()=>sendSave({type:'wms-reorder-mark',list:list.map(x=>({key:x.key,mark:null}))}));});}
