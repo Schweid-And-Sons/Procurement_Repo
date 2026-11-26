@@ -312,7 +312,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25l</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25m</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -533,7 +533,7 @@ function joinSave(){const it=joinItems();if(!it.length)return;
     ${it.map(({r,o})=>`<div style="font-size:14px;margin:5px 0"><b>${esc((r.codes||[r.base])[0])}</b> ${qtyTxt(r,o.qty,o.pallets)}</div>`).join('')}
     ${(()=>{const ex=joinExisting(joinVk(it[0].r,it[0].o));window._joinEx=ex;return ex.length?`<div class="hint" style="margin-top:10px">Add them to a PO already created?</div><div class="jd-row">${ex.map((x,i)=>`<button class="st" onclick="joinUseEx(${i})">＋ ${esc(x.po)} <span class="mut">· ${x.n} line${x.n>1?'s':''}${x.day?' · '+dShort(x.day):''}</span></button>`).join('')}</div>`:'';})()}
     <div class="hint" style="margin-top:10px">Yooz PO # (optional)</div><input type="text" id="po-j" placeholder="${esc(poPh())}" oninput="poHint('po-j')"><div class="mut" id="po-j-h" style="font-size:12px;margin-top:4px"></div>
-    <button class="big gray" style="margin-top:10px" onclick="joinExcel()">⬇ Excel of these ${it.length} lines (for Yooz)</button>
+    <div class="row2" style="margin-top:10px"><button class="big gray" onclick="joinImage()">🖼 Image</button><button class="big gray" onclick="joinExcel()">⬇ Excel (for Yooz)</button></div>
     <div class="row2"><button class="big gray" onclick="closeSheet()">Cancel</button><button class="big" onclick="joinDo(window._joinDay)">Mark created</button></div>`));}
 /* Nov 25 (Julian): the lines checked ☐ (one PO) as an Excel, to type the PO in Yooz — they arrive together on the day picked */
 function joinExcel(){const it=joinItems();if(!it.length)return;const k=joinVk(it[0].r,it[0].o);
@@ -840,7 +840,7 @@ function toolsMenu(){const cfg=(data&&data.cfg)||{days:[]};const t0=addDays(0);
   const rec=(cfg.days||[]).map((on,i)=>on?DAYN[i]:null).filter(Boolean).join(', ')||'none';
   const hol=(cfg.holidays||[]).filter(h=>new Date(h.d+'T00:00:00')>=t0).sort((a,b)=>a.d.localeCompare(b.d))[0];
   return `<div class="tm" id="tm"><div class="s">Safety stock <b>A ${(cfg.ss||{}).A??2} · B ${(cfg.ss||{}).B??1} · C ${(cfg.ss||{}).C??1} days</b> (Sonic ½ · PCA 1) · We receive <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data&&data.racks?' · '+data.racks+' rack positions':''}</div>
-    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div>
+    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div>
     <div class="tools" style="margin-top:6px"><span class="s">View on this device:</span><button class="tool-btn${mode()==='ord'?' on':''}" onclick="setMode('ord')">🛒 Ordering</button><button class="tool-btn${mode()==='inv'?' on':''}" onclick="setMode('inv')">📦 Inventory</button></div>
     ${mode()==='ord'?'':`<div class="tools" style="margin-top:6px"><button class="tool-btn" onclick="insSup()">⭐ Supplier scorecard</button><button class="tool-btn" onclick="insWhat()">🔮 What if…</button><button class="tool-btn" onclick="insWeek()">📈 This week (pilot)</button></div>`}</div>`;}
 /* ⭐ supplier scorecard: a glance (on time, days, short deliveries) — tap a supplier for its items */
@@ -899,7 +899,7 @@ function friBox(){
   const tw=rows.filter(truckWait);
   return `<div class="fri">${body||'<div><b>Nothing to order today or on the next order day.</b></div>'}${tw.length?`<div class="s" style="margin-top:6px;color:var(--warn)">🚚 <b>Check before ordering (${tw.length}):</b> ${tw.map(r=>esc((r.codes||[r.base])[0])).join(', ')} — a PO was due and is not marked received. Enter what arrived and ⟳ Refresh.</div>`:''}${rc.length?`<div class="s" style="margin-top:6px;color:var(--warn)">🔎 <b>Recount before 9 AM (${rc.length}):</b> ${rc.map(r=>esc((r.codes||[r.base])[0])).join(', ')}</div>`:''}
     <div class="s">Safety stock: <b>A ${(cfg.ss||{}).A??2} · B ${(cfg.ss||{}).B??1} · C ${(cfg.ss||{}).C??1} days · Sonic/PCA max 1</b> · We receive: <b>${rec}</b>${hol?' · next holiday '+dayTxt(hol.d+'T12:00:00')+' ('+esc(hol.n)+')':''}${data.racks?' · Direct Materials has '+data.racks+' rack positions':''}</div>
-    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="exportExcel()">⬇ Excel</button><button class="tool-btn" onclick="printList()">🖨 Print</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div></div>`;
+    <div class="tools"><button class="tool-btn" onclick="openDays()">⚙️ Receiving days & safety stock</button><button class="tool-btn" onclick="openSuppliers()">🏭 Suppliers</button></div></div>`;
 }
 
 /* ---------- small helpers: toast, bottom sheet, PIN ---------- */
@@ -1031,6 +1031,45 @@ function moSave(){const m=window._mo;m.rows.forEach((x,i)=>moHint(i));
       return {key:x.r.base+'|'+od+'|M'+ts+'-'+i,mark:Object.assign({base:x.r.base,ob:od,qty:q,dl:[{d:x.d,q}],done:true,manual:true},po?{po}:{},(x.r.main||{}).vendor?{vendor:(x.r.main||{}).vendor}:{})};});
     closeSheet();window._mo=null;sendSave({type:'wms-reorder-mark',list});
     undoToast('📝 '+list.length+' line(s) saved as ordered — they count as coming',()=>sendSave({type:'wms-reorder-mark',list:list.map(x=>({key:x.key,mark:null}))}));});}
+
+/* ---------- 🖼 PO card image (Nov 25, Julian): the same card we shared in Teams — supplier, order day, arrival day,
+   items (code · description · qty · pallets), total. Drawn on a canvas (no library, works offline); on a phone it
+   opens the share sheet (Teams, Messages…), on a PC it downloads the PNG. ---------- */
+async function poImage(g,opt){opt=opt||{};if(!g||!g.lines||!g.lines.length)return;
+  const W=560,S=2,F='-apple-system,"Segoe UI",Inter,Arial,sans-serif',k=g.k||'',sup=vName(k,g.raw||k).split(' ·')[0];
+  const col=/SONIC/.test(k)?'#1d4ed8':/PCA/.test(k)?'#b45309':/CRYO/.test(k)?'#047857':'#4b5563';
+  const fmt=d=>{if(!d)return '—';const x=new Date(String(d).slice(0,10)+'T12:00:00');return x.toLocaleDateString('en-US',{weekday:'short'})+' '+(x.getMonth()+1)+'/'+x.getDate();};
+  const M={};g.lines.forEach(({r,o})=>{const x=M[r.base]||(M[r.base]={r,q:0,pal:0,u:unitOf(r)||''});x.q+=+o.qty||0;x.pal+=palOf(r,o,k);});
+  const rows=Object.values(M).sort((a,b)=>b.q-a.q);
+  const arrs=[...new Set(g.lines.map(({o})=>o.dl&&o.dl[0]?ymdL(o.dl[0].d):o.arrive?ymdL(o.arrive):'').filter(Boolean))].sort();
+  const ods=[...new Set(g.lines.map(({o})=>o.ob?String(o.ob).slice(0,10):o.at?ymdL(o.at):'').filter(Boolean))].sort();
+  const od=opt.od||ods[0]||ymdL(new Date()),arr=opt.arr||arrs.map(fmt).join(' · ');
+  const po=opt.po!==undefined?opt.po:(g.po||[...new Set(g.lines.map(({o})=>o.po).filter(Boolean))].join(', '));
+  const tq=rows.reduce((a,x)=>a+x.q,0),tp=rows.reduce((a,x)=>a+x.pal,0),uni=[...new Set(rows.map(x=>x.u))].length===1?rows[0].u:'';
+  const H=286+rows.length*54+(opt.note?36:0);
+  const c=document.createElement('canvas');c.width=W*S;c.height=H*S;const x=c.getContext('2d');x.scale(S,S);
+  const rr=(X,Y,w,h,r,f)=>{x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath();x.fillStyle=f;x.fill();};
+  const t=(s,X,Y,f,c2,al)=>{x.font=f;x.fillStyle=c2||'#111';x.textAlign=al||'left';x.fillText(s,X,Y);};
+  const fit=(s,w,f)=>{x.font=f;s=String(s);if(x.measureText(s).width<=w)return s;while(s.length>1&&x.measureText(s+'…').width>w)s=s.slice(0,-1);return s+'…';};
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  const tag=(opt.tag||'PO')+' · '+PLANT;x.font='700 13px '+F;const tw=x.measureText(tag).width+24;rr(28,24,tw,26,13,col);t(tag,40,42,'700 13px '+F,'#fff');
+  t(fit(sup,W-56,'800 26px '+F),28,86,'800 26px '+F);t('Schweid & Sons · '+PLANT+(po?' · PO '+po:''),28,110,'15px '+F,'#555');
+  const bw=(W-56-12)/2;[['ORDER DAY',fmt(od)],['ARRIVAL DAY',arr||'—']].forEach(([l,v],i)=>{const X=28+i*(bw+12);rr(X,126,bw,62,12,'#f2f2f7');t(l,X+14,147,'600 11px '+F,'#777');t(fit(v,bw-28,'800 19px '+F),X+14,174,'800 19px '+F);});
+  let Y=222;t('ITEM',32,Y,'600 11px '+F,'#888');t(uni?uni.toUpperCase():'QTY',W-130,Y,'600 11px '+F,'#888','right');t('PALLETS',W-32,Y,'600 11px '+F,'#888','right');
+  x.fillStyle='#ddd';x.fillRect(28,Y+8,W-56,2);Y+=10;
+  rows.forEach(v=>{const code=(v.r.codes||[v.r.base])[0];t(code,32,Y+24,'700 16px '+F);t(fit(v.r.name||'',W-240,'12.5px '+F),32,Y+42,'12.5px '+F,'#777');
+    t(n0(v.q),W-130,Y+28,'500 16px '+F,'#111','right');t(v.pal>=0.05?(Math.abs(v.pal-Math.round(v.pal))<0.05?String(Math.round(v.pal)):n1(v.pal)):'—',W-32,Y+28,'500 16px '+F,'#111','right');
+    Y+=54;x.fillStyle='#eee';x.fillRect(28,Y,W-56,1);});
+  Y+=30;t('Total',32,Y,'800 17px '+F);t(n0(tq),W-130,Y,'800 17px '+F,'#111','right');t(tp>=0.05?(Math.abs(tp-Math.round(tp))<0.05?String(Math.round(tp)):n1(tp)):'—',W-32,Y,'800 17px '+F,'#111','right');
+  if(opt.note){Y+=34;t(fit(opt.note,W-56,'12.5px '+F),28,Y,'12.5px '+F,'#666');}
+  const blob=await new Promise(res=>c.toBlob(res,'image/png'));if(!blob){toast('Could not make the image');return;}
+  const name=('PO_'+sup.replace(/[^A-Za-z0-9]+/g,'_')+'_'+PLANT+'_'+(arrs[0]||od)+(po?'_'+String(po).split(',')[0].replace(/[^A-Za-z0-9-]/g,''):'')+'.png');
+  const file=new File([blob],name,{type:'image/png'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){await navigator.share({files:[file],title:name});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);toast('🖼 '+name);}
+function joinImage(){const it=joinItems();if(!it.length)return;const k=joinVk(it[0].r,it[0].o);
+  poImage({k,raw:String(it[0].o.vendor||(it[0].r.main||{}).vendor||k),lines:it},{arr:(d=>{const x=new Date(d+'T12:00:00');return x.toLocaleDateString('en-US',{weekday:'short'})+' '+(x.getMonth()+1)+'/'+x.getDate();})(window._joinDay||ymdL(new Date())),
+    od:ymdL(new Date()),po:poNorm((document.getElementById('po-j')||{}).value||'')});}
 
 /* what was already ordered today (written down) vs. what the app still suggests */
 function orderedToday(r){const t=ymdL(addDays(0));
@@ -1565,7 +1604,7 @@ function renderToday(){
       return `<div class="card"><div class="c-top"><span class="c-code">${esc(vName(g.k,g.raw).split(' ·')[0])}</span><span class="c-name">${g.po?'PO '+esc(g.po):'<span style="color:var(--warn)">no PO # yet</span>'}</span></div>
       <div class="c-sub">${arrs.length?'arrives '+arrs.map(a=>dShort(a)).join(' · ')+' · ':''}${g.lines.length} item${g.lines.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallet'+(pal>=1.5?'s':''):''}${who?' · '+esc(who):''} · ${timeTxt(g.at)}</div>
       <div class="td-l">${g.lines.map(({r,o})=>`<div class="td-r"><span>${st(o)} <b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span></span><span class="td-q">${qtyTxt(r,o.qty,o.pallets)}${o.manual?' · <i>We ordered…</i>':''}</span><button class="td-u" title="Undo this line" onclick="undoMark('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">↩</button></div>`).join('')}</div>
-      <div class="o-acts"><button class="st" onclick="undoGroup(${gi})">↩ Undo this PO</button><button class="st" onclick="poExcelG(window._tdG[${gi}])">⬇ Excel</button></div></div>`;}).join('')
+      <div class="o-acts"><button class="st" onclick="undoGroup(${gi})">↩ Undo this PO</button><button class="st" onclick="poImage(window._tdG[${gi}])">🖼 Image</button><button class="st" onclick="poExcelG(window._tdG[${gi}])">⬇ Excel</button></div></div>`;}).join('')
       :'<div class="empty"><b>—</b>Nothing marked today yet.</div>');
 }
 /* ↩ the whole PO (every line of that card) back to the suggestion — one tap, with Undo in the toast */
