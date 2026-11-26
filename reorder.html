@@ -208,8 +208,8 @@
   .ob-it{border-top:1px solid var(--border);padding:7px 0;}.ob-it summary{cursor:pointer;list-style:none;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;}
   .ob-q{margin-left:auto;font-size:13px;}.ob-x{font-size:12.5px;color:var(--text2);padding-top:4px;}
   .td-sps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.td-sp{background:var(--surface2);border-radius:999px;padding:4px 10px;font-size:13px}
-  .td-l{margin:6px 0 2px}.td-r{display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);padding:6px 0;font-size:14px}.td-r>span:first-child{flex:1;min-width:0}
-  .td-q{font-size:13px;white-space:nowrap}.td-u{border:0;background:rgba(128,128,128,.12);border-radius:8px;padding:4px 9px;cursor:pointer;color:inherit}
+  .td-l{margin:6px 0 2px}.td-r{display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);padding:6px 0;font-size:14px}.td-r>span:first-child{flex:1 1 55%;min-width:0}
+  .td-q{font-size:13px;flex:0 1 45%;text-align:right;white-space:normal}   /* Nov 25: on a phone the item name was squeezed to one word per line */.td-u{border:0;background:rgba(128,128,128,.12);border-radius:8px;padding:4px 9px;cursor:pointer;color:inherit}
   .ob-none{padding:10px 12px;color:var(--success);font-weight:700;}
   .ob-sup{font-size:16px;font-weight:800;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}.ob-sup span{font-size:12.5px;font-weight:500;color:var(--text3);}
   .ob-d{margin:8px 0 0;padding:8px 10px;border-radius:12px;background:rgba(128,128,128,.07);}.ob-dh{display:flex;align-items:center;gap:10px;}
@@ -312,7 +312,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.25m</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.26a</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -1603,7 +1603,9 @@ function renderToday(){
       const who=[...new Set(g.lines.map(x=>x.o.by).filter(Boolean))].join(', ');
       return `<div class="card"><div class="c-top"><span class="c-code">${esc(vName(g.k,g.raw).split(' ·')[0])}</span><span class="c-name">${g.po?'PO '+esc(g.po):'<span style="color:var(--warn)">no PO # yet</span>'}</span></div>
       <div class="c-sub">${arrs.length?'arrives '+arrs.map(a=>dShort(a)).join(' · ')+' · ':''}${g.lines.length} item${g.lines.length>1?'s':''}${pal>=0.5?' · ~'+n0(pal)+' pallet'+(pal>=1.5?'s':''):''}${who?' · '+esc(who):''} · ${timeTxt(g.at)}</div>
-      <div class="td-l">${g.lines.map(({r,o})=>`<div class="td-r"><span>${st(o)} <b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span></span><span class="td-q">${qtyTxt(r,o.qty,o.pallets)}${o.manual?' · <i>We ordered…</i>':''}</span><button class="td-u" title="Undo this line" onclick="undoMark('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">↩</button></div>`).join('')}</div>
+      <div class="td-l">${(()=>{const sum={},yz={},shown=new Set();g.lines.forEach(({r,o})=>{sum[r.base]=(sum[r.base]||0)+(+o.qty||0);if(o.yzQ)yz[r.base]=o.yzQ;});   // Nov 25: Yooz rules — show it when it differs
+        return g.lines.map(({r,o})=>{const y=yz[r.base],dif=y&&Math.abs(y-sum[r.base])>=1&&!shown.has(r.base);if(dif)shown.add(r.base);
+        return `<div class="td-r"><span>${st(o)} <b>${esc((r.codes||[r.base])[0])}</b> <span class="mut">${esc(r.name||'')}</span></span><span class="td-q">${qtyTxt(r,o.qty,o.pallets)}${dif?` · <b style="color:var(--warn)" title="Yooz has a different quantity for this item in ${esc(g.po)} — the app uses Yooz">Yooz ${n0(y)}</b>`:''}${o.manual?' · <i>We ordered…</i>':''}</span><button class="td-u" title="Undo this line" onclick="undoMark('${esc(r.base)}','${esc(o.key).replace(/'/g,'')}')">↩</button></div>`;}).join('');})()}</div>
       <div class="o-acts"><button class="st" onclick="undoGroup(${gi})">↩ Undo this PO</button><button class="st" onclick="poImage(window._tdG[${gi}])">🖼 Image</button><button class="st" onclick="poExcelG(window._tdG[${gi}])">⬇ Excel</button></div></div>`;}).join('')
       :'<div class="empty"><b>—</b>Nothing marked today yet.</div>');
 }

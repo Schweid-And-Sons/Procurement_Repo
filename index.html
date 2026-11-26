@@ -4198,7 +4198,7 @@ function reorderRows(summary){
   // POs that Yooz / the planner really have, per box: {po, supplier, due, made = first day this device saw it}
   const YZB={};try{const seen=JSON.parse(localStorage.getItem('wms_po_seen')||'{}'),t0s=ymd(new Date());let ch2=false;
     poGroups(true).forEach(g=>{const P=String(g.po||'').toUpperCase();if(!P||/^PO to assign/i.test(P))return;if(!seen[P]){seen[P]=t0s;ch2=true;}
-      g.lines.forEach(l=>{const b=reoBase(l.code);(YZB[b]=YZB[b]||[]).push({po:P,v:potVendor(g.vendor),due:String(g.due||'').slice(0,10),made:seen[P]});});});
+      g.lines.forEach(l=>{const b=reoBase(l.code);(YZB[b]=YZB[b]||[]).push({po:P,v:potVendor(g.vendor),due:String(g.due||'').slice(0,10),made:seen[P],q:+l.ordered||0});});});
     if(ch2){const cut=ymd(new Date(Date.now()-60*864e5));Object.keys(seen).forEach(k=>{if(seen[k]<cut)delete seen[k];});localStorage.setItem('wms_po_seen',JSON.stringify(seen));}}catch(e){}
   lines.forEach(l=>{if(l.recv&&l.received>0){const b=reoBase(l.code);(rcvD[b]=rcvD[b]||{})[l.recv]=((rcvD[b]||{})[l.recv]||0)+yzUnits(l.code,l.received);}});
   // Nov 21: a day Juan's plan has production counts as a work day, even a Saturday (Thanksgiving week, high season)
@@ -4433,7 +4433,8 @@ function reorderRows(summary){
       const yb=YZB[f.base]||[],d0=(m.dl&&m.dl[0]?m.dl[0].d:m.ob),mv=potVendor(m.vendor||poVendorOfBase(m.base)||'');
       const inYooz=m.done&&(m.po?yb.some(x=>x.po===String(m.po).toUpperCase()):yb.some(x=>(!mv||x.v===mv)&&x.due&&Math.abs(new Date(x.due+'T12:00:00')-new Date(d0+'T12:00:00'))<=4*864e5&&x.made>=String(m.at||'').slice(0,10)));
       const lastD=m.dl&&m.dl.length?m.dl[m.dl.length-1].d:m.ob;if(m.done&&new Date(lastD+'T00:00:00')<today)return;   // created and already delivered: done
-      fixed.push(Object.assign({key:k,orderBy:new Date(m.ob<ymd(today)?ymd(today)+'T00:00:00':m.ob+'T00:00:00'),arrive:new Date((m.dl&&m.dl[0]?m.dl[0].d:m.ob)+'T00:00:00'),fixed:true,inYooz},m));
+      const yzQ=m.po?yb.filter(x=>x.po===String(m.po).toUpperCase()).reduce((a,x)=>a+x.q,0):0;   // Nov 25: what Yooz says for this box in that PO
+      fixed.push(Object.assign({key:k,orderBy:new Date(m.ob<ymd(today)?ymd(today)+'T00:00:00':m.ob+'T00:00:00'),arrive:new Date((m.dl&&m.dl[0]?m.dl[0].d:m.ob)+'T00:00:00'),fixed:true,inYooz},m,yzQ?{yzQ}:{}));
       // counted like the suggestion it replaces: from the day it could first arrive (order day + lead time),
       // even if receiving moved the truck to the next receiving day
       const obI=dayIdx(m.ob<ymd(today)?ymd(today):m.ob)+Math.round(Lavg);
@@ -8353,7 +8354,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.26c';
+const APP_VERSION='2026.11.26d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
