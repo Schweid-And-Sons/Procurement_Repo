@@ -4046,13 +4046,17 @@ function reoNotNeeded(b,cfg){cfg=cfg||{};if((cfg.noNeed||{})[b])return true;if((
   return (REO_NONEED_DEFAULT[currentPlant]||[]).some(x=>x.test(b));}   // days, when nothing better is known (Settings → Lead time)
 /* shown on the card instead of an order (Julian, Nov 19) */
 const REO_NO_ORDER=[[/^(H134L|H134\/S)-\d$/,"Don't order — we only order XL. People wear up to 2 cotton gloves under the blue gloves because of the cold, so only XL fits."]];
-function reoCfgDefault(){const nj=currentPlant==='NJ';return {days:[false,nj,true,true,true,true,false],holidays:REO_HOLIDAYS.filter(([d])=>!(nj&&d==='2026-11-27')).map(([d,n])=>({d,n})),mgV:3,extra:{},ss:Object.assign({},REO_SS_DAYS),by:'',at:''};}
+function reoCfgDefault(){const nj=currentPlant==='NJ';return {days:[false,nj,true,true,true,true,false],holidays:REO_HOLIDAYS.filter(([d])=>!(nj&&d==='2026-11-27')).map(([d,n])=>({d,n})),mgV:5,ltItem:nj?{'F1000-1':2}:{},noProd:nj?['2026-11-28']:[],extra:{},ss:Object.assign({},REO_SS_DAYS),by:'',at:''};}
 function loadReoCfg(){try{const o=JSON.parse(localStorage.getItem('wms_reocfg_'+currentPlant)||'null');if(o&&Array.isArray(o.days)){
   // the old default (A3 · B2 · C1) saved with the receiving days → the new, lower default; a value someone changed stays
   if(!o.ssV){if(!o.ss||(+o.ss.A===3&&+o.ss.B===2&&+o.ss.C===1))o.ss=Object.assign({},REO_SS_DAYS);o.ssV=2;}
   // Nov 25 (Julian): NJ works and receives Fri 11/27, and from now on NJ also receives on MONDAYS — applied once;
   // a later change in Settings (saved with mgV 3) stays as the team leaves it
   if(!(o.mgV>=3)){if(currentPlant==='NJ'){o.holidays=(o.holidays||[]).filter(h=>h.d!=='2026-11-27');o.days=o.days.slice();o.days[1]=true;}o.mgV=3;}
+  // Nov 27 (Eleni): Imperial keeps F1000 film in its local warehouse (73 rolls) → 2 days for NJ, applied once
+  if(!(o.mgV>=4)){if(currentPlant==='NJ'){o.ltItem=Object.assign({},o.ltItem||{});if(!(o.ltItem['F1000-1']>0))o.ltItem['F1000-1']=2;}o.mgV=4;}
+  // Nov 27: NJ production on Saturday 11/28 cancelled (operations) — applied once
+  if(!(o.mgV>=5)){if(currentPlant==='NJ')o.noProd=[...new Set((o.noProd||[]).concat(['2026-11-28']))];o.mgV=5;}
   return o;}}catch(e){}return Object.assign(reoCfgDefault(),{ssV:2});}
 function loadReoMarks(){try{return JSON.parse(localStorage.getItem('wms_reomarks_'+currentPlant)||'null')||{};}catch(e){return {};}}
 /* ---------- shared Next POs data: save WITHOUT stepping on another device (Nov 24) ----------
@@ -4173,6 +4177,8 @@ async function loadCntHistFromFlow(){
     localStorage.setItem(cntHistKey(),JSON.stringify({at:new Date().toISOString(),days,ats}));
   }catch(e){cntFetch.err=e.message;}finally{cntFetch.busy=false;}
 }
+// ✓ a receipt already inside the morning count (asked when saved; kept in the notes so every device knows)
+function rcvInCnt(x){return !!(x&&(x.inCnt||/Already in the morning count/i.test(String(x.notes||''))));}
 function reorderRows(summary){
   const lt=(loadLeadTime()||{}).rows||[],yz=loadYooz(),lines=(yz&&yz.lines||[]).filter(l=>l.plant===currentPlant);
   const today=new Date();today.setHours(0,0,0,0);const since=new Date(today.getTime()-REO_USE_DAYS*864e5);
@@ -4204,7 +4210,9 @@ function reorderRows(summary){
   // Nov 21: a day Juan's plan has production counts as a work day, even a Saturday (Thanksgiving week, high season)
   const planWork=new Set();if(dm)Object.values(dm.codes||{}).forEach(v=>Object.entries(v.d||{}).forEach(([k,q])=>{if(+q>0)planWork.add(k);}));
   if(planData&&planData.day&&planData.day===isoToday()&&dm)planWork.add(isoToday());
-  const isWork=k=>{if(planWork.has(k))return true;const d=new Date(k+'T12:00:00'),w=d.getDay();return w>0&&w<6&&!hol.has(k);};
+  // 🚫 no production that day (Settings, Nov 27 — Saturday 11/28 cancelled): its plan moves to the next work day
+  const NOP=new Set(cfg.noProd||[]);NOP.forEach(k=>planWork.delete(k));
+  const isWork=k=>{if(NOP.has(k))return false;if(planWork.has(k))return true;const d=new Date(k+'T12:00:00'),w=d.getDay();return w>0&&w<6&&!hol.has(k);};
   const invUse=b=>{if(!ch||!ch.days)return null;const ds=Object.keys(ch.days).sort();if(ds.length<2)return null;
     let used=0,wd=0,n=0,skip=0;
     for(let i=1;i<ds.length;i++){const a=ds[i-1],c=ds[i];
@@ -4290,6 +4298,21 @@ function reorderRows(summary){
         (inc[reoBase(l.code)]=inc[reoBase(l.code)]||[]).push({date:late?ymd(new Date(today.getTime()+864e5)):due,qty:yzUnits(l.code,q),po:g.po,ord:yzUnits(l.code,+l.ordered||0),rec:yzUnits(l.code,+l.received||0),planner:!!g.planner,late,wl,stale,sup:t?t.sup:potVendor(g.vendor),tracked:!!t});});});
   }catch(e){console.error(e);}
   try{const DIS=reoDismissed(),DEL=reoDeleted();if(DIS.size)Object.keys(inc).forEach(c=>{inc[c]=inc[c].filter(x=>{const P=String(x.po).toUpperCase();return !DEL.has(P)&&!(x.late&&DIS.has(P));});});}catch(e){}
+  // 📦 came early (Nov 27, PO 28511): the count went up about as much as an open PO brings, before its day → it's
+  // in the count already, so it is NOT counted as coming (listed to confirm in Receiving). Count rise = today's copy −
+  // the one before − what Receiving / Yooz got in between (use only makes the rise smaller, so this is on the safe side).
+  try{const days0=ch&&ch.days?Object.keys(ch.days).sort():[],c0=days0[days0.length-1],a0=days0[days0.length-2];
+    if(a0&&c0>=ymd(new Date(today.getTime()-864e5))){
+      const recs0=Object.values(allReceipts()).filter(x=>!x.notArrived&&(x.plant||currentPlant)===currentPlant);
+      const gotB=b=>{let g=0;Object.entries(rcvD[b]||{}).forEach(([k,q])=>{if(k>a0&&k<=c0)g+=q;});
+        recs0.forEach(x=>{const k=String(x.ts).slice(0,10);if(k>a0&&k<=c0)(x.lines||[]).forEach(l=>{if(reoBase(l.code)!==b)return;const q=l.counted!=null?+l.counted:+l.bol||0;if(q>0)g+=toUnits(l.code,q);});});return g;};
+      const lim=ymd(new Date(today.getTime()+7*864e5)),byPo={};
+      Object.entries(inc).forEach(([b,arr])=>arr.forEach(x=>{if(x.stale||x.planner)return;const d=String(x.date).slice(0,10);if(d<=a0||d>lim)return;
+        if(!(b in ch.days[a0])&&!(b in ch.days[c0]))return;(byPo[x.po]=byPo[x.po]||[]).push({b,q:x.qty});}));
+      const early=new Set();
+      Object.entries(byPo).forEach(([po,ls])=>{const hit=ls.filter(l=>(+ch.days[c0][l.b]||0)-(+ch.days[a0][l.b]||0)-gotB(l.b)>=0.5*l.q).length;
+        if(hit>=(ls.length===1?1:Math.max(2,Math.ceil(ls.length*0.6))))early.add(po);});
+      if(early.size)Object.values(inc).forEach(arr=>arr.forEach(x=>{if(early.has(x.po)&&!x.stale){x.early=c0;x.late=String(x.date).slice(0,10);x.stale=true;x.date=ymd(new Date(today.getTime()+864e5));}}));}}catch(e){console.error(e);}
   const card=potCard(currentPlant);
   const dayIdx=d=>Math.max(0,Math.round((new Date(String(d).slice(0,10)+'T00:00:00')-today)/864e5));
   // not ordered from Next POs (Julian, Nov 19): pallets M2000, thermal / pallet labels (the warehouse orders them),
@@ -4328,6 +4351,10 @@ function reorderRows(summary){
     // NJ Sonic: ordered in the morning, here the same night → in the next morning's count = 1 day (unless set for the item)
     if(currentPlant==='NJ'&&ltSrc!=='item'&&/SONIC/i.test(String(main.vendor))){P90=1;Lavg=1;ltSrc='sonic';}
     if(pcaSlow){P90=Math.max(P90,2);Lavg=Math.max(Lavg,2);if(ltSrc==='yooz'&&!(main.ltAvg>=2))ltSrc='pca';}
+    // 🦃 holiday weeks (Nov 27: XPO / Cryovac / Packaged all late on Thanksgiving week): a holiday inside the lead time
+    // → +1 day, except Sonic (delivers when we ask)
+    let holBuf=false;if(ltSrc!=='sonic'&&P90>0){const lim=ymd(new Date(today.getTime()+(Math.ceil(P90)+3)*864e5));
+      if((cfg.holidays||[]).some(h=>h.d>=ymd(today)&&h.d<=lim)){P90+=1;Lavg+=1;holBuf=true;}}
     const sL=main.lt&&main.ltAvg&&main.lt>main.ltAvg?(main.lt-main.ltAvg)/1.28:0;      // how much the lead time moves (from P90 vs average)
     const hist=f.recv/REO_USE_DAYS;
     const it=ITEMS.find(i=>i.code===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base&&!i.disc)||ITEMS.find(i=>reoBase(i.code)===f.base);   // the name of the item in use, not a discontinued one (BX7700 → PCA)
@@ -4350,6 +4377,8 @@ function reorderRows(summary){
           if(to){pday[to]=(pday[to]||0)+rest;(psrc[to]=psrc[to]||{})['carry']=rest;}}
         ptot=ptot-D+S+(to?rest:0);sched={S,D,rest,to};psrc[k0]=Object.assign({},psrc[k0]||{},{sched:S});}
     }
+    if(NOP.size)Object.keys(pday).sort().forEach(k=>{if(!NOP.has(k)||!(pday[k]>0))return;const d=new Date(k+'T12:00:00');
+      for(let i=0;i<14;i++){d.setDate(d.getDate()+1);const kk=ymd(d);if(isWork(kk)){pday[kk]=(pday[kk]||0)+pday[k];(psrc[kk]=psrc[kk]||{})['moved']=pday[k];break;}}pday[k]=0;});
     let dmp=null;if(dm&&dm.dmp&&kind!=='inv')Object.entries(dm.dmp).forEach(([c,v])=>{if(reoBase(c)===f.base)dmp=(dmp||0)+v/div;});
     const coming=(inc[f.base]||[]).filter(x=>!x.stale).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
     const staleLate=(inc[f.base]||[]).filter(x=>x.stale);
@@ -4390,7 +4419,7 @@ function reorderRows(summary){
           let after=useLive?sa.toISOString():new Date(from+'T09:00:00').toISOString();let got=0;
           // moved on the map today: what was received before that move is already on the screen — don't add it twice
           const mvT=(window.REO_MOVED||{})[f.base];if(useLive&&mvT&&mvT>after)after=mvT;   // received after the base (not put away in it yet)
-          try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||String(x.ts||'')<=after)return;
+          try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||rcvInCnt(x)||String(x.ts||'')<=after)return;
             (x.lines||[]).forEach(l=>{if(reoBase(l.code)!==f.base)return;const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;if(q>0)got+=toUnits(l.code,q);});});}catch(e){}
           const used=Math.min(real+got,Math.max(0,rW*w));
           est={real,at:from,days:w,used:Math.round(used),got:Math.round(got),live:f.stock,hand:ov!=null,base:useLive?'screen':'copy',
@@ -4401,10 +4430,10 @@ function reorderRows(summary){
     // got after the shift started. An item missing from the copy keeps the screen's number.
     let am=null;if(!est&&ch&&ch.days&&ch.days[ymd(today)]&&Object.prototype.hasOwnProperty.call(ch.days[ymd(today)],f.base)){   // rule 1
       const after=String((ch.ats&&ch.ats[ymd(today)])||window.REO_SHIFT_AT||ymd(today)+'T09:00:00');let got=0;
-      try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||!after||String(x.ts||'')<=after)return;
+      try{Object.values(allReceipts()).forEach(x=>{if(x.notArrived||rcvInCnt(x)||!after||String(x.ts||'')<=after)return;
         (x.lines||[]).forEach(l=>{if(reoBase(l.code)!==f.base)return;const q=l.counted!=null?+l.counted:l.bol!=null?+l.bol:0;if(q>0)got+=toUnits(l.code,q);});});}catch(e){}
       am={copy:Math.round(+ch.days[ymd(today)][f.base]||0),got:Math.round(got),screen:Math.round(f.stock)};f.stock=am.copy+am.got;}
-    const r={am,est,kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale,partial:!!x.partial,ord:x.ord||0,rec:x.rec||0})),
+    const r={am,est,kind,iu,capped,ltSrc,pbi:pbT?Object.assign({},pbT,{from:PBI.from,to:PBI.to,days:PBI.days,age:PBI.age,old:PBI.old,up:PBI.up,at:PBI.at,by:PBI.by,planTo:Hd>0?ymd(new Date(today.getTime()+(Hd-1)*864e5)):''}):null,vKey:vK,holBuf,packBy:{SONIC:(packFor(f.base,'SONIC')||{}).p||0,PCA:(packFor(f.base,'PCA')||{}).p||0},rcvNew:f.rcv||[],pdone,sched,late:coming.filter(x=>x.late).concat(staleLate).map(x=>({po:x.po,eta:x.late,qty:x.qty,sup:x.sup,wl:x.wl,stale:!!x.stale,partial:!!x.partial,early:x.early||'',ord:x.ord||0,rec:x.rec||0})),
       cards:Object.fromEntries([...new Set(recent.concat([main]).map(v=>potVendor(v.vendor)))].filter(k=>card[k]).map(k=>[k,card[k]])),
       base:f.base,y12,codes:[...f.codes],cat:f.cat||'',stock:f.stock,open,coming,main,vendors:f.lt.length,
       sup:recent.map(v=>({vendor:v.vendor,lt:v.lt,ltAvg:v.ltAvg,onTime:v.onTime,pos:v.pos,last:v.last,qtyAvg:v.qtyAvg})),
@@ -7098,8 +7127,14 @@ function savePoReceipt(notArrived){
     lines.push({code:l.code,raw:l.raw,desc:l.desc,ordered:f.dn>1?poRemaining(l):l.ordered,bol,counted:c});
   }
   try{if(by)localStorage.setItem('wms_receiver_name',by);}catch(e){}
+  // Nov 27 (Julian): a truck unloaded BEFORE the morning count but written down here later is already in that count —
+  // Next POs must not add it again (PO 28512 was counted twice). Asked when today's count copy exists, or after 9 AM (a PC may not have the copy loaded).
+  let inCnt=false,nt=notes.replace(/\s*·?\s*✓ Already in the morning count\.?/g,'').trim();
+  try{const ch0=loadCntHist(),nw=new Date();if(!notArrived&&((ch0&&ch0.days&&ch0.days[ymd(nw)])||nw.getHours()>=9))
+    inCnt=confirm("Was this truck already on the floor when this morning's count was done?\n\nOK = yes, it is already in the count (Next POs won't add it again)\nCancel = no, it came after the count");}catch(e){}
+  if(inCnt)nt=(nt?nt+' · ':'')+'✓ Already in the morning count';
   const all=loadReceipts();
-  const r={key:f.key,po:f.po,vendor:f.vendor,due:f.due,plant:currentPlant,ts:new Date().toISOString(),by,notes,notArrived:!!notArrived,lines};
+  const r={key:f.key,po:f.po,vendor:f.vendor,due:f.due,plant:currentPlant,ts:new Date().toISOString(),by,notes:nt,notArrived:!!notArrived,inCnt,lines};
   if(f.prev&&(f.prev.spAt||f.prev.remote))r.spPrev=f.prev.spAt||f.prev.ts;   // was in SharePoint before this edit → needs saving again
   all[f.key]=r;saveReceipts(all);
   const s=receiptStatus(r);
@@ -8354,7 +8389,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.27a';
+const APP_VERSION='2026.11.27d';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){

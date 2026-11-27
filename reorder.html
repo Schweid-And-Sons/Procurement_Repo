@@ -312,7 +312,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.27a</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.27b</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -326,7 +326,7 @@
     <li><b>When to order:</b> the supplier's usual delivery time before the day we would dip into the cushion. Orders go on the <b>Friday</b> before; each delivery is set for the day it's needed, <b>never on Monday</b> (moved to the Friday before, or Tuesday). Friday can take bigger deliveries.</li>
     <li><b>How much:</b> always <b>full pallets</b>, the way the supplier ships it (e.g. BX1850 = 750, two pallets double stacked).</li>
     <li><b>Rush</b> only when we would run out before a normal order can arrive.</li>
-    <li><b>📝 We ordered…</b>: write what was really ordered (quantity and day). It counts as coming everywhere, and the card shows what is <b>still missing</b> if the plan changed later.</li>
+    <li><b>📝 Manual orders</b> (top of the page): POs made by hand — item, quantity, arrival day. They count as coming everywhere.</li>
     <li>Each PO has a status, the same on every device (PIN): <b>Not ordered</b> · <b>⏳ Pending</b> (someone is on it, e.g. waiting for the supplier) · <b>✅ Created</b> (made in Yooz, so nobody orders it twice). <b>✏️ Qty</b> changes the amount; the next POs adjust. The first 2 POs show; tap “Show more” for the ones ahead.</li>
     <li><b>📅 Receiving days</b> and holidays are the same for every device (PIN). <b>⬇ Excel</b> downloads the list to share; <b>🖨 Print</b> gives a big, clear list by order day (or Save as PDF).</li>
     <li><b>Eleni's PO Tracker</b>: a PO with a received date no longer counts as coming; an open one uses her estimated day. The <b>morning count rules</b>: a PO that was due yesterday or before is assumed to be <b>already in the count</b>, so it is not counted again. It stays listed on its item (⏳) so it isn't lost. <b>🏭 Suppliers</b> shows real days, on-time and shorts per supplier.</li>
@@ -470,7 +470,8 @@ function subLine(r){
   if(r.st==='none')return r.kind==='inv'&&!r.iu?'It needs 3+ morning counts without a delivery in between to know the use — count it carefully every morning.':'Nothing planned and nothing received in 30 days.';
   const cov=r.coverDay==null?'Covered for the next 6 weeks':r.coverDay<=0?'Not covered today':'Covered until '+dayTxt(addDays(r.coverDay-1));
   const src=r.ltSrc==='item'?' (set for this item)':r.ltSrc==='supplier'?' ('+esc(r.vKey)+', set by hand)':r.ltSrc==='default'?' (estimated — set it in ⚙️ Settings → Lead time)':r.ltSrc==='pca'?' (PCA: at least 2 days — it is often a day late)':r.ltSrc==='sonic'?' (Sonic: ordered in the morning, here the same night → in tomorrow\'s count)':'';
-  return cov+' (stock + POs on the way) · the supplier takes up to '+r.L+' days'+src;
+  const hb=r.holBuf?' · +1 day (holiday week)':'';
+  return cov+' (stock + POs on the way) · the supplier takes up to '+r.L+' days'+src+hb;
 }
 const whenTxt=o=>o.fri?(new Date(o.orderBy).getDay()===5?'Friday order · ':'Order day (holiday Friday) · '):'Order by ';
 const ordTxt=['1st','2nd','3rd','4th','5th','6th'];
@@ -573,7 +574,8 @@ function nextOrders(r){
 /* overdue POs (Eleni's PO Tracker: estimated day passed, no received date) */
 function lateTxt(r){const L=r.late||[];if(!L.length)return '';const u=esc(unitOf(r));   // on its own item, so no PO gets lost
   return `<div class="c-sub" style="color:var(--text2);font-size:12.5px;margin:2px 0">${L.map(x=>
-    `⏳ PO ${esc(x.po)}${x.sup?' ('+esc(x.sup)+')':''} · ${x.partial?lateWhat(x,u)+' — not counted':n0(x.qty)+' '+u+' · was due '+dayTxt(x.eta+'T12:00:00')+' → <b>not counted</b> (only what is in the count)'}`).join('<br>')}
+    x.early?`📦 PO ${esc(x.po)}${x.sup?' ('+esc(x.sup)+')':''} · ${n0(x.qty)} ${u} due ${dayTxt(x.eta+'T12:00:00')} · <b>looks like it came early</b> (the count went up by about that much) → <b>not counted as coming</b>. Record it in Receiving.`
+    :`⏳ PO ${esc(x.po)}${x.sup?' ('+esc(x.sup)+')':''} · ${x.partial?lateWhat(x,u)+' — not counted':n0(x.qty)+' '+u+' · was due '+dayTxt(x.eta+'T12:00:00')+' → <b>not counted</b> (only what is in the count)'}`).join('<br>')}
     <br><span style="color:var(--text3)">Verify it arrived complete: if it came, it must be in the count (and marked in Receiving); if not, ask the supplier.</span></div>`;}
 /* 🚚 Check the truck before ordering (Nov 21): a PO that was due and is NOT marked received is not counted (if it is not
    in the count, it does not exist), but if the item is to be ordered today the card says so first — the truck may be on
@@ -750,7 +752,6 @@ function card(r){
       <div class="c-main">${mainLine(r)}</div>
       ${nextOrders(r)}
       ${orderedToday(r)}
-      <div class="c-acts"><button class="c-btn" onclick="iOrdered('${esc(r.base)}')">📝 We ordered…</button></div>
     </div><div class="c-r">${wks?`<div class="al wkal" data-a="week">${wks}</div>`:''}${al.map(x=>`<div class="al" data-a="${x.a}">${x.h}</div>`).join('')}</div></div>
     <div class="c-chips">
       ${wks?`<button class="chip m-only" onclick="chipT(this,'week')">📅 Week</button>`:''}
@@ -783,7 +784,7 @@ function ordersBox(){const rows=(data&&data.rows)||[];if(!rows.length)return '';
   const rc=[];   // counts are checked in the inventory now (🔎 Check)
   // POs that were due (last 5 days) and nobody marked received: we don't know if they are in the inventory (Nov 20: 3 deliveries)
   const lim=ymdL(addDays(-5)),LP={};rows.forEach(r=>(r.late||[]).forEach(x=>{if(!x.eta||x.eta<lim)return;const k=x.po;
-    (LP[k]=LP[k]||{po:x.po,sup:x.sup,eta:x.eta,ls:[]}).ls.push(esc((r.codes||[r.base])[0])+' '+(x.partial?(x.rec>0?n0(x.qty)+' of '+n0(x.ord)+' missing':n0(x.ord)+' never arrived'):n0(x.qty)));}));
+    (LP[k]=LP[k]||{po:x.po,sup:x.sup,eta:x.eta,ls:[]}).ls.push(esc((r.codes||[r.base])[0])+' '+(x.early?n0(x.qty)+' (came early?)':x.partial?(x.rec>0?n0(x.qty)+' of '+n0(x.ord)+' missing':n0(x.ord)+' never arrived'):n0(x.qty)));}));
   const lp=Object.values(LP).sort((a,b)=>a.eta.localeCompare(b.eta));
   const lpw=lp.length?`<div class="ob-w">🚚 <b>${lp.length} PO${lp.length>1?'s were':' was'} due and ${lp.length>1?'are':'is'} not verified</b> — we don't know if ${lp.length>1?'they are':'it is'} in the inventory. Verify before ordering.
     <details class="ob-l" style="margin:6px 0 0"><summary>See which ▾</summary>${lp.map(x=>`<div class="ob-it" style="font-size:13px"><b>${esc(x.po)}</b>${x.sup?' · '+esc(x.sup):''} · due ${dShort(x.eta)} <button class="st" style="float:right;padding:3px 9px;font-size:12px" onclick="poDismissR('${esc(x.po)}')">🙈 Dismiss</button><br><span class="mut">${x.ls.join(' · ')}</span></div>`).join('')}</details></div>`:'';
@@ -1115,7 +1116,7 @@ function saveQty(){const e=window._edit;let v=+document.getElementById('nq').val
 
 /* ---------- receiving days (shared) ---------- */
 let cfgEdit=null;
-function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:2,B:1,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};cfgEdit.ltSup=cfgEdit.ltSup||{};cfgEdit.ltFast=cfgEdit.ltFast||{};cfgEdit.ltItem=cfgEdit.ltItem||{};drawDays();}
+function openDays(){cfgEdit=JSON.parse(JSON.stringify((data&&data.cfg)||{days:[false,false,true,true,true,true,false],holidays:[],extra:{}}));cfgEdit.extra=cfgEdit.extra||{};cfgEdit.ss=cfgEdit.ss||{A:2,B:1,C:1};cfgEdit.ssItem=cfgEdit.ssItem||{};cfgEdit.ltSup=cfgEdit.ltSup||{};cfgEdit.ltFast=cfgEdit.ltFast||{};cfgEdit.ltItem=cfgEdit.ltItem||{};cfgEdit.noProd=(cfgEdit.noProd||[]).filter(d=>d>=ymdL(addDays(-14)));drawDays();}
 function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
   const hol=(c.holidays||[]).slice().sort((a,b)=>a.d.localeCompare(b.d));
   const ex=Object.entries(c.extra).sort((a,b)=>a[0].localeCompare(b[0]));
@@ -1131,6 +1132,10 @@ function drawDays(){const c=cfgEdit,t0=ymdL(addDays(0));
     <div class="lst">${ex.map(([d,on])=>`<div><span>${dayTxt(d+'T12:00:00')} · ${on?'✅ We receive':'⛔ No receiving'}</span><button onclick="delete cfgEdit.extra['${d}'];drawDays()">✕</button></div>`).join('')||'<div>None</div>'}</div>
     <input type="date" id="xd">
     <div class="row2"><button class="big gray" onclick="addEx(true)">✅ We receive that day</button><button class="big gray" onclick="addEx(false)">⛔ No receiving</button></div>
+    <div class="sec" style="margin-top:16px">🚫 No production</div>
+    <div class="hint">A day the plan has but production won't run (e.g. Saturday cancelled). Its use moves to the next work day.</div>
+    <div class="lst">${(c.noProd||[]).slice().sort().map(d=>`<div><span>${dayTxt(d+'T12:00:00')}${d<t0?' <span style="color:var(--text3)">(past)</span>':''}</span><button onclick="cfgEdit.noProd=cfgEdit.noProd.filter(x=>x!=='${d}');drawDays()">✕</button></div>`).join('')||'<div>None</div>'}</div>
+    <input type="date" id="npd"><button class="big gray" onclick="addNoProd()">🚫 No production that day</button>
     <div class="sec" style="margin-top:16px">Safety stock (cushion), in days of use</div>
     <div class="hint">Extra stock so a late truck or an extra run doesn't stop the line. A = most used items.</div>
     <div class="row2">${['A','B','C'].map(k=>`<label style="font-size:13px;font-weight:700">${k}<input type="number" inputmode="decimal" min="0" max="30" step="0.5" value="${(c.ss||{})[k]??({A:2,B:1,C:1})[k]}" onchange="cfgEdit.ss=cfgEdit.ss||{};cfgEdit.ss['${k}']=Math.max(0,+this.value||0)"></label>`).join('')}</div>
@@ -1163,6 +1168,7 @@ function addLtItem(){const c=document.getElementById('lti').value.trim().toUpper
   cfgEdit.ltItem[r.base]=d;drawDays();}
 function addHol(){const d=document.getElementById('hd').value,n=document.getElementById('hn').value.trim()||'Holiday';if(!d){toast('Pick a date');return;}
   cfgEdit.holidays=(cfgEdit.holidays||[]).filter(x=>x.d!==d).concat([{d,n}]);drawDays();}
+function addNoProd(){const d=document.getElementById('npd').value;if(!d){toast('Pick a date');return;}cfgEdit.noProd=[...new Set((cfgEdit.noProd||[]).concat([d]))];drawDays();}
 function addEx(on){const d=document.getElementById('xd').value;if(!d){toast('Pick a date');return;}cfgEdit.extra[d]=on;drawDays();}
 function saveDays(){const c=cfgEdit;withPin(()=>{closeSheet();sendSave({type:'wms-reorder-cfg',cfg:c});});}
 
@@ -1422,7 +1428,7 @@ async function buildReport(x){await loadXlsx();
   add('Orders','POs of the next 4 weeks — '+T,['Order by','Arrives','Code','Name','Supplier','Qty','Pallets','Unit','Status','PO #','Type','Note'],ob,[11,11,14,30,24,10,8,8,22,14,18,16]);
   // 4. Coming — what the app counts as arriving, per item (and late ones it does NOT count)
   const cm=[];rows.forEach(r=>{(r.coming||[]).forEach(c=>cm.push([r.base,r.name||'',c.po||'',c.sup||sup(r),D(c.date),R(c.qty),unitOf(r),c.planner?'Planner only':'Yooz',c.late?'Late (was due '+c.late+')':'Counted as coming']));
-    (r.late||[]).filter(c=>c.stale).forEach(c=>cm.push([r.base,r.name||'',c.po||'',c.sup||'',D(c.eta),R(c.qty),unitOf(r),'',c.partial?`Received ${c.rec} of ${c.ord} — rest missing, NOT counted`:'Due before today — assumed in the count, NOT counted']));});
+    (r.late||[]).filter(c=>c.stale).forEach(c=>cm.push([r.base,r.name||'',c.po||'',c.sup||'',D(c.eta),R(c.qty),unitOf(r),'',c.early?'Count went up ~that much — looks like it came early, NOT counted':c.partial?`Received ${c.rec} of ${c.ord} — rest missing, NOT counted`:'Due before today — assumed in the count, NOT counted']));});
   add('Coming','What the app counts as coming — '+T,['Code','Name','PO #','Supplier','Arrives','Qty','Unit','Source','How it is used'],cm,[14,30,14,24,11,10,8,12,48]);
   // 5. Open POs — straight from Yooz / planner / PO Tracker
   const op=[];(x.open||[]).forEach(g=>g.lines.forEach(l=>op.push([g.po,g.vendor||'',g.due||'',l.code,l.descr,l.ordered,l.received,l.recv||'',g.planner?'Planner':g.tracker?'PO Tracker':'Yooz'])));
@@ -1445,6 +1451,7 @@ async function buildReport(x){await loadXlsx();
   add('Settings','Settings used — '+T,['Setting','Value'],[
     ['Receiving days',DN.filter((_,i)=>(c.days||[])[i]).join(', ')],
     ['Holidays',(c.holidays||[]).map(h=>h.d+(h.n?' '+h.n:'')).join(' · ')],
+    ['No production',(c.noProd||[]).join(' · ')],
     ['Extra days (open / closed)',Object.entries(c.extra||{}).map(([k,v])=>k+(v?' open':' closed')).join(' · ')],
     ['Deliver when we ask (days)',Object.entries(c.ltFast||{}).map(([k,v])=>k+': '+v).join(' · ')],
     ['Lead time by supplier',Object.entries(c.ltSup||{}).map(([k,v])=>k+': '+v).join(' · ')],
