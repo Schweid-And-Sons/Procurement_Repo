@@ -8354,7 +8354,7 @@ async function autoLoadIfEmpty(){
   document.addEventListener('input',off);document.addEventListener('focusout',off);
 })();
 /* App version — change on every delivery so the device shows which build it loaded. */
-const APP_VERSION='2026.11.26d';
+const APP_VERSION='2026.11.27a';
 document.querySelectorAll('.app-ver-num').forEach(e=>e.textContent=APP_VERSION);
 /* Keep dialogs above the on-screen keyboard (Safari shrinks the visual viewport, not the layout one). */
 (function(){
@@ -8470,6 +8470,21 @@ try{toggleActions(localStorage.getItem('wms_actions_open')==='1');}catch(e){}
       const m=ev.data;if(ev.source!==window.parent||!m||m.type!=='wms-reorder-changes')return;
       let out;try{out={ok:true,hist:await planHistory()};}catch(e){out={ok:false,err:e.message};}
       window.parent.postMessage(Object.assign({type:'wms-reorder-changes-data',id:m.id},out),location.origin);
+    });
+    // ⬇ Export report (Nov 27): the raw data behind Next POs — open POs, receipts (14 days), plan by day, settings —
+    // so the orders can be checked line by line in Excel. Read only.
+    window.addEventListener('message',ev=>{
+      const m=ev.data;if(ev.source!==window.parent||!m||m.type!=='wms-reorder-report')return;
+      const out={ok:true};
+      try{const cut=ymd(new Date(Date.now()-14*864e5));
+        out.rcv=Object.values(allReceipts()).filter(x=>(x.plant||currentPlant)===currentPlant&&String(x.ts||'').slice(0,10)>=cut)
+          .sort((a,b)=>String(b.ts).localeCompare(String(a.ts))).map(x=>{const p=poPayload(Object.assign({plant:currentPlant},x));return {po:p.po,vendor:p.vendor,due:String(x.due||'').slice(0,10),at:x.ts,by:p.receivedBy,status:p.status,notes:p.notes,notArrived:p.notArrived,lines:p.lines};});}catch(e){out.rcvErr=e.message;}
+      try{out.open=poGroups(true).map(g=>({po:g.po,vendor:g.vendor,due:String(g.due||'').slice(0,10),planner:!!g.planner,tracker:!!g.tracker,
+        lines:(g.lines||[]).map(l=>({code:l.code,descr:l.descr||l.desc||((ITEMS.find(i=>i.code===l.code)||{}).name)||'',ordered:+l.ordered||0,received:+l.received||0,recv:l.recv||''}))}));}catch(e){out.openErr=e.message;}
+      try{const dm=planData&&planData.dm;out.plan=dm?{day:planData.day,file:planData.source||'',end:dm.end,codes:Object.fromEntries(Object.entries(dm.codes||{}).map(([c,o])=>[c,{t:o.t,d:o.d||{}}]))}:null;}catch(e){out.plan=null;}
+      try{const sm=getItemSummary();out.items=Object.entries(sm).map(([c,v])=>{const it=ITEMS.find(i=>i.code===c)||{};return {code:c,name:it.name||'',cat:it.cat||'',qty:v.qty,locs:v.locs.length};}).sort((a,b)=>a.code.localeCompare(b.code));}catch(e){out.items=[];}
+      out.cfg=loadReoCfg();out.v=APP_VERSION;
+      window.parent.postMessage(Object.assign({type:'wms-reorder-report-data',id:m.id},out),location.origin);
     });
     // saves from reorder.html (after the PIN): receiving days, or a PO marked created / with a new quantity
     window.addEventListener('message',async ev=>{

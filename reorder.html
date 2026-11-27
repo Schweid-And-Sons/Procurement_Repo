@@ -312,7 +312,7 @@
 <script>(function(){try{if(localStorage.getItem('wms_theme')==='dark')document.documentElement.classList.add('theme-dark');}catch(e){}})();</script>
 <div class="strip"><div>🛒 <b id="plant-name">NEW JERSEY</b><span class="sub">· Next POs</span></div><span class="tb-right"><button class="tb-btn theme-mini" onclick="toggleThemeMini(event)" title="Night mode">🌙</button><a class="tb-btn" id="plant-switch" href="#" title="Switch plant">⇄</a><a class="tb-btn" href="index.html?menu=1" title="Main menu">⌂ Menu</a></span></div>
 <div class="wrap">
-  <div class="head"><h1>Next POs <span class="ver">v 2026.11.26a</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
+  <div class="head"><h1>Next POs <span class="ver">v 2026.11.27a</span></h1><button class="refresh" id="btn-refresh" onclick="view==='chg'?(askChg(),render()):ask(true)">⟳ Refresh</button></div>
   <div class="views"><button id="v-pos" class="vw on" onclick="setView('pos')">🛒 Orders</button><button id="v-tdy" class="vw" onclick="setView('tdy')">📝 Today's orders</button><button id="v-chg" class="vw" onclick="setView('chg')">🔄 Changes</button></div>
   <div class="status" id="status">Checking stock, plan and Yooz…</div>
   <div id="body"><div class="loading"><div class="spin"></div>Checking stock, production plan and Yooz POs…<br><span style="font-size:12px;color:var(--text3)">This can take up to a minute the first time.</span></div></div>
@@ -366,8 +366,9 @@ let lastAt=0,frameOn=false,queue=[],bootT=0,bootS=null;
 function ensureFrame(){if(!frameOn){frameOn=true;bootT=Date.now();frame.src='index.html?reorderdata='+PLANT;}}
 window.addEventListener('message',ev=>{
   if(ev.source!==frame.contentWindow)return;const m=ev.data||{};
-  if(m.type==='wms-reorder-ready'){ready=true;bootS=(Date.now()-bootT)/1000;if(chg.want){chg.want=false;askChg();}if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
+  if(m.type==='wms-reorder-ready'){ready=true;if(rep.want){rep.want=false;sendRep();}bootS=(Date.now()-bootT)/1000;if(chg.want){chg.want=false;askChg();}if(pendingAsk!=null){const f=pendingAsk;pendingAsk=null;ask(f);}queue.splice(0).forEach(sendSave);}
   if(m.type==='wms-reorder-changes-data'&&m.id===chg.id){chg.busy=false;chg.at=Date.now();if(m.ok)chg.h=m.hist;chg.err=m.ok?'':m.err;chgBadge();if(view==='chg')renderChg();else if(view==='pos')render();return;}
+  if(m.type==='wms-reorder-report-data'&&m.id===rep.id){rep.busy=false;buildReport(m).catch(e=>toast('⚠ '+e.message));return;}
   if(m.type==='wms-reorder-data'&&m.id===reqId){busy=!!m.partial;data=m;sonicFirst(data);
     if(m.saveErr)toast('⚠ '+m.saveErr);else if(m.saved)toast(m.saved==='cfg'?'✓ Settings saved for every device':'✓ Saved for every device');
     if(!tab)tab='all';   // Nov 23: open on All — urgent first, then this week (Urgent alone repeated To order today)
@@ -1305,7 +1306,8 @@ function render(keepFocus){
       ${tabs}<div class="stick">${cats}<input class="search" type="search" placeholder="🔎 Search code, name or supplier…" value="${esc(q)}" oninput="onSearch(this.value)"></div><div id="list">${list}</div></details>`
     +`<details class="xs" id="secS"${oS?' open':''} ontoggle="(window._secOpen||{}).S=this.open;if(this.open&&!this.dataset.f){this.dataset.f=1;}"><summary><b>🧾 Next POs by supplier</b><span>today and the next order days · pallets arriving</span></summary>${oS?supHtml():'<div id="supLazy"></div>'}</details>`
     +estSection()
-    +`<details class="tmw"><summary>⋯ Tools · settings</summary>${toolsMenu()}</details>`;
+    +`<details class="tmw"><summary>⋯ Tools · settings</summary>${toolsMenu()}</details>`
+    +`<button class="mo-btn" style="margin-top:12px" onclick="exportReport()"><b>⬇ Export report</b><span>Excel of ${PLANT}: stock, plan, open POs, received, what the app suggests</span></button>`;
   const sd=document.getElementById('secS');if(sd&&!oS)sd.addEventListener('toggle',()=>{if(sd.open){const z=document.getElementById('supLazy');if(z)z.outerHTML=supHtml();}},{once:true});
 }
 /* 📐 No count today? (Nov 21) — when nobody could count (day off, sick…), the orders use an estimate:
@@ -1376,6 +1378,79 @@ const dShort=d=>dayTxt(d+'T12:00:00');
 function chgWeek(inv){const h=chg.h;const m=new Date(h.mon+'T12:00:00'),d=new Date(inv+'T12:00:00');const w=Math.floor((d-m)/(7*864e5));return w<0?'last':w===0?'this':'next';}
 function chgUnit(it){const c=String(it.cat||'').toUpperCase();return c==='BOXES'?'boxes':c==='TRAYS'?'trays':c==='FILM'?'m':c==='PATTY PAPER'||c==='SLEEVES'?'cases':'';}
 function chgSign(n){return (n>0?'+':n<0?'−':'')+n0(Math.abs(n));}
+/* ⬇ Export report (Nov 27): one Excel per plant with everything behind Next POs, to check line by line what the
+   app suggests — the stock it used, the plan by day, what is coming, what was received (14 days) and the settings. */
+const rep={id:0,busy:false,want:false};
+function sendRep(){rep.id=Date.now();rep.busy=true;frame.contentWindow.postMessage({type:'wms-reorder-report',id:rep.id},location.origin);}
+function exportReport(){if(!data){toast('Wait until the data loads');return;}if(rep.busy){toast('Preparing…');return;}
+  toast('Preparing the report…');ensureFrame();if(!ready){rep.want=true;return;}sendRep();}
+async function buildReport(x){await loadXlsx();
+  const rows=(data.rows||[]).slice().sort((a,b)=>String(a.cat).localeCompare(String(b.cat))||String(a.base).localeCompare(String(b.base)));
+  const D=v=>{if(!v)return '';const d=v instanceof Date?v:new Date(String(v).length===10?v+'T12:00:00':v);return isNaN(d)?String(v):ymdL(d);};
+  const R=n=>n==null||n===''||isNaN(+n)?'':Math.round(+n*10)/10;
+  const ST={red:'Order today',amber:'This week',green:'OK',none:'Not ordered here'};
+  const sup=r=>(r.main||{}).vendor||'';
+  const wb=XLSX.utils.book_new();
+  const add=(name,title,head,body,w)=>{const ws=XLSX.utils.aoa_to_sheet([[title],[],head].concat(body.length?body:[['(none)']]));
+    ws['!cols']=(w||head.map(()=>12)).map(c=>({wch:c}));if(body.length)ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:2,c:0},e:{r:2+body.length,c:head.length-1}})};
+    XLSX.utils.book_append_sheet(wb,ws,name);};
+  const now=new Date(),T=PLANT+' — '+now.toLocaleString('en-US');
+  // 1. Summary
+  const plan=x.plan;
+  add('Summary','Report — '+T,['What','Value'],[
+    ['Plant',PLANT],['Made',now.toLocaleString('en-US')],['App version',x.v||((data.fp||{}).v)||''],
+    ["Today's morning count",cntDoneToday()?'Done — orders use the real count':'Not done — orders use the estimate'],
+    ['Stock from',data.stockAt?new Date(data.stockAt).toLocaleString('en-US'):''],
+    ['Production plan',plan?(plan.file||'')+' · day '+plan.day+' · until '+plan.end:'not loaded'],
+    ['Yooz POs loaded',data.yzAt?new Date(data.yzAt).toLocaleString('en-US'):(data.yzErr||'')],
+    ['Lead times loaded',data.ltAt?new Date(data.ltAt).toLocaleString('en-US'):(data.ltErr||'')],
+    ['Items to order today',rows.filter(r=>r.st==='red').length],['Items this week',rows.filter(r=>r.st==='amber').length],
+    [],['Note','Guide only — the official PO is made in Yooz. Quantities in each item’s unit (see Unit).']],[26,70]);
+  // 2. Next POs — one line per item: what the app used and suggests
+  add('Next POs','What the app suggests — '+T,
+    ['Code','Name','Category','Supplier','Status','Unit','Stock used','Coming (open POs)','Use / work day','Plan need (to plan end)','Plan end','Lead time P90 (days)','Lead time avg','Per pallet','Next order day','Suggested qty','Pallets','Stock note'],
+    rows.map(r=>{const o=(r.orders||[]).find(o=>!o.done&&!o.pending)||null;
+      const note=r.am?`Morning count ${r.am.copy} + received after ${r.am.got} (screen ${r.am.screen})`:r.est?`Estimate: count ${r.est.real} on ${r.est.at} − use ${r.est.used} + received ${r.est.got}`:'Live screen';
+      return [r.base,r.name||'',catOf(r),sup(r),r.noOrder?'Not ordered here ('+r.noOrder+')':r.notNeeded?'Not needed here':ST[r.st]||'',unitOf(r),R(r.stock),R(r.open),R(r.dbar!=null?r.dbar:r.rate*7/5),R(r.ptot),r.planEnd||'',R(r.L),R(r.Lavg),r.per||((r.pack||{}).p)||'',
+        o?D(o.orderBy):'',o?R(o.qty):'',o&&o.pallets!=null?o.pallets:'',note];}),
+    [14,30,10,24,16,8,11,12,11,12,11,10,10,9,12,11,8,55]);
+  // 3. Orders — every PO line of the next 4 weeks (created, pending, suggested)
+  const ob=[];rows.forEach(r=>(r.orders||[]).forEach(o=>ob.push([D(o.orderBy),D(o.dl&&o.dl[0]?(o.dl[0].d||o.dl[0]):o.arrive),r.base,r.name||'',o.vendor||(o.rush&&o.via)||sup(r),R(o.qty),o.pallets!=null?o.pallets:'',unitOf(r),
+    o.done?'Created':o.pending?'Pending (someone is on it)':'Suggested',o.po||'',o.rush?'Rush':o.early?'Can\'t wait for Friday':o.jit?'Just in time':'Normal',
+    o.yzQ!=null&&o.yzQ!==o.qty?'Yooz qty '+o.yzQ:''])));
+  ob.sort((a,b)=>String(a[0]).localeCompare(String(b[0]))||String(a[4]).localeCompare(String(b[4])));
+  add('Orders','POs of the next 4 weeks — '+T,['Order by','Arrives','Code','Name','Supplier','Qty','Pallets','Unit','Status','PO #','Type','Note'],ob,[11,11,14,30,24,10,8,8,22,14,18,16]);
+  // 4. Coming — what the app counts as arriving, per item (and late ones it does NOT count)
+  const cm=[];rows.forEach(r=>{(r.coming||[]).forEach(c=>cm.push([r.base,r.name||'',c.po||'',c.sup||sup(r),D(c.date),R(c.qty),unitOf(r),c.planner?'Planner only':'Yooz',c.late?'Late (was due '+c.late+')':'Counted as coming']));
+    (r.late||[]).filter(c=>c.stale).forEach(c=>cm.push([r.base,r.name||'',c.po||'',c.sup||'',D(c.eta),R(c.qty),unitOf(r),'',c.partial?`Received ${c.rec} of ${c.ord} — rest missing, NOT counted`:'Due before today — assumed in the count, NOT counted']));});
+  add('Coming','What the app counts as coming — '+T,['Code','Name','PO #','Supplier','Arrives','Qty','Unit','Source','How it is used'],cm,[14,30,14,24,11,10,8,12,48]);
+  // 5. Open POs — straight from Yooz / planner / PO Tracker
+  const op=[];(x.open||[]).forEach(g=>g.lines.forEach(l=>op.push([g.po,g.vendor||'',g.due||'',l.code,l.descr,l.ordered,l.received,l.recv||'',g.planner?'Planner':g.tracker?'PO Tracker':'Yooz'])));
+  add('Open POs','POs from Yooz / planner (as received by the app) — '+T,['PO #','Supplier','Due','Code','Description','Ordered (PO unit)','Received','Received on','Source'],op,[14,26,11,14,30,12,10,11,11]);
+  // 6. Received — Receiving reports of the last 14 days
+  const rc=[];(x.rcv||[]).forEach(g=>(g.lines||[]).forEach(l=>rc.push([D(g.at),g.po||'',g.vendor||'',g.due||'',l.item,l.description||'',l.ordered,l.bol,l.counted,l.bolVsPo,l.countVsBol,l.lineStatus||'',g.status||'',g.notArrived?'Did not arrive':'',g.notes||''])));
+  add('Received','Receiving — last 14 days — '+T,['Checked','PO #','Supplier','Due','Code','Description','Ordered','BOL','Counted','BOL vs PO','Count vs BOL','Line','Report','Arrived?','Notes'],rc,[11,14,22,11,14,28,9,9,9,9,10,12,16,12,30]);
+  // 7. Stock — what is on the screen now, code by code
+  add('Stock now','Inventory on the screen (live) — '+T,['Code','Name','Category','Qty (as counted)','Locations'],(x.items||[]).map(i=>[i.code,i.name,i.cat,R(i.qty),i.locs]),[14,32,12,14,10]);
+  // 8. Plan — Juan's plan by day (boxes / sleeves; trays in trays)
+  if(plan&&plan.codes){const days=[...new Set(Object.values(plan.codes).flatMap(o=>Object.keys(o.d||{})))].sort();
+    add('Plan by day','Production plan by day — '+(plan.file||'')+' — '+T,['Code','Total'].concat(days.map(d=>dayTxt(d+'T12:00:00'))),
+      Object.entries(plan.codes).sort((a,b)=>a[0].localeCompare(b[0])).map(([c,o])=>[c,R(o.t)].concat(days.map(d=>R((o.d||{})[d])||''))),[14,10].concat(days.map(()=>11)));}
+  // 9. Projection — stock at night for 4 weeks, with the POs above
+  const pr=rows.filter(r=>r.proj&&r.proj.d);if(pr.length){const dd=pr[0].proj.d;
+    add('Projection','Stock at night with the POs above (4 weeks) — '+T,['Code','Name','Safety stock'].concat(dd.map(d=>dayTxt(d+'T12:00:00'))),
+      pr.map(r=>[r.base,r.name||'',r.proj.ss].concat(r.proj.p1)),[14,30,10].concat(dd.map(()=>11)));}
+  // 10. Settings
+  const c=x.cfg||data.cfg||{},DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  add('Settings','Settings used — '+T,['Setting','Value'],[
+    ['Receiving days',DN.filter((_,i)=>(c.days||[])[i]).join(', ')],
+    ['Holidays',(c.holidays||[]).map(h=>h.d+(h.n?' '+h.n:'')).join(' · ')],
+    ['Extra days (open / closed)',Object.entries(c.extra||{}).map(([k,v])=>k+(v?' open':' closed')).join(' · ')],
+    ['Deliver when we ask (days)',Object.entries(c.ltFast||{}).map(([k,v])=>k+': '+v).join(' · ')],
+    ['Lead time by supplier',Object.entries(c.ltSup||{}).map(([k,v])=>k+': '+v).join(' · ')],
+    ['Lead time by item',Object.entries(c.ltItem||{}).map(([k,v])=>k+': '+v).join(' · ')],
+    ['Safety stock',typeof c.ss==='object'?JSON.stringify(c.ss):(c.ss??'')]],[28,90]);
+  XLSX.writeFile(wb,'Report_'+PLANT+'_'+ymdL(now)+'.xlsx');toast('⬇ Report downloaded');}
 /* 🔔 Plan changes notice (Nov 20, for Eleni): Reorder reads the plan changes in the background (on open and every
    30 min) and shows how many are new since this device last opened 🔄 Changes: a number on the tab and a bar on By item.
    Only inside the app — no emails or Teams messages. New = a change saved after the last visit (first time: since today 00:00). */
